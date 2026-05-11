@@ -607,7 +607,7 @@ NotificationListener notifies the task assignee via factory.
 Goal: threaded comments work; assignee gets in-app notification on new comment.
 ```
 
-### Task 5.2 — Activity Feed (Wire Observer Fully)
+### Task 5.2 — Activity Feed (Wire Observer Fully) ✅
 ```
 domain/entity/:
 - ActivityLog (id UUID, action String, user ManyToOne User,
