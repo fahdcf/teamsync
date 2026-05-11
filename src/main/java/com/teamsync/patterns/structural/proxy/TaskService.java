@@ -1,6 +1,7 @@
 package com.teamsync.patterns.structural.proxy;
 
 import com.teamsync.domain.entity.Task;
+import com.teamsync.domain.enums.TaskPriority;
 import com.teamsync.domain.enums.TaskStatus;
 import com.teamsync.presentation.dto.TaskRequestDTO;
 import com.teamsync.presentation.dto.TaskResponseDTO;
@@ -17,7 +18,8 @@ public interface TaskService {
     TaskResponseDTO autoAssign(UUID projectId, UUID taskId, String strategyName);
     TaskResponseDTO changeStatus(UUID id, TaskStatus targetStatus, UUID userId);
     void undo(UUID userId);
-    List<TaskResponseDTO> findByProject(UUID projectId, TaskStatus status);
+    List<TaskResponseDTO> findByProject(UUID projectId, TaskStatus status, TaskPriority priority,
+                                        UUID assigneeId, String keyword, Boolean overdue);
     TaskResponseDTO findById(UUID id);
     Task getTask(UUID id);
     TaskRepository getTaskRepository();

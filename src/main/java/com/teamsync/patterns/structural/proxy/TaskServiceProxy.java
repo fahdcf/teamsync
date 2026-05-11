@@ -3,6 +3,7 @@ package com.teamsync.patterns.structural.proxy;
 import com.teamsync.domain.entity.Task;
 import com.teamsync.domain.entity.User;
 import com.teamsync.domain.enums.Role;
+import com.teamsync.domain.enums.TaskPriority;
 import com.teamsync.domain.enums.TaskStatus;
 import com.teamsync.presentation.dto.TaskRequestDTO;
 import com.teamsync.presentation.dto.TaskResponseDTO;
@@ -79,8 +80,9 @@ public class TaskServiceProxy implements TaskService {
     }
 
     @Override
-    public List<TaskResponseDTO> findByProject(UUID projectId, TaskStatus status) {
-        return delegate.findByProject(projectId, status);
+    public List<TaskResponseDTO> findByProject(UUID projectId, TaskStatus status, TaskPriority priority,
+                                               UUID assigneeId, String keyword, Boolean overdue) {
+        return delegate.findByProject(projectId, status, priority, assigneeId, keyword, overdue);
     }
 
     @Override

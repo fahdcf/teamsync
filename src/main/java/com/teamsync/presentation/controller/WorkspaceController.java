@@ -38,11 +38,12 @@ public class WorkspaceController {
         return workspaceService.create(request, auth.getName());
     }
 
-    @Operation(summary = "List workspaces the current user owns or is a member of")
+    @Operation(summary = "List workspaces the current user owns or is a member of, with optional keyword filter")
     @ApiResponse(responseCode = "200", description = "Workspace list returned")
     @GetMapping
-    public List<WorkspaceResponseDTO> getMyWorkspaces(Authentication auth) {
-        return workspaceService.getMyWorkspaces(auth.getName());
+    public List<WorkspaceResponseDTO> getMyWorkspaces(Authentication auth,
+                                                       @RequestParam(required = false) String keyword) {
+        return workspaceService.getMyWorkspaces(auth.getName(), keyword);
     }
 
     @Operation(summary = "Get workspace details by ID")

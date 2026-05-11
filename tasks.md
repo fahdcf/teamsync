@@ -765,7 +765,7 @@ Update GET /patterns to return full list:
 Goal: /swagger-ui.html shows all endpoints, grouped by tag, with working JWT auth.
 ```
 
-### Task 7.3 — Search + Filtering
+### Task 7.3 — Search + Filtering ✅
 ```
 Add JPA Specification-based filtering to task list:
 GET /projects/{id}/tasks?status=IN_PROGRESS&priority=HIGH&assigneeId=...&keyword=...&overdue=true

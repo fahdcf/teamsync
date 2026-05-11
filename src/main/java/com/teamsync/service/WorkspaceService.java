@@ -8,12 +8,16 @@ import com.teamsync.presentation.dto.WorkspaceRequestDTO;
 import com.teamsync.presentation.dto.WorkspaceResponseDTO;
 import com.teamsync.repository.UserRepository;
 import com.teamsync.repository.WorkspaceRepository;
+import com.teamsync.repository.WorkspaceSpecification;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -45,14 +49,25 @@ public class WorkspaceService {
         return toDTO(getWorkspace(id));
     }
 
-    public List<WorkspaceResponseDTO> getMyWorkspaces(String email) {
+    public List<WorkspaceResponseDTO> getMyWorkspaces(String email, String keyword) {
         User user = findUserByEmail(email);
         List<Workspace> owned = workspaceRepository.findByOwner(user);
         List<Workspace> member = workspaceRepository.findByMembersContaining(user);
-        return Stream.concat(owned.stream(), member.stream())
-                .distinct()
-                .map(this::toDTO)
-                .collect(Collectors.toList());
+        Set<UUID> myIds = Stream.concat(owned.stream(), member.stream())
+                .map(Workspace::getId)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+
+        if (keyword == null || keyword.isBlank()) {
+            return Stream.concat(owned.stream(), member.stream())
+                    .distinct()
+                    .map(this::toDTO)
+                    .collect(Collectors.toList());
+        }
+
+        Specification<Workspace> inMyIds = (root, query, cb) -> root.get("id").in(myIds);
+        Specification<Workspace> spec = Specification.where(inMyIds)
+                .and(WorkspaceSpecification.hasKeyword(keyword));
+        return workspaceRepository.findAll(spec).stream().map(this::toDTO).collect(Collectors.toList());
     }
 
     public WorkspaceResponseDTO addMember(UUID workspaceId, String memberEmail, String requesterEmail) {

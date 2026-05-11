@@ -21,7 +21,9 @@ import com.teamsync.presentation.dto.TaskRequestDTO;
 import com.teamsync.presentation.dto.TaskResponseDTO;
 import com.teamsync.presentation.dto.UserResponseDTO;
 import com.teamsync.repository.TaskRepository;
+import com.teamsync.repository.TaskSpecification;
 import com.teamsync.repository.UserRepository;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -134,12 +136,16 @@ public class TaskService implements com.teamsync.patterns.structural.proxy.TaskS
         commandInvoker.undo(userId);
     }
 
-    public List<TaskResponseDTO> findByProject(UUID projectId, TaskStatus status) {
+    public List<TaskResponseDTO> findByProject(UUID projectId, TaskStatus status, TaskPriority priority,
+                                              UUID assigneeId, String keyword, Boolean overdue) {
         Project project = projectService.getProject(projectId);
-        List<Task> tasks = status != null
-                ? taskRepository.findByProjectAndStatus(project, status)
-                : taskRepository.findByProject(project);
-        return tasks.stream().map(this::toDTO).collect(Collectors.toList());
+        Specification<Task> spec = Specification.where(TaskSpecification.hasProject(project));
+        if (status != null) spec = spec.and(TaskSpecification.hasStatus(status));
+        if (priority != null) spec = spec.and(TaskSpecification.hasPriority(priority));
+        if (assigneeId != null) spec = spec.and(TaskSpecification.hasAssignee(assigneeId));
+        if (keyword != null && !keyword.isBlank()) spec = spec.and(TaskSpecification.hasKeyword(keyword));
+        if (Boolean.TRUE.equals(overdue)) spec = spec.and(TaskSpecification.isOverdue());
+        return taskRepository.findAll(spec).stream().map(this::toDTO).collect(Collectors.toList());
     }
 
     public TaskResponseDTO findById(UUID id) {

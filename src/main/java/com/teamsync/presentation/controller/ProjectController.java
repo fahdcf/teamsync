@@ -1,5 +1,6 @@
 package com.teamsync.presentation.controller;
 
+import com.teamsync.domain.enums.ProjectStatus;
 import com.teamsync.patterns.structural.facade.ProjectManagementFacade;
 import com.teamsync.presentation.dto.InitializeProjectRequestDTO;
 import com.teamsync.presentation.dto.ProjectRequestDTO;
@@ -26,6 +27,14 @@ public class ProjectController {
     public ProjectController(ProjectService projectService, ProjectManagementFacade projectManagementFacade) {
         this.projectService = projectService;
         this.projectManagementFacade = projectManagementFacade;
+    }
+
+    @Operation(summary = "Search all projects with optional status and managerId filters")
+    @ApiResponse(responseCode = "200", description = "Project list returned")
+    @GetMapping("/projects")
+    public List<ProjectResponseDTO> search(@RequestParam(required = false) ProjectStatus status,
+                                           @RequestParam(required = false) UUID managerId) {
+        return projectService.search(status, managerId);
     }
 
     @Operation(summary = "Create a project in a workspace")

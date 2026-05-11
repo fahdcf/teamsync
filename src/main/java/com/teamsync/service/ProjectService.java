@@ -12,7 +12,9 @@ import com.teamsync.presentation.dto.ProjectRequestDTO;
 import com.teamsync.presentation.dto.ProjectResponseDTO;
 import com.teamsync.presentation.dto.UserResponseDTO;
 import com.teamsync.repository.ProjectRepository;
+import com.teamsync.repository.ProjectSpecification;
 import com.teamsync.repository.UserRepository;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
@@ -83,6 +85,13 @@ public class ProjectService {
         return projectRepository.findByWorkspace(workspace).stream()
                 .map(this::toDTO)
                 .collect(Collectors.toList());
+    }
+
+    public List<ProjectResponseDTO> search(ProjectStatus status, UUID managerId) {
+        Specification<Project> spec = Specification.where(null);
+        if (status != null) spec = spec.and(ProjectSpecification.hasStatus(status));
+        if (managerId != null) spec = spec.and(ProjectSpecification.hasManager(managerId));
+        return projectRepository.findAll(spec).stream().map(this::toDTO).collect(Collectors.toList());
     }
 
     public ProjectResponseDTO findById(UUID id) {

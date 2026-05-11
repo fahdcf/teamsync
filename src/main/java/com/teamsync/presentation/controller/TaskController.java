@@ -1,6 +1,7 @@
 package com.teamsync.presentation.controller;
 
 import com.teamsync.domain.entity.User;
+import com.teamsync.domain.enums.TaskPriority;
 import com.teamsync.domain.enums.TaskStatus;
 import com.teamsync.patterns.creational.prototype.TaskTemplate;
 import com.teamsync.patterns.creational.prototype.TaskTemplateService;
@@ -55,12 +56,16 @@ public class TaskController {
         return taskService.create(projectId, request);
     }
 
-    @Operation(summary = "List tasks in a project, optionally filtered by status")
+    @Operation(summary = "List tasks in a project with optional filters (status, priority, assigneeId, keyword, overdue)")
     @ApiResponse(responseCode = "200", description = "Task list returned")
     @GetMapping("/projects/{projectId}/tasks")
     public List<TaskResponseDTO> listByProject(@PathVariable UUID projectId,
-                                                @RequestParam(required = false) TaskStatus status) {
-        return taskService.findByProject(projectId, status);
+                                                @RequestParam(required = false) TaskStatus status,
+                                                @RequestParam(required = false) TaskPriority priority,
+                                                @RequestParam(required = false) UUID assigneeId,
+                                                @RequestParam(required = false) String keyword,
+                                                @RequestParam(required = false) Boolean overdue) {
+        return taskService.findByProject(projectId, status, priority, assigneeId, keyword, overdue);
     }
 
     @Operation(summary = "Get task details by ID")
