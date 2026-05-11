@@ -283,7 +283,7 @@ Add endpoint:
 Goal: valid transitions work; invalid ones return 400 with "Invalid transition: IN_PROGRESS → DONE".
 ```
 
-### Task 3.3 — Task Dependencies
+### Task 3.3 — Task Dependencies ✅
 ```
 Add to Task entity:
 - dependencies: ManyToMany self-reference (a task can depend on multiple tasks)

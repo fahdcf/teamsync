@@ -48,6 +48,15 @@ public class Task {
     @JoinColumn(name = "project_id", nullable = false)
     private Project project;
 
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "task_dependencies",
+            joinColumns = @JoinColumn(name = "task_id"),
+            inverseJoinColumns = @JoinColumn(name = "depends_on_id")
+    )
+    @Builder.Default
+    private java.util.Set<Task> dependencies = new java.util.HashSet<>();
+
     private LocalDate dueDate;
 
     @CreationTimestamp

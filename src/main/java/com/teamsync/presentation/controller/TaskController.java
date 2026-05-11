@@ -1,9 +1,11 @@
 package com.teamsync.presentation.controller;
 
 import com.teamsync.domain.enums.TaskStatus;
+import com.teamsync.presentation.dto.AddDependencyRequestDTO;
 import com.teamsync.presentation.dto.TaskRequestDTO;
 import com.teamsync.presentation.dto.TaskResponseDTO;
 import com.teamsync.presentation.dto.TaskStatusUpdateDTO;
+import com.teamsync.service.TaskDependencyService;
 import com.teamsync.service.TaskService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -16,9 +18,11 @@ import java.util.UUID;
 public class TaskController {
 
     private final TaskService taskService;
+    private final TaskDependencyService dependencyService;
 
-    public TaskController(TaskService taskService) {
+    public TaskController(TaskService taskService, TaskDependencyService dependencyService) {
         this.taskService = taskService;
+        this.dependencyService = dependencyService;
     }
 
     @PostMapping("/projects/{projectId}/tasks")
@@ -60,5 +64,25 @@ public class TaskController {
     public TaskResponseDTO changeStatus(@PathVariable UUID id,
                                          @Valid @RequestBody TaskStatusUpdateDTO request) {
         return taskService.changeStatus(id, request.getStatus());
+    }
+
+    @PostMapping("/tasks/{id}/dependencies")
+    @ResponseStatus(HttpStatus.CREATED)
+    public void addDependency(@PathVariable UUID id,
+                               @Valid @RequestBody AddDependencyRequestDTO request) {
+        dependencyService.addDependency(id, request.getDependsOnTaskId());
+    }
+
+    @DeleteMapping("/tasks/{id}/dependencies/{depId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void removeDependency(@PathVariable UUID id, @PathVariable UUID depId) {
+        dependencyService.removeDependency(id, depId);
+    }
+
+    @GetMapping("/projects/{id}/tasks/blocked")
+    public List<TaskResponseDTO> getBlockedTasks(@PathVariable UUID id) {
+        return dependencyService.getBlockedTasks(id).stream()
+                .map(taskService::toDTO)
+                .toList();
     }
 }
