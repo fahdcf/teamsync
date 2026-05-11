@@ -719,7 +719,7 @@ Goal: all 3 formats return different output for same project data.
 
 ## PHASE 7 — Polish + Finalization
 
-### Task 7.1 — Global Exception Handling
+### Task 7.1 — Global Exception Handling ✅
 ```
 Create GlobalExceptionHandler (@RestControllerAdvice):
 - EntityNotFoundException (custom) → 404
