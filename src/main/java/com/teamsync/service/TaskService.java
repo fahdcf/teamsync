@@ -5,6 +5,9 @@ import com.teamsync.domain.entity.Task;
 import com.teamsync.domain.entity.User;
 import com.teamsync.domain.enums.TaskPriority;
 import com.teamsync.domain.enums.TaskStatus;
+import com.teamsync.domain.enums.ProjectEventType;
+import com.teamsync.patterns.behavioral.observer.ProjectEvent;
+import com.teamsync.patterns.behavioral.observer.ProjectEventPublisher;
 import com.teamsync.patterns.behavioral.state.TaskStateMachine;
 import com.teamsync.patterns.behavioral.strategy.RoundRobinStrategy;
 import com.teamsync.patterns.behavioral.strategy.TaskAssignmentService;
@@ -29,17 +32,20 @@ public class TaskService {
     private final UserRepository userRepository;
     private final TaskStateMachine stateMachine;
     private final TaskAssignmentService assignmentService;
+    private final ProjectEventPublisher eventPublisher;
 
     public TaskService(TaskRepository taskRepository,
                        ProjectService projectService,
                        UserRepository userRepository,
                        TaskStateMachine stateMachine,
-                       TaskAssignmentService assignmentService) {
+                       TaskAssignmentService assignmentService,
+                       ProjectEventPublisher eventPublisher) {
         this.taskRepository = taskRepository;
         this.projectService = projectService;
         this.userRepository = userRepository;
         this.stateMachine = stateMachine;
         this.assignmentService = assignmentService;
+        this.eventPublisher = eventPublisher;
     }
 
     public TaskResponseDTO create(UUID projectId, TaskRequestDTO request) {
@@ -55,7 +61,9 @@ public class TaskService {
                 .dueDate(request.getDueDate())
                 .build();
 
-        return toDTO(taskRepository.save(task));
+        Task saved = taskRepository.save(task);
+        eventPublisher.publish(new ProjectEvent(ProjectEventType.TASK_CREATED, saved.getTitle(), null));
+        return toDTO(saved);
     }
 
     public TaskResponseDTO update(UUID id, TaskRequestDTO request) {
@@ -80,7 +88,10 @@ public class TaskService {
         User assignee = userRepository.findById(assigneeId)
                 .orElseThrow(() -> new NoSuchElementException("User not found: " + assigneeId));
         task.setAssignee(assignee);
-        return toDTO(taskRepository.save(task));
+        TaskResponseDTO dto = toDTO(taskRepository.save(task));
+        eventPublisher.publish(new ProjectEvent(ProjectEventType.TASK_ASSIGNED,
+                task.getTitle() + " → " + assignee.getUsername(), assignee));
+        return dto;
     }
 
     public TaskResponseDTO autoAssign(UUID projectId, UUID taskId, String strategyName) {
@@ -103,6 +114,8 @@ public class TaskService {
     public TaskResponseDTO changeStatus(UUID id, TaskStatus targetStatus) {
         Task task = getTask(id);
         stateMachine.transition(task, targetStatus, taskRepository);
+        eventPublisher.publish(new ProjectEvent(ProjectEventType.TASK_STATUS_CHANGED,
+                task.getTitle() + ": " + task.getStatus() + " → " + targetStatus, task.getAssignee()));
         return toDTO(taskRepository.findById(id).orElseThrow());
     }
 

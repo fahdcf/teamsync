@@ -366,7 +366,7 @@ Goal: auto-assign endpoint works with both strategies; task created from templat
 
 ## PHASE 4 — Remaining Patterns (All 14 Done)
 
-### Task 4.1 — PATTERN: Observer + Factory Method
+### Task 4.1 — PATTERN: Observer + Factory Method ✅
 ```
 --- PATTERN 1: Observer ---
 Package: patterns/behavioral/observer/

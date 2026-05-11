@@ -3,13 +3,17 @@ package com.teamsync.service;
 import com.teamsync.domain.entity.Project;
 import com.teamsync.domain.entity.User;
 import com.teamsync.domain.entity.Workspace;
+import com.teamsync.domain.enums.ProjectEventType;
 import com.teamsync.domain.enums.ProjectStatus;
+import com.teamsync.patterns.behavioral.observer.ProjectEvent;
+import com.teamsync.patterns.behavioral.observer.ProjectEventPublisher;
 import com.teamsync.patterns.creational.singleton.AppLogger;
 import com.teamsync.presentation.dto.ProjectRequestDTO;
 import com.teamsync.presentation.dto.ProjectResponseDTO;
 import com.teamsync.presentation.dto.UserResponseDTO;
 import com.teamsync.repository.ProjectRepository;
 import com.teamsync.repository.UserRepository;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -23,13 +27,16 @@ public class ProjectService {
     private final ProjectRepository projectRepository;
     private final UserRepository userRepository;
     private final WorkspaceService workspaceService;
+    private final ProjectEventPublisher eventPublisher;
 
     public ProjectService(ProjectRepository projectRepository,
                           UserRepository userRepository,
-                          WorkspaceService workspaceService) {
+                          WorkspaceService workspaceService,
+                          @Lazy ProjectEventPublisher eventPublisher) {
         this.projectRepository = projectRepository;
         this.userRepository = userRepository;
         this.workspaceService = workspaceService;
+        this.eventPublisher = eventPublisher;
     }
 
     public ProjectResponseDTO create(UUID workspaceId, ProjectRequestDTO request) {
@@ -61,6 +68,7 @@ public class ProjectService {
 
         ProjectResponseDTO dto = toDTO(projectRepository.save(project));
         AppLogger.getInstance().info("Project updated: " + project.getTitle());
+        eventPublisher.publish(new ProjectEvent(ProjectEventType.PROJECT_UPDATED, project.getTitle(), null));
         return dto;
     }
 
