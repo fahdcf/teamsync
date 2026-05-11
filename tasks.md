@@ -104,7 +104,7 @@ Goal: all 3 endpoints work with Bearer token. /users returns 403 for non-ADMIN.
 
 ## PHASE 2 — Workspace + Project + First Patterns
 
-### Task 2.1 — Workspace Entity + CRUD
+### Task 2.1 — Workspace Entity + CRUD ✅
 ```
 domain/entity/:
 - Workspace (id UUID, name, description, owner ManyToOne User, members ManyToMany User, createdAt)
