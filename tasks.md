@@ -467,7 +467,7 @@ Create README.md:
 Goal: delete a task → POST /tasks/undo → task is restored in DB.
 ```
 
-### Task 4.3 — PATTERN: Chain of Responsibility + Decorator
+### Task 4.3 — PATTERN: Chain of Responsibility + Decorator ✅
 ```
 --- PATTERN 1: Chain of Responsibility ---
 Package: patterns/behavioral/chain/

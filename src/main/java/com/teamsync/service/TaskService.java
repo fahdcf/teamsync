@@ -6,6 +6,7 @@ import com.teamsync.domain.entity.User;
 import com.teamsync.domain.enums.TaskPriority;
 import com.teamsync.domain.enums.TaskStatus;
 import com.teamsync.domain.enums.ProjectEventType;
+import com.teamsync.patterns.behavioral.chain.ValidationChainFactory;
 import com.teamsync.patterns.behavioral.command.AssignTaskCommand;
 import com.teamsync.patterns.behavioral.command.ChangeStatusCommand;
 import com.teamsync.patterns.behavioral.command.DeleteTaskCommand;
@@ -38,6 +39,7 @@ public class TaskService {
     private final TaskAssignmentService assignmentService;
     private final ProjectEventPublisher eventPublisher;
     private final TaskCommandInvoker commandInvoker;
+    private final ValidationChainFactory validationChainFactory;
 
     public TaskService(TaskRepository taskRepository,
                        ProjectService projectService,
@@ -45,7 +47,8 @@ public class TaskService {
                        TaskStateMachine stateMachine,
                        TaskAssignmentService assignmentService,
                        ProjectEventPublisher eventPublisher,
-                       TaskCommandInvoker commandInvoker) {
+                       TaskCommandInvoker commandInvoker,
+                       ValidationChainFactory validationChainFactory) {
         this.taskRepository = taskRepository;
         this.projectService = projectService;
         this.userRepository = userRepository;
@@ -53,10 +56,12 @@ public class TaskService {
         this.assignmentService = assignmentService;
         this.eventPublisher = eventPublisher;
         this.commandInvoker = commandInvoker;
+        this.validationChainFactory = validationChainFactory;
     }
 
     public TaskResponseDTO create(UUID projectId, TaskRequestDTO request) {
         Project project = projectService.getProject(projectId);
+        validationChainFactory.buildChain().validate(request, project);
         User assignee = resolveUser(request.getAssigneeId());
 
         Task task = Task.builder()
