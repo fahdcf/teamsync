@@ -65,7 +65,7 @@ Create:
 Goal: entity maps to DB table on startup (spring.jpa.hibernate.ddl-auto=update).
 ```
 
-### Task 1.3 — JWT Auth System
+### Task 1.3 — JWT Auth System ✅
 ```
 Implement full JWT authentication:
 
