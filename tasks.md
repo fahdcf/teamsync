@@ -636,7 +636,7 @@ Goal: every task change, assignment, and comment creates a real activity log ent
 
 ## PHASE 6 — Analytics + Reports
 
-### Task 6.1 — Analytics Endpoints
+### Task 6.1 — Analytics Endpoints ✅
 ```
 service/:
 - AnalyticsService:
