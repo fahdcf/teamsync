@@ -579,7 +579,7 @@ All 14 patterns now implemented. GET /patterns returns all 14.
 
 ## PHASE 5 — Collaboration Features
 
-### Task 5.1 — Comments System
+### Task 5.1 — Comments System ✅
 ```
 domain/entity/:
 - Comment (id UUID, content, author ManyToOne User, task ManyToOne Task,
