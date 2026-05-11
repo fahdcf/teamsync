@@ -2,6 +2,7 @@ package com.teamsync.patterns.behavioral.observer;
 
 import com.teamsync.domain.entity.User;
 import com.teamsync.domain.enums.NotificationType;
+import com.teamsync.patterns.creational.singleton.AppLogger;
 import com.teamsync.service.NotificationService;
 import org.springframework.stereotype.Component;
 
@@ -20,7 +21,7 @@ public class NotificationListener implements ProjectEventListener {
         if (triggeredBy == null) return;
 
         String message = "NOTIFY: [" + event.eventType() + "] — " + event.payload();
-        System.out.println(message);
+        AppLogger.getInstance().info(message);
 
         notificationService.notify(triggeredBy, message, NotificationType.IN_APP);
     }

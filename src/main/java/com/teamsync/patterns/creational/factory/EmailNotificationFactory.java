@@ -3,6 +3,7 @@ package com.teamsync.patterns.creational.factory;
 import com.teamsync.domain.entity.Notification;
 import com.teamsync.domain.entity.User;
 import com.teamsync.domain.enums.NotificationType;
+import com.teamsync.patterns.creational.singleton.AppLogger;
 import com.teamsync.repository.NotificationRepository;
 import org.springframework.stereotype.Component;
 
@@ -15,7 +16,7 @@ public class EmailNotificationFactory extends NotificationFactory {
 
     @Override
     public Notification createNotification(User recipient, String message) {
-        System.out.println("EMAIL SENT to " + recipient.getEmail() + ": " + message);
+        AppLogger.getInstance().info("EMAIL SENT to " + recipient.getEmail() + ": " + message);
         return Notification.builder()
                 .type(NotificationType.EMAIL)
                 .message(message)

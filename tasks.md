@@ -783,7 +783,7 @@ Apply same pattern to:
 Goal: task filtering works with any combination of query params. No params = return all.
 ```
 
-### Task 7.4 — README + Final Cleanup
+### Task 7.4 — README + Final Cleanup ✅
 ```
 Create README.md at project root:
 
@@ -822,20 +822,20 @@ Goal: project is demo-ready, presentable, and CV-ready.
 
 | # | Pattern | Category | Task | Done |
 |---|---|---|---|---|
-| 1 | Singleton | Creational | 2.3 | ☐ |
-| 2 | Factory Method | Creational | 4.1 | ☐ |
-| 3 | Builder | Creational | 6.2 | ☐ |
-| 4 | Prototype | Creational | 3.4 | ☐ |
-| 5 | Facade | Structural | 2.3 | ☐ |
-| 6 | Adapter | Structural | 4.4 | ☐ |
-| 7 | Proxy | Structural | 4.4 | ☐ |
-| 8 | Decorator | Structural | 4.3 | ☐ |
-| 9 | Observer | Behavioral | 4.1 | ☐ |
-| 10 | Strategy | Behavioral | 3.4 | ☐ |
-| 11 | State | Behavioral | 3.2 | ☐ |
-| 12 | Command | Behavioral | 4.2 | ☐ |
-| 13 | Chain of Responsibility | Behavioral | 4.3 | ☐ |
-| 14 | Template Method | Behavioral | 6.2 | ☐ |
+| 1 | Singleton | Creational | 2.3 | ✅ |
+| 2 | Factory Method | Creational | 4.1 | ✅ |
+| 3 | Builder | Creational | 6.2 | ✅ |
+| 4 | Prototype | Creational | 3.4 | ✅ |
+| 5 | Facade | Structural | 2.3 | ✅ |
+| 6 | Adapter | Structural | 4.4 | ✅ |
+| 7 | Proxy | Structural | 4.4 | ✅ |
+| 8 | Decorator | Structural | 4.3 | ✅ |
+| 9 | Observer | Behavioral | 4.1 | ✅ |
+| 10 | Strategy | Behavioral | 3.4 | ✅ |
+| 11 | State | Behavioral | 3.2 | ✅ |
+| 12 | Command | Behavioral | 4.2 | ✅ |
+| 13 | Chain of Responsibility | Behavioral | 4.3 | ✅ |
+| 14 | Template Method | Behavioral | 6.2 | ✅ |
 
 ---
 
