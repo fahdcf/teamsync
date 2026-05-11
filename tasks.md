@@ -84,7 +84,7 @@ presentation/controller/:
 Goal: register and login work via Postman. JWT token returned on login.
 ```
 
-### Task 1.4 — User Profile Endpoints
+### Task 1.4 — User Profile Endpoints ✅
 ```
 service/:
 - UserService: getCurrentUser(email), updateUsername(email, newUsername), getAllUsers()
