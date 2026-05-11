@@ -5,6 +5,10 @@ import com.teamsync.presentation.dto.InitializeProjectRequestDTO;
 import com.teamsync.presentation.dto.ProjectRequestDTO;
 import com.teamsync.presentation.dto.ProjectResponseDTO;
 import com.teamsync.service.ProjectService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
@@ -12,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.UUID;
 
+@Tag(name = "Projects", description = "Project management")
 @RestController
 public class ProjectController {
 
@@ -23,6 +28,11 @@ public class ProjectController {
         this.projectManagementFacade = projectManagementFacade;
     }
 
+    @Operation(summary = "Create a project in a workspace")
+    @ApiResponses({
+        @ApiResponse(responseCode = "201", description = "Project created"),
+        @ApiResponse(responseCode = "404", description = "Workspace not found")
+    })
     @PostMapping("/workspaces/{workspaceId}/projects")
     @ResponseStatus(HttpStatus.CREATED)
     public ProjectResponseDTO create(@PathVariable UUID workspaceId,
@@ -30,27 +40,50 @@ public class ProjectController {
         return projectService.create(workspaceId, request);
     }
 
+    @Operation(summary = "List projects in a workspace")
+    @ApiResponse(responseCode = "200", description = "Project list returned")
     @GetMapping("/workspaces/{workspaceId}/projects")
     public List<ProjectResponseDTO> listByWorkspace(@PathVariable UUID workspaceId) {
         return projectService.findByWorkspace(workspaceId);
     }
 
+    @Operation(summary = "Get project details by ID")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Project found"),
+        @ApiResponse(responseCode = "404", description = "Project not found")
+    })
     @GetMapping("/projects/{id}")
     public ProjectResponseDTO getById(@PathVariable UUID id) {
         return projectService.findById(id);
     }
 
+    @Operation(summary = "Update project fields")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Project updated"),
+        @ApiResponse(responseCode = "404", description = "Project not found")
+    })
     @PutMapping("/projects/{id}")
     public ProjectResponseDTO update(@PathVariable UUID id,
                                      @Valid @RequestBody ProjectRequestDTO request) {
         return projectService.update(id, request);
     }
 
+    @Operation(summary = "Archive a project (ADMIN or PROJECT_MANAGER)")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Project archived"),
+        @ApiResponse(responseCode = "403", description = "Insufficient role"),
+        @ApiResponse(responseCode = "404", description = "Project not found")
+    })
     @PutMapping("/projects/{id}/archive")
     public ProjectResponseDTO archive(@PathVariable UUID id) {
         return projectService.archive(id);
     }
 
+    @Operation(summary = "Initialize a project via Facade pattern (validate workspace, create project, assign manager)")
+    @ApiResponses({
+        @ApiResponse(responseCode = "201", description = "Project initialized"),
+        @ApiResponse(responseCode = "404", description = "Workspace or manager not found")
+    })
     @PostMapping("/projects/initialize")
     @ResponseStatus(HttpStatus.CREATED)
     public ProjectResponseDTO initialize(@Valid @RequestBody InitializeProjectRequestDTO request) {

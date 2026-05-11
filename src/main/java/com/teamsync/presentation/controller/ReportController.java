@@ -1,10 +1,15 @@
 package com.teamsync.presentation.controller;
 
 import com.teamsync.service.ReportService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
+@Tag(name = "Reports", description = "Project report generation (Builder + Template Method patterns)")
 @RestController
 @RequestMapping("/reports")
 public class ReportController {
@@ -15,6 +20,11 @@ public class ReportController {
         this.reportService = reportService;
     }
 
+    @Operation(summary = "Generate a project report in json, csv, or pdf format")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Report generated"),
+        @ApiResponse(responseCode = "404", description = "Project not found")
+    })
     @GetMapping("/projects/{id}")
     public String generateReport(@PathVariable UUID id,
                                   @RequestParam(defaultValue = "json") String format) {

@@ -743,7 +743,7 @@ Add validation annotations to all DTOs (@NotBlank, @NotNull, @Future, @Size).
 Goal: no stack traces leak. All errors return the standard JSON format.
 ```
 
-### Task 7.2 — Swagger + Final Docs
+### Task 7.2 — Swagger + Final Docs ✅
 ```
 Configure SpringDoc:
 - Title: "TeamSync API", version "1.0", description: "Collaborative Project Management Platform"
