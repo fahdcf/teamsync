@@ -658,7 +658,7 @@ presentation/controller/:
 Goal: analytics data returned as JSON, ready for any frontend chart library.
 ```
 
-### Task 6.2 — PATTERN: Builder + Template Method (Reports)
+### Task 6.2 — PATTERN: Builder + Template Method (Reports) ✅
 ```
 --- PATTERN 1: Template Method ---
 Package: patterns/behavioral/template/
