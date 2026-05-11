@@ -6,6 +6,9 @@ import com.teamsync.domain.entity.User;
 import com.teamsync.domain.enums.TaskPriority;
 import com.teamsync.domain.enums.TaskStatus;
 import com.teamsync.patterns.behavioral.state.TaskStateMachine;
+import com.teamsync.patterns.behavioral.strategy.RoundRobinStrategy;
+import com.teamsync.patterns.behavioral.strategy.TaskAssignmentService;
+import com.teamsync.patterns.behavioral.strategy.WorkloadStrategy;
 import com.teamsync.presentation.dto.TaskRequestDTO;
 import com.teamsync.presentation.dto.TaskResponseDTO;
 import com.teamsync.presentation.dto.UserResponseDTO;
@@ -25,15 +28,18 @@ public class TaskService {
     private final ProjectService projectService;
     private final UserRepository userRepository;
     private final TaskStateMachine stateMachine;
+    private final TaskAssignmentService assignmentService;
 
     public TaskService(TaskRepository taskRepository,
                        ProjectService projectService,
                        UserRepository userRepository,
-                       TaskStateMachine stateMachine) {
+                       TaskStateMachine stateMachine,
+                       TaskAssignmentService assignmentService) {
         this.taskRepository = taskRepository;
         this.projectService = projectService;
         this.userRepository = userRepository;
         this.stateMachine = stateMachine;
+        this.assignmentService = assignmentService;
     }
 
     public TaskResponseDTO create(UUID projectId, TaskRequestDTO request) {
@@ -74,6 +80,23 @@ public class TaskService {
         User assignee = userRepository.findById(assigneeId)
                 .orElseThrow(() -> new NoSuchElementException("User not found: " + assigneeId));
         task.setAssignee(assignee);
+        return toDTO(taskRepository.save(task));
+    }
+
+    public TaskResponseDTO autoAssign(UUID projectId, UUID taskId, String strategyName) {
+        Project project = projectService.getProject(projectId);
+        Task task = getTask(taskId);
+        List<User> members = new java.util.ArrayList<>(project.getWorkspace().getMembers());
+        if (members.isEmpty()) members.add(project.getManager());
+
+        if ("roundrobin".equalsIgnoreCase(strategyName)) {
+            assignmentService.setStrategy(new RoundRobinStrategy());
+        } else {
+            assignmentService.setStrategy(new WorkloadStrategy());
+        }
+
+        User assigned = assignmentService.autoAssign(task, members);
+        task.setAssignee(assigned);
         return toDTO(taskRepository.save(task));
     }
 

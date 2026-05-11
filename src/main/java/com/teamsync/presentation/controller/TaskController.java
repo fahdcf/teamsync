@@ -1,7 +1,11 @@
 package com.teamsync.presentation.controller;
 
 import com.teamsync.domain.enums.TaskStatus;
+import com.teamsync.patterns.creational.prototype.TaskTemplate;
+import com.teamsync.patterns.creational.prototype.TaskTemplateService;
 import com.teamsync.presentation.dto.AddDependencyRequestDTO;
+import com.teamsync.presentation.dto.AutoAssignRequestDTO;
+import com.teamsync.presentation.dto.SaveTemplateRequestDTO;
 import com.teamsync.presentation.dto.TaskRequestDTO;
 import com.teamsync.presentation.dto.TaskResponseDTO;
 import com.teamsync.presentation.dto.TaskStatusUpdateDTO;
@@ -19,10 +23,13 @@ public class TaskController {
 
     private final TaskService taskService;
     private final TaskDependencyService dependencyService;
+    private final TaskTemplateService templateService;
 
-    public TaskController(TaskService taskService, TaskDependencyService dependencyService) {
+    public TaskController(TaskService taskService, TaskDependencyService dependencyService,
+                           TaskTemplateService templateService) {
         this.taskService = taskService;
         this.dependencyService = dependencyService;
+        this.templateService = templateService;
     }
 
     @PostMapping("/projects/{projectId}/tasks")
@@ -84,5 +91,32 @@ public class TaskController {
         return dependencyService.getBlockedTasks(id).stream()
                 .map(taskService::toDTO)
                 .toList();
+    }
+
+    @PostMapping("/projects/{projectId}/tasks/auto-assign")
+    public TaskResponseDTO autoAssign(@PathVariable UUID projectId,
+                                       @RequestParam(defaultValue = "workload") String strategy,
+                                       @Valid @RequestBody AutoAssignRequestDTO request) {
+        return taskService.autoAssign(projectId, request.getTaskId(), strategy);
+    }
+
+    @PostMapping("/projects/{id}/templates")
+    @ResponseStatus(HttpStatus.CREATED)
+    public TaskTemplate saveTemplate(@PathVariable UUID id,
+                                      @Valid @RequestBody SaveTemplateRequestDTO request) {
+        return templateService.saveTemplate(id, request.getTemplateName(), request.getTitle(),
+                request.getDescription(), request.getPriority(), request.getDefaultDueDays());
+    }
+
+    @GetMapping("/projects/{id}/templates")
+    public List<TaskTemplate> listTemplates(@PathVariable UUID id) {
+        return templateService.listTemplates(id);
+    }
+
+    @PostMapping("/tasks/from-template/{templateId}")
+    @ResponseStatus(HttpStatus.CREATED)
+    public TaskResponseDTO createFromTemplate(@PathVariable UUID templateId,
+                                               @RequestParam UUID projectId) {
+        return templateService.createFromTemplate(projectId, templateId);
     }
 }

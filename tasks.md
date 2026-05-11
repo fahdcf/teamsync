@@ -308,7 +308,7 @@ Add endpoints:
 Goal: task B blocked until task A is DONE. Circular dependency rejected with 400.
 ```
 
-### Task 3.4 — PATTERN: Strategy + Prototype
+### Task 3.4 — PATTERN: Strategy + Prototype ✅
 ```
 --- PATTERN 1: Strategy ---
 Package: patterns/behavioral/strategy/
