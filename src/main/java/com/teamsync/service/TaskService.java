@@ -30,7 +30,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
-public class TaskService {
+public class TaskService implements com.teamsync.patterns.structural.proxy.TaskService {
 
     private final TaskRepository taskRepository;
     private final ProjectService projectService;

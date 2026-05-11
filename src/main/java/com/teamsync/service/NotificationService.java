@@ -6,6 +6,7 @@ import com.teamsync.domain.enums.NotificationType;
 import com.teamsync.domain.enums.TaskPriority;
 import com.teamsync.patterns.creational.factory.EmailNotificationFactory;
 import com.teamsync.patterns.creational.factory.InAppNotificationFactory;
+import com.teamsync.patterns.structural.adapter.EmailService;
 import com.teamsync.patterns.structural.decorator.EmailDecorator;
 import com.teamsync.patterns.structural.decorator.InAppSender;
 import com.teamsync.patterns.structural.decorator.NotificationSender;
@@ -26,15 +27,18 @@ public class NotificationService {
     private final InAppNotificationFactory inAppFactory;
     private final EmailNotificationFactory emailFactory;
     private final InAppSender inAppSender;
+    private final EmailService emailService;
 
     public NotificationService(NotificationRepository notificationRepository,
                                 InAppNotificationFactory inAppFactory,
                                 EmailNotificationFactory emailFactory,
-                                InAppSender inAppSender) {
+                                InAppSender inAppSender,
+                                EmailService emailService) {
         this.notificationRepository = notificationRepository;
         this.inAppFactory = inAppFactory;
         this.emailFactory = emailFactory;
         this.inAppSender = inAppSender;
+        this.emailService = emailService;
     }
 
     public void notify(User recipient, String message, NotificationType type) {
@@ -51,7 +55,7 @@ public class NotificationService {
 
         NotificationSender sender;
         if (priority == TaskPriority.HIGH || priority == TaskPriority.CRITICAL) {
-            sender = new UrgentDecorator(new EmailDecorator(inAppSender));
+            sender = new UrgentDecorator(new EmailDecorator(inAppSender, emailService));
         } else {
             sender = inAppSender;
         }

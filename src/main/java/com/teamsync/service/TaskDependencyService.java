@@ -2,6 +2,7 @@ package com.teamsync.service;
 
 import com.teamsync.domain.entity.Task;
 import com.teamsync.domain.enums.TaskStatus;
+import com.teamsync.patterns.structural.proxy.TaskService;
 import com.teamsync.repository.TaskRepository;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
