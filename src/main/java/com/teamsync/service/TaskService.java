@@ -6,6 +6,10 @@ import com.teamsync.domain.entity.User;
 import com.teamsync.domain.enums.TaskPriority;
 import com.teamsync.domain.enums.TaskStatus;
 import com.teamsync.domain.enums.ProjectEventType;
+import com.teamsync.patterns.behavioral.command.AssignTaskCommand;
+import com.teamsync.patterns.behavioral.command.ChangeStatusCommand;
+import com.teamsync.patterns.behavioral.command.DeleteTaskCommand;
+import com.teamsync.patterns.behavioral.command.TaskCommandInvoker;
 import com.teamsync.patterns.behavioral.observer.ProjectEvent;
 import com.teamsync.patterns.behavioral.observer.ProjectEventPublisher;
 import com.teamsync.patterns.behavioral.state.TaskStateMachine;
@@ -33,19 +37,22 @@ public class TaskService {
     private final TaskStateMachine stateMachine;
     private final TaskAssignmentService assignmentService;
     private final ProjectEventPublisher eventPublisher;
+    private final TaskCommandInvoker commandInvoker;
 
     public TaskService(TaskRepository taskRepository,
                        ProjectService projectService,
                        UserRepository userRepository,
                        TaskStateMachine stateMachine,
                        TaskAssignmentService assignmentService,
-                       ProjectEventPublisher eventPublisher) {
+                       ProjectEventPublisher eventPublisher,
+                       TaskCommandInvoker commandInvoker) {
         this.taskRepository = taskRepository;
         this.projectService = projectService;
         this.userRepository = userRepository;
         this.stateMachine = stateMachine;
         this.assignmentService = assignmentService;
         this.eventPublisher = eventPublisher;
+        this.commandInvoker = commandInvoker;
     }
 
     public TaskResponseDTO create(UUID projectId, TaskRequestDTO request) {
@@ -78,27 +85,26 @@ public class TaskService {
         return toDTO(taskRepository.save(task));
     }
 
-    public void delete(UUID id) {
+    public void delete(UUID id, UUID userId) {
         Task task = getTask(id);
-        taskRepository.delete(task);
+        commandInvoker.execute(userId, new DeleteTaskCommand(task, taskRepository));
     }
 
-    public TaskResponseDTO assign(UUID id, UUID assigneeId) {
+    public TaskResponseDTO assign(UUID id, UUID assigneeId, UUID userId) {
         Task task = getTask(id);
         User assignee = userRepository.findById(assigneeId)
                 .orElseThrow(() -> new NoSuchElementException("User not found: " + assigneeId));
-        task.setAssignee(assignee);
-        TaskResponseDTO dto = toDTO(taskRepository.save(task));
+        commandInvoker.execute(userId, new AssignTaskCommand(task, assignee, taskRepository));
         eventPublisher.publish(new ProjectEvent(ProjectEventType.TASK_ASSIGNED,
                 task.getTitle() + " → " + assignee.getUsername(), assignee));
-        return dto;
+        return toDTO(taskRepository.findById(id).orElse(task));
     }
 
     public TaskResponseDTO autoAssign(UUID projectId, UUID taskId, String strategyName) {
         Project project = projectService.getProject(projectId);
         Task task = getTask(taskId);
         List<User> members = new java.util.ArrayList<>(project.getWorkspace().getMembers());
-        if (members.isEmpty()) members.add(project.getManager());
+        if (members.isEmpty() && project.getManager() != null) members.add(project.getManager());
 
         if ("roundrobin".equalsIgnoreCase(strategyName)) {
             assignmentService.setStrategy(new RoundRobinStrategy());
@@ -111,12 +117,16 @@ public class TaskService {
         return toDTO(taskRepository.save(task));
     }
 
-    public TaskResponseDTO changeStatus(UUID id, TaskStatus targetStatus) {
+    public TaskResponseDTO changeStatus(UUID id, TaskStatus targetStatus, UUID userId) {
         Task task = getTask(id);
-        stateMachine.transition(task, targetStatus, taskRepository);
+        commandInvoker.execute(userId, new ChangeStatusCommand(task, targetStatus, stateMachine, taskRepository));
         eventPublisher.publish(new ProjectEvent(ProjectEventType.TASK_STATUS_CHANGED,
-                task.getTitle() + ": " + task.getStatus() + " → " + targetStatus, task.getAssignee()));
+                task.getTitle() + " → " + targetStatus, task.getAssignee()));
         return toDTO(taskRepository.findById(id).orElseThrow());
+    }
+
+    public void undo(UUID userId) {
+        commandInvoker.undo(userId);
     }
 
     public List<TaskResponseDTO> findByProject(UUID projectId, TaskStatus status) {

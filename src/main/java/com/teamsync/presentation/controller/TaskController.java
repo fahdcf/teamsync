@@ -1,5 +1,6 @@
 package com.teamsync.presentation.controller;
 
+import com.teamsync.domain.entity.User;
 import com.teamsync.domain.enums.TaskStatus;
 import com.teamsync.patterns.creational.prototype.TaskTemplate;
 import com.teamsync.patterns.creational.prototype.TaskTemplateService;
@@ -11,8 +12,10 @@ import com.teamsync.presentation.dto.TaskResponseDTO;
 import com.teamsync.presentation.dto.TaskStatusUpdateDTO;
 import com.teamsync.service.TaskDependencyService;
 import com.teamsync.service.TaskService;
+import com.teamsync.service.UserService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -24,12 +27,14 @@ public class TaskController {
     private final TaskService taskService;
     private final TaskDependencyService dependencyService;
     private final TaskTemplateService templateService;
+    private final UserService userService;
 
     public TaskController(TaskService taskService, TaskDependencyService dependencyService,
-                           TaskTemplateService templateService) {
+                           TaskTemplateService templateService, UserService userService) {
         this.taskService = taskService;
         this.dependencyService = dependencyService;
         this.templateService = templateService;
+        this.userService = userService;
     }
 
     @PostMapping("/projects/{projectId}/tasks")
@@ -58,19 +63,30 @@ public class TaskController {
 
     @DeleteMapping("/tasks/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(@PathVariable UUID id) {
-        taskService.delete(id);
+    public void delete(@PathVariable UUID id, Authentication auth) {
+        User currentUser = userService.findByEmail(auth.getName());
+        taskService.delete(id, currentUser.getId());
     }
 
     @PutMapping("/tasks/{id}/assign")
-    public TaskResponseDTO assign(@PathVariable UUID id, @RequestParam UUID userId) {
-        return taskService.assign(id, userId);
+    public TaskResponseDTO assign(@PathVariable UUID id, @RequestParam UUID userId,
+                                   Authentication auth) {
+        User currentUser = userService.findByEmail(auth.getName());
+        return taskService.assign(id, userId, currentUser.getId());
     }
 
     @PutMapping("/tasks/{id}/status")
     public TaskResponseDTO changeStatus(@PathVariable UUID id,
-                                         @Valid @RequestBody TaskStatusUpdateDTO request) {
-        return taskService.changeStatus(id, request.getStatus());
+                                         @Valid @RequestBody TaskStatusUpdateDTO request,
+                                         Authentication auth) {
+        User currentUser = userService.findByEmail(auth.getName());
+        return taskService.changeStatus(id, request.getStatus(), currentUser.getId());
+    }
+
+    @PostMapping("/tasks/undo")
+    public void undo(Authentication auth) {
+        User currentUser = userService.findByEmail(auth.getName());
+        taskService.undo(currentUser.getId());
     }
 
     @PostMapping("/tasks/{id}/dependencies")

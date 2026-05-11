@@ -426,7 +426,7 @@ Add endpoints:
 Goal: task status change → observer fires → factory creates notification → GET /notifications returns it.
 ```
 
-### Task 4.2 — PATTERN: Command (Undo)
+### Task 4.2 — PATTERN: Command (Undo) ✅
 ```
 Package: patterns/behavioral/command/
 
