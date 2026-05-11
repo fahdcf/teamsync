@@ -2,6 +2,7 @@ package com.teamsync.service;
 
 import com.teamsync.domain.entity.User;
 import com.teamsync.domain.entity.Workspace;
+import com.teamsync.patterns.creational.singleton.AppLogger;
 import com.teamsync.presentation.dto.UserResponseDTO;
 import com.teamsync.presentation.dto.WorkspaceRequestDTO;
 import com.teamsync.presentation.dto.WorkspaceResponseDTO;
@@ -35,7 +36,9 @@ public class WorkspaceService {
                 .description(request.getDescription())
                 .owner(owner)
                 .build();
-        return toDTO(workspaceRepository.save(workspace));
+        WorkspaceResponseDTO dto = toDTO(workspaceRepository.save(workspace));
+        AppLogger.getInstance().info("Workspace created: " + workspace.getName());
+        return dto;
     }
 
     public WorkspaceResponseDTO findById(UUID id) {

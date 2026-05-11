@@ -4,6 +4,7 @@ import com.teamsync.domain.entity.Project;
 import com.teamsync.domain.entity.User;
 import com.teamsync.domain.entity.Workspace;
 import com.teamsync.domain.enums.ProjectStatus;
+import com.teamsync.patterns.creational.singleton.AppLogger;
 import com.teamsync.presentation.dto.ProjectRequestDTO;
 import com.teamsync.presentation.dto.ProjectResponseDTO;
 import com.teamsync.presentation.dto.UserResponseDTO;
@@ -44,7 +45,9 @@ public class ProjectService {
                 .manager(manager)
                 .build();
 
-        return toDTO(projectRepository.save(project));
+        ProjectResponseDTO dto = toDTO(projectRepository.save(project));
+        AppLogger.getInstance().info("Project created: " + project.getTitle());
+        return dto;
     }
 
     public ProjectResponseDTO update(UUID id, ProjectRequestDTO request) {
@@ -56,7 +59,9 @@ public class ProjectService {
         if (request.getProgress() != null) project.setProgress(request.getProgress());
         if (request.getManagerId() != null) project.setManager(resolveManager(request.getManagerId()));
 
-        return toDTO(projectRepository.save(project));
+        ProjectResponseDTO dto = toDTO(projectRepository.save(project));
+        AppLogger.getInstance().info("Project updated: " + project.getTitle());
+        return dto;
     }
 
     public ProjectResponseDTO archive(UUID id) {

@@ -158,7 +158,7 @@ presentation/controller/:
 Goal: project CRUD works scoped to workspace.
 ```
 
-### Task 2.3 — PATTERN: Singleton + Facade
+### Task 2.3 — PATTERN: Singleton + Facade ✅
 ```
 Implement two patterns. Each goes in its own sub-package with a README.md.
 

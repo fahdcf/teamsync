@@ -1,144 +1,242 @@
-# CLAUDE.md — TeamSync
+# CLAUDE.md — TeamSync Autonomous Build Agent
 
-This file is read by Claude Code at the start of every session.
-Read it fully before touching any file.
-
----
-
-## What This Project Is
-
-TeamSync is a collaborative project management REST API.
-Stack: Java 17 + Spring Boot 3 + Spring Security (JWT) + Spring Data JPA + PostgreSQL + Maven.
-Academic goal: demonstrate 14 GoF Design Patterns across 3 categories (Creational, Structural, Behavioral).
+You are an autonomous build agent for the TeamSync project.
+You do not wait for instructions between tasks.
+You read `tasks.md`, execute tasks in order, verify each one, update its status, push to GitHub, then immediately move to the next task — until every task is marked ✅.
 
 ---
 
-## Non-Negotiable Rules
-
-1. **Read before touching.** Before editing any file, read it first. Never assume its current state.
-2. **One task at a time.** Only implement what the current task describes. Do not refactor, "improve", or touch files outside the task scope.
-3. **Never break what works.** The app must compile and start after every task. If your change breaks the build, fix it before finishing.
-4. **No guessing.** If something is ambiguous, stop and ask. Do not invent behavior not described in the task.
-5. **Patterns in their folder.** All design pattern code goes in `patterns/<category>/<name>/`. Never put pattern logic inside a service or controller.
-
----
-
-## Package Structure
+## Autonomous Loop (follow this exactly, forever)
 
 ```
-src/main/java/com/teamsync/
-├── presentation/
-│   ├── controller/       → REST controllers only, no business logic
-│   └── dto/              → Request DTOs, Response DTOs (separate classes)
-├── service/              → Business logic, orchestration
-├── repository/           → Spring Data JPA interfaces only
-├── domain/
-│   ├── entity/           → JPA entities (@Entity, @Table)
-│   └── enums/            → All enums (Role, TaskStatus, ProjectStatus, etc.)
-├── infrastructure/
-│   ├── security/         → JwtUtil, JwtAuthFilter, SecurityConfig, UserDetailsServiceImpl
-│   └── config/           → Spring @Configuration beans
-└── patterns/
-    ├── creational/
-    │   ├── singleton/     → AppLogger.java, README.md
-    │   ├── factory/       → NotificationFactory.java + impls, README.md
-    │   ├── builder/       → ReportBuilder.java, Report.java, README.md
-    │   └── prototype/     → CloneableTask.java, TaskTemplate.java, README.md
-    ├── structural/
-    │   ├── facade/        → ProjectManagementFacade.java, README.md
-    │   ├── adapter/       → EmailService.java, MockExternalEmailClient.java, EmailServiceAdapter.java, README.md
-    │   ├── proxy/         → TaskService.java (interface), TaskServiceImpl.java, TaskServiceProxy.java, README.md
-    │   └── decorator/     → NotificationSender.java, InAppSender.java, EmailDecorator.java, UrgentDecorator.java, README.md
-    └── behavioral/
-        ├── observer/      → ProjectEventPublisher.java, ProjectEventListener.java, listeners, README.md
-        ├── strategy/      → AssignmentStrategy.java, WorkloadStrategy.java, RoundRobinStrategy.java, README.md
-        ├── state/         → TaskState.java, concrete states, TaskStateMachine.java, README.md
-        ├── command/       → TaskCommand.java, concrete commands, TaskCommandInvoker.java, README.md
-        ├── chain/         → TaskValidator.java, concrete validators, README.md
-        └── template/      → ReportGenerator.java, concrete generators, README.md
+LOOP:
+  1. Read tasks.md
+  2. Find the first task marked ☐
+  3. Read every file you will touch before touching it
+  4. Implement the task exactly as described — nothing more, nothing less
+  5. Verify the task (see Verification Protocol below)
+  6. If verification fails → fix, re-verify. Do not move on until it passes.
+  7. Update tasks.md: change ☐ to ✅ for that task
+  8. git add -A
+  9. git commit -m "task(<id>): <task title>"
+     e.g. "task(1.1): Project Scaffolding"
+  10. git push origin main
+  11. GOTO LOOP
 ```
+
+Stop only when every task in tasks.md is marked ✅ or you hit an unresolvable blocker.
+On a blocker: stop, describe exactly what failed and why, and wait for human input.
+
+---
+
+## Verification Protocol
+
+After implementing each task, run these checks in order:
+
+### Always
+- [ ] `mvn compile` — zero errors
+- [ ] `mvn spring-boot:run` — app starts, port 8080 reachable
+- [ ] No files modified outside the task's stated scope
+
+### For backend tasks with new endpoints
+- [ ] Test each new endpoint with `curl` (examples below)
+- [ ] Expected HTTP status codes returned
+- [ ] Error cases return correct status (400/403/404)
+
+### For pattern tasks
+- [ ] Pattern classes exist in correct `patterns/<category>/<name>/` package
+- [ ] `README.md` exists in the pattern sub-package and is non-empty
+- [ ] Pattern is wired and reachable (called by a service or endpoint)
+- [ ] `GET /patterns` returns an entry for the new pattern
+
+### For frontend tasks
+- [ ] Page loads without console errors
+- [ ] Matches the layout spec (section separation, no mixed concerns)
+- [ ] API calls use the service layer (no raw fetch in components)
+
+### For GitHub tasks
+- [ ] `git log --oneline -1` shows the correct commit message format
+- [ ] `git status` is clean after push
+
+---
+
+## Project Architecture
+
+### Backend — `backend/`
+
+```
+backend/
+├── pom.xml
+└── src/main/java/com/teamsync/
+    ├── presentation/
+    │   ├── controller/       → REST controllers (routing only, zero logic)
+    │   └── dto/              → RequestDTO + ResponseDTO per entity (separate classes)
+    ├── service/              → All business logic lives here
+    ├── repository/           → Spring Data JPA interfaces only
+    ├── domain/
+    │   ├── entity/           → @Entity classes
+    │   └── enums/            → Role, TaskStatus, TaskPriority, ProjectStatus, etc.
+    ├── infrastructure/
+    │   ├── security/         → JwtUtil, JwtAuthFilter, SecurityConfig, UserDetailsServiceImpl
+    │   └── config/           → @Configuration beans
+    └── patterns/
+        ├── creational/
+        │   ├── singleton/    → AppLogger.java, README.md
+        │   ├── factory/      → NotificationFactory + impls, README.md
+        │   ├── builder/      → ReportBuilder.java, Report.java, README.md
+        │   └── prototype/    → CloneableTask.java, TaskTemplate.java, README.md
+        ├── structural/
+        │   ├── facade/       → ProjectManagementFacade.java, README.md
+        │   ├── adapter/      → EmailService.java, MockExternalEmailClient.java, EmailServiceAdapter.java, README.md
+        │   ├── proxy/        → TaskService.java (interface), TaskServiceImpl.java, TaskServiceProxy.java, README.md
+        │   └── decorator/    → NotificationSender.java, InAppSender.java, EmailDecorator.java, UrgentDecorator.java, README.md
+        └── behavioral/
+            ├── observer/     → ProjectEventPublisher, listeners, README.md
+            ├── strategy/     → AssignmentStrategy + impls, README.md
+            ├── state/        → TaskState, concrete states, TaskStateMachine.java, README.md
+            ├── command/      → TaskCommand, concrete commands, TaskCommandInvoker.java, README.md
+            ├── chain/        → TaskValidator, concrete validators, README.md
+            └── template/     → ReportGenerator, concrete generators, README.md
+```
+
+### Frontend — `frontend/`
+
+```
+frontend/
+├── package.json
+├── vite.config.js
+├── index.html
+└── src/
+    ├── main.jsx              → App entry point
+    ├── App.jsx               → Router setup only
+    ├── api/                  → ALL API calls live here, nowhere else
+    │   ├── auth.api.js
+    │   ├── workspace.api.js
+    │   ├── project.api.js
+    │   ├── task.api.js
+    │   ├── comment.api.js
+    │   └── notification.api.js
+    ├── hooks/                → Custom React hooks (useAuth, useTasks, etc.)
+    ├── store/                → Global state (Zustand or Context)
+    ├── pages/                → One folder per route
+    │   ├── auth/             → Login.jsx, Register.jsx
+    │   ├── dashboard/        → Dashboard.jsx
+    │   ├── workspace/        → WorkspaceList.jsx, WorkspaceDetail.jsx
+    │   ├── project/          → ProjectDetail.jsx, ProjectSettings.jsx
+    │   ├── task/             → TaskBoard.jsx, TaskDetail.jsx
+    │   └── patterns/         → PatternsViewer.jsx (academic page)
+    ├── components/           → Reusable UI components
+    │   ├── layout/           → Navbar.jsx, Sidebar.jsx, PageWrapper.jsx
+    │   ├── task/             → TaskCard.jsx, TaskModal.jsx, StatusBadge.jsx
+    │   ├── project/          → ProjectCard.jsx, ProgressBar.jsx
+    │   └── ui/               → Button.jsx, Input.jsx, Modal.jsx, Spinner.jsx
+    └── utils/                → token.js, formatDate.js, constants.js
+```
+
+### Frontend Rules (non-negotiable)
+- **No raw `fetch` or `axios` calls in components or pages.** All HTTP calls go in `api/*.api.js`.
+- **No business logic in components.** Logic goes in hooks (`hooks/`) or services.
+- **One page = one folder.** Never put two route-level pages in the same file.
+- **No inline styles.** Use CSS modules or Tailwind classes only.
+- **API base URL from env.** Use `import.meta.env.VITE_API_URL` — never hardcode `localhost:8080`.
+- **Auth token in axios interceptor.** Set once in `api/` setup, never manually in each call.
+
+---
+
+## Backend Coding Standards
+
+- Constructor injection only — never `@Autowired` on fields
+- Lombok everywhere: `@Getter @Setter @Builder @NoArgsConstructor @AllArgsConstructor`
+- DTOs mapped in the **service layer**, never in controllers
+- Status changes go through `TaskStateMachine` — never `task.setStatus()` directly
+- Logging via `AppLogger.getInstance()` — never `System.out.println`
+- Custom exceptions: `EntityNotFoundException` (→404), `ValidationException` (→400)
+- `GlobalExceptionHandler` (@RestControllerAdvice) catches everything
 
 ---
 
 ## Patterns Folder Contract
 
-Every pattern sub-package must contain:
-- The interface or abstract class
-- All concrete implementations
-- A `README.md` with: pattern name, one-paragraph plain-language explanation, which class plays which role
-
-**Services call into patterns. Patterns NEVER import services or repositories.**
-Patterns receive all data they need as method parameters.
-
-When implementing a pattern, always create the README.md in the same task.
+- Every pattern lives in `patterns/<category>/<name>/` — nowhere else
+- Every pattern sub-package has a `README.md` written in plain language
+- Patterns receive data as method parameters — they never `@Autowired` a service or repository
+- Services call patterns, patterns never call services
 
 ---
 
-## Entities Reference
+## Entities Quick Reference
 
 | Entity | Key Fields |
 |---|---|
-| User | id (UUID), username, email, password (BCrypt), role, createdAt |
-| Workspace | id, name, description, owner (→User), members (↔User), createdAt |
-| Project | id, title, description, status, deadline, progress (int), workspace (→Workspace), manager (→User) |
-| Task | id, title, description, priority, status, assignee (→User), project (→Project), dependencies (↔Task), dueDate |
-| Comment | id, content, author (→User), task (→Task), parentComment (→Comment nullable), createdAt |
-| Notification | id, type, message, recipient (→User), readStatus (boolean), createdAt |
-| ActivityLog | id, action, user (→User), entityType, entityId (UUID), createdAt |
+| User | id (UUID), username, email, password, role, createdAt |
+| Workspace | id, name, description, owner→User, members↔User |
+| Project | id, title, description, status, deadline, progress (int), workspace→Workspace, manager→User |
+| Task | id, title, description, priority, status, assignee→User, project→Project, dependencies↔Task, dueDate |
+| Comment | id, content, author→User, task→Task, parentComment→Comment (nullable) |
+| Notification | id, type, message, recipient→User, readStatus (boolean) |
+| ActivityLog | id, action, user→User, entityType, entityId (UUID), createdAt |
 
-All IDs are UUID. All entities use Lombok (@Data/@Getter/@Setter/@Builder/@NoArgsConstructor/@AllArgsConstructor as needed).
+## Enums Quick Reference
 
----
-
-## Enums Reference
-
-```java
-Role:          ADMIN, PROJECT_MANAGER, TEAM_MEMBER
-TaskStatus:    TODO, IN_PROGRESS, BLOCKED, IN_REVIEW, DONE
-TaskPriority:  LOW, MEDIUM, HIGH, CRITICAL
-ProjectStatus: PLANNING, ACTIVE, ON_HOLD, COMPLETED, ARCHIVED
+```
+Role:             ADMIN, PROJECT_MANAGER, TEAM_MEMBER
+TaskStatus:       TODO, IN_PROGRESS, BLOCKED, IN_REVIEW, DONE
+TaskPriority:     LOW, MEDIUM, HIGH, CRITICAL
+ProjectStatus:    PLANNING, ACTIVE, ON_HOLD, COMPLETED, ARCHIVED
 NotificationType: IN_APP, EMAIL
 ProjectEventType: TASK_CREATED, TASK_STATUS_CHANGED, TASK_ASSIGNED, COMMENT_ADDED, PROJECT_UPDATED
 ```
 
----
-
 ## Task State Machine
 
-Valid transitions only:
 ```
 TODO        → IN_PROGRESS
 IN_PROGRESS → IN_REVIEW, BLOCKED
 BLOCKED     → IN_PROGRESS
 IN_REVIEW   → DONE, IN_PROGRESS
-DONE        → (none)
+DONE        → (no transitions)
 ```
 
-Invalid transition = throw `IllegalStateException("Invalid transition: X → Y")`.
-Status changes always go through `TaskStateMachine` — never set `task.setStatus()` directly in a service.
+Invalid transition → throw `IllegalStateException("Invalid transition: X → Y")`
 
 ---
 
-## Security Rules
+## Git Commit Format
 
-- All endpoints require JWT Bearer token except: `POST /auth/register`, `POST /auth/login`, `GET /patterns`, `GET /swagger-ui/**`, `GET /v3/api-docs/**`
-- Role checks via `@PreAuthorize`:
-  - `GET /users` → ADMIN only
-  - `DELETE /tasks/{id}` → ADMIN or PROJECT_MANAGER (also enforced via Proxy pattern)
-  - `PUT /projects/{id}/archive` → PROJECT_MANAGER or ADMIN
-- Current user extracted from SecurityContext, not passed as a parameter
+```
+task(<id>): <title>
+
+examples:
+  task(1.1): Project Scaffolding
+  task(2.3): Singleton and Facade patterns
+  task(3.2): State Machine pattern
+  task(4.1): Observer and Factory Method patterns
+```
+
+Always commit after every single completed task — not batched.
 
 ---
 
-## Error Handling
+## Security
 
-Use these custom exceptions (create them if they don't exist yet):
-- `EntityNotFoundException extends RuntimeException` → mapped to 404
-- `ValidationException extends RuntimeException` → mapped to 400
-- `AccessDeniedException` (Spring Security) → mapped to 403
+Public endpoints (no token required):
+- `POST /auth/register`
+- `POST /auth/login`
+- `GET /patterns`
+- `GET /swagger-ui/**`
+- `GET /v3/api-docs/**`
 
-`GlobalExceptionHandler` (@RestControllerAdvice) handles all of these.
-Standard error response shape:
+Everything else requires `Authorization: Bearer <token>`.
+
+Role checks:
+- `GET /users` → ADMIN only
+- `DELETE /tasks/{id}` → ADMIN or PROJECT_MANAGER (also enforced by Proxy pattern)
+- `PUT /projects/{id}/archive` → ADMIN or PROJECT_MANAGER
+
+---
+
+## Error Response Shape (all errors)
+
 ```json
 {
   "timestamp": "2025-01-01T10:00:00",
@@ -149,127 +247,56 @@ Standard error response shape:
 }
 ```
 
-Never let stack traces reach the HTTP response.
-
 ---
 
-## DTO Rules
+## curl Verification Examples
 
-- Always separate Request DTO and Response DTO per entity
-- Response DTOs never expose `password`
-- Use `@Valid` on all `@RequestBody` in controllers
-- Validation annotations on Request DTOs: `@NotBlank`, `@NotNull`, `@Size`, `@Future` where appropriate
-- Map entities → DTOs in the service layer, not in controllers
+```bash
+# Register
+curl -s -X POST http://localhost:8080/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"username":"ahmed","email":"ahmed@test.com","password":"pass123","role":"TEAM_MEMBER"}'
 
----
+# Login → save token
+TOKEN=$(curl -s -X POST http://localhost:8080/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"ahmed@test.com","password":"pass123"}' | jq -r '.token')
 
-## Coding Standards
+# Authenticated request
+curl -s http://localhost:8080/users/me \
+  -H "Authorization: Bearer $TOKEN"
 
-- Use Lombok to eliminate boilerplate (`@Getter`, `@Setter`, `@Builder`, `@NoArgsConstructor`, `@AllArgsConstructor`, `@RequiredArgsConstructor`)
-- Inject dependencies via constructor injection, not `@Autowired` on fields
-- Repository methods: define named query methods in the interface, no JPQL unless necessary
-- No raw `System.out.println` — use `AppLogger.getInstance()` once it's implemented (Phase 2+)
-- Every new class goes in the correct package — double-check before creating
+# Patterns endpoint
+curl -s http://localhost:8080/patterns
 
----
-
-## Design Patterns Already Implemented
-
-Track which patterns are done. Update this list as phases complete:
-
-| # | Pattern | Category | Package | Status |
-|---|---|---|---|---|
-| 1 | Singleton | Creational | patterns.creational.singleton | ☐ |
-| 2 | Factory Method | Creational | patterns.creational.factory | ☐ |
-| 3 | Builder | Creational | patterns.creational.builder | ☐ |
-| 4 | Prototype | Creational | patterns.creational.prototype | ☐ |
-| 5 | Facade | Structural | patterns.structural.facade | ☐ |
-| 6 | Adapter | Structural | patterns.structural.adapter | ☐ |
-| 7 | Proxy | Structural | patterns.structural.proxy | ☐ |
-| 8 | Decorator | Structural | patterns.structural.decorator | ☐ |
-| 9 | Observer | Behavioral | patterns.behavioral.observer | ☐ |
-| 10 | Strategy | Behavioral | patterns.behavioral.strategy | ☐ |
-| 11 | State | Behavioral | patterns.behavioral.state | ☐ |
-| 12 | Command | Behavioral | patterns.behavioral.command | ☐ |
-| 13 | Chain of Responsibility | Behavioral | patterns.behavioral.chain | ☐ |
-| 14 | Template Method | Behavioral | patterns.behavioral.template | ☐ |
-
----
-
-## API Endpoints Reference
-
-```
-POST   /auth/register
-POST   /auth/login
-
-GET    /users/me
-PUT    /users/me
-GET    /users                              (ADMIN)
-
-POST   /workspaces
-GET    /workspaces
-GET    /workspaces/{id}
-POST   /workspaces/{id}/members
-DELETE /workspaces/{id}/members/{userId}
-
-POST   /workspaces/{workspaceId}/projects
-GET    /workspaces/{workspaceId}/projects
-GET    /projects/{id}
-PUT    /projects/{id}
-PUT    /projects/{id}/archive
-POST   /projects/initialize               (Facade)
-
-POST   /projects/{projectId}/tasks
-GET    /projects/{projectId}/tasks
-GET    /tasks/{id}
-PUT    /tasks/{id}
-DELETE /tasks/{id}
-PUT    /tasks/{id}/status
-PUT    /tasks/{id}/assign
-POST   /tasks/{id}/dependencies
-DELETE /tasks/{id}/dependencies/{depId}
-GET    /projects/{id}/tasks/blocked
-POST   /projects/{id}/tasks/auto-assign
-POST   /tasks/undo
-
-POST   /projects/{id}/templates
-GET    /projects/{id}/templates
-POST   /tasks/from-template/{templateId}
-
-POST   /tasks/{id}/comments
-GET    /tasks/{id}/comments
-POST   /comments/{id}/replies
-DELETE /comments/{id}
-
-GET    /notifications
-PUT    /notifications/{id}/read
-
-GET    /analytics/projects/{id}/stats
-GET    /analytics/projects/{id}/team-workload
-GET    /analytics/projects/{id}/health
-
-GET    /reports/projects/{id}?format=json|csv|pdf
-
-GET    /patterns
+# Invalid state transition (expect 400)
+curl -s -X PUT http://localhost:8080/tasks/<id>/status \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"status":"DONE"}'
 ```
 
 ---
 
-## How to Verify a Task Is Done
+## Blocker Protocol
 
-After completing any task:
-1. Run `mvn spring-boot:run` — must start with no errors
-2. Test the new endpoint(s) with curl or confirm compilable
-3. If a pattern was implemented: confirm its `README.md` exists in the correct sub-package
-4. Confirm no files outside the task scope were modified
+If you hit a blocker you cannot resolve:
+1. Do NOT attempt a workaround that changes the architecture
+2. Do NOT skip the task and move to the next one
+3. Stop, then output:
+
+```
+BLOCKER on task <id>: <title>
+Problem: <exact error or issue>
+Attempted: <what you tried>
+Need: <what human decision is required>
+```
+
+Then wait.
 
 ---
 
-## Current Task
+## Current State
 
-**Set this at the start of each session:**
-
-> Current task: [TASK NUMBER — TASK TITLE]
-> e.g. "Task 1.1 — Project Scaffolding"
-
-Refer to `tasks.md` for the full description of what to implement.
+> Tasks file: `tasks.md`
+> Start: find the first ☐ task and begin the loop.
