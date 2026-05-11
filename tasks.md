@@ -129,7 +129,7 @@ presentation/controller/:
 Goal: workspace CRUD works end-to-end.
 ```
 
-### Task 2.2 — Project Entity + CRUD
+### Task 2.2 — Project Entity + CRUD ✅
 ```
 domain/enums/:
 - ProjectStatus: PLANNING, ACTIVE, ON_HOLD, COMPLETED, ARCHIVED
