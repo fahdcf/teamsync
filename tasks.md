@@ -246,7 +246,7 @@ presentation/controller/:
 Goal: task CRUD works scoped to project.
 ```
 
-### Task 3.2 — PATTERN: State Machine
+### Task 3.2 — PATTERN: State Machine ✅
 ```
 Package: patterns/behavioral/state/
 

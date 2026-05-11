@@ -3,6 +3,7 @@ package com.teamsync.presentation.controller;
 import com.teamsync.domain.enums.TaskStatus;
 import com.teamsync.presentation.dto.TaskRequestDTO;
 import com.teamsync.presentation.dto.TaskResponseDTO;
+import com.teamsync.presentation.dto.TaskStatusUpdateDTO;
 import com.teamsync.service.TaskService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -53,5 +54,11 @@ public class TaskController {
     @PutMapping("/tasks/{id}/assign")
     public TaskResponseDTO assign(@PathVariable UUID id, @RequestParam UUID userId) {
         return taskService.assign(id, userId);
+    }
+
+    @PutMapping("/tasks/{id}/status")
+    public TaskResponseDTO changeStatus(@PathVariable UUID id,
+                                         @Valid @RequestBody TaskStatusUpdateDTO request) {
+        return taskService.changeStatus(id, request.getStatus());
     }
 }

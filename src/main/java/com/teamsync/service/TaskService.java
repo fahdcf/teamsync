@@ -5,6 +5,7 @@ import com.teamsync.domain.entity.Task;
 import com.teamsync.domain.entity.User;
 import com.teamsync.domain.enums.TaskPriority;
 import com.teamsync.domain.enums.TaskStatus;
+import com.teamsync.patterns.behavioral.state.TaskStateMachine;
 import com.teamsync.presentation.dto.TaskRequestDTO;
 import com.teamsync.presentation.dto.TaskResponseDTO;
 import com.teamsync.presentation.dto.UserResponseDTO;
@@ -23,13 +24,16 @@ public class TaskService {
     private final TaskRepository taskRepository;
     private final ProjectService projectService;
     private final UserRepository userRepository;
+    private final TaskStateMachine stateMachine;
 
     public TaskService(TaskRepository taskRepository,
                        ProjectService projectService,
-                       UserRepository userRepository) {
+                       UserRepository userRepository,
+                       TaskStateMachine stateMachine) {
         this.taskRepository = taskRepository;
         this.projectService = projectService;
         this.userRepository = userRepository;
+        this.stateMachine = stateMachine;
     }
 
     public TaskResponseDTO create(UUID projectId, TaskRequestDTO request) {
@@ -71,6 +75,12 @@ public class TaskService {
                 .orElseThrow(() -> new NoSuchElementException("User not found: " + assigneeId));
         task.setAssignee(assignee);
         return toDTO(taskRepository.save(task));
+    }
+
+    public TaskResponseDTO changeStatus(UUID id, TaskStatus targetStatus) {
+        Task task = getTask(id);
+        stateMachine.transition(task, targetStatus, taskRepository);
+        return toDTO(taskRepository.findById(id).orElseThrow());
     }
 
     public List<TaskResponseDTO> findByProject(UUID projectId, TaskStatus status) {
