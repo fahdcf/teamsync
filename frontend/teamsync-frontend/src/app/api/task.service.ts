@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
-import { Task, CreateTaskRequest, ChangeStatusRequest } from '../shared/models/task.model';
+import { Task, CreateTaskRequest, ChangeStatusRequest, CreateSubtaskRequest, Subtask } from '../shared/models/task.model';
 
 @Injectable({ providedIn: 'root' })
 export class TaskService {
@@ -62,5 +62,17 @@ export class TaskService {
       `${this.base}/projects/${projectId}/tasks/auto-assign?strategy=${strategy}`,
       { taskId }
     );
+  }
+
+  createSubtask(taskId: string, req: CreateSubtaskRequest): Observable<Subtask> {
+    return this.http.post<Subtask>(`${this.base}/tasks/${taskId}/subtasks`, req);
+  }
+
+  toggleSubtask(taskId: string, subtaskId: string): Observable<Subtask> {
+    return this.http.put<Subtask>(`${this.base}/tasks/${taskId}/subtasks/${subtaskId}/toggle`, {});
+  }
+
+  deleteSubtask(taskId: string, subtaskId: string): Observable<void> {
+    return this.http.delete<void>(`${this.base}/tasks/${taskId}/subtasks/${subtaskId}`);
   }
 }

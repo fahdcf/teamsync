@@ -1013,7 +1013,7 @@ Verify: board looks like the background of screenshot 4.
 Verify: drag and drop still works (test by dragging a card between columns).
 ```
 
-### Task R5.3 — Task Detail Drawer Redesign ☐
+### Task R5.3 — Task Detail Drawer Redesign ✅
 ```
 Reference: Screenshot 4: c:\Users\pp\Downloads\ChatGPT Image 12 mai 2026, 17_04_44.png — the right-side drawer overlay.
 
