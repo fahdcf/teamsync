@@ -76,6 +76,7 @@ interface Column {
           <div *ngFor="let task of col.tasks" cdkDrag [cdkDragData]="task">
             <app-task-card
               [task]="task"
+              [commentCount]="task.dependencies.length"
               (cardClick)="router.navigate(['/tasks', task.id])"
               (deleted)="deleteTask(task)">
             </app-task-card>
@@ -84,6 +85,7 @@ interface Column {
             *ngIf="!col.tasks.length"
             title="" description="No tasks" [minimal]="true">
           </app-empty-state>
+          <button class="column-add-task" type="button" (click)="openCreate(col.status)">+ Add task</button>
         </div>
       </div>
     </div>
@@ -133,11 +135,14 @@ interface Column {
     }
     .clear-btn:hover { border-color: var(--color-accent); color: var(--color-accent); }
     .board {
-      display: flex; gap: 16px; overflow-x: auto; padding-bottom: 16px;
+      display: flex; gap: 12px; overflow-x: auto; padding-bottom: 16px;
       min-height: calc(100vh - 220px);
       scroll-snap-type: x mandatory;
     }
-    .column { width: 240px; flex-shrink: 0; scroll-snap-align: start; }
+    .column {
+      width: 220px; flex: 0 0 220px; scroll-snap-align: start;
+      background: transparent; padding: 0;
+    }
     @media (max-width: 767px) { .column { width: calc(100vw - 48px); } }
     .column-header {
       display: flex; align-items: center; justify-content: space-between;
@@ -152,20 +157,31 @@ interface Column {
     .status-dot.blocked     { background: var(--color-danger); }
     .status-dot.in_review   { background: var(--color-warning); }
     .status-dot.done        { background: var(--color-success); }
-    .column-title { font-size: 13px; font-weight: 600; }
+    .column-title { font-size: 13px; font-weight: 500; color: var(--text-secondary); }
     .task-count {
-      background: var(--color-border); color: var(--color-muted);
-      border-radius: 100px; font-size: 11px; padding: 1px 7px;
+      background: var(--bg-elevated); color: var(--text-secondary);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-full); font-size: 11px; padding: 2px 8px;
     }
     .add-btn {
-      background: none; border: none; color: var(--color-muted);
-      font-size: 20px; line-height: 1; padding: 0;
+      width: 24px; height: 24px; border-radius: var(--radius-full);
+      background: var(--bg-elevated); border: 0; color: var(--text-secondary);
+      font-size: 17px; line-height: 1; padding: 0;
     }
-    .add-btn:hover { color: var(--color-accent); }
+    .add-btn:hover { color: var(--text-primary); background: var(--bg-overlay); }
     .column-body {
       display: flex; flex-direction: column; gap: 8px;
       min-height: 80px;
     }
+    .column-add-task {
+      width: 100%; height: 36px;
+      border: 1px dashed var(--border-default);
+      border-radius: var(--radius-md);
+      background: transparent;
+      color: var(--text-tertiary);
+      font-size: 13px;
+    }
+    .column-add-task:hover { background: var(--bg-elevated); color: var(--text-secondary); }
     .cdk-drag-placeholder { opacity: 0.4; }
     .cdk-drag-animating { transition: transform 250ms cubic-bezier(0,0,0.2,1); }
     .form { display: flex; flex-direction: column; gap: 16px; }

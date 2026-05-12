@@ -12,6 +12,7 @@ import { Project } from '../../shared/models/project.model';
 import { Task, TaskStatus } from '../../shared/models/task.model';
 import { User } from '../../shared/models/user.model';
 import { Workspace } from '../../shared/models/workspace.model';
+import { TaskCardComponent } from '../task/task-card/task-card.component';
 
 interface BoardColumn {
   label: string;
@@ -22,7 +23,7 @@ interface BoardColumn {
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, DatePipe, FormsModule],
+  imports: [CommonModule, DatePipe, FormsModule, TaskCardComponent],
   template: `
     <div class="dashboard-page">
       <section class="dashboard-hero">
@@ -102,18 +103,12 @@ interface BoardColumn {
               <h3>{{ column.label }} <span>{{ column.tasks.length }}</span></h3>
               <button type="button" aria-label="Add task">+</button>
             </header>
-            <button class="task-card" type="button" *ngFor="let task of column.tasks" (click)="openTask(task.id)">
-              <strong>{{ task.title }}</strong>
-              <span class="priority" [class]="task.priority.toLowerCase()">{{ task.priority | titlecase }}</span>
-              <div class="task-meta">
-                <span class="avatar-row">
-                  <span>{{ initials(task.assignee) }}</span>
-                  <span *ngIf="task.dependencies.length">+{{ task.dependencies.length }}</span>
-                </span>
-                <time>{{ task.dueDate | date:'MMM d' }}</time>
-                <span>◌ {{ task.dependencies.length }}</span>
-              </div>
-            </button>
+            <app-task-card
+              *ngFor="let task of column.tasks"
+              [task]="task"
+              [commentCount]="task.dependencies.length"
+              (cardClick)="openTask(task.id)">
+            </app-task-card>
             <button class="add-task-row" type="button">+ Add task</button>
           </article>
         </div>

@@ -724,7 +724,7 @@ Verify: sparklines render (even if just styled SVG placeholders with smooth curv
 Verify: screenshot 2 match — layout, typography, spacing all correct.
 ```
 
-### Task R3.3 — Task Card Redesign ☐
+### Task R3.3 — Task Card Redesign ✅
 ```
 Reference: Screenshot 2 (kanban section) and screenshot 4 (board behind the drawer).
 
