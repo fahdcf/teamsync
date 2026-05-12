@@ -552,7 +552,7 @@ Verify: ng build --configuration=production has zero warnings.
 
 ## PHASE R3 — Dashboard Redesign
 
-### Task R3.1 — Backend: Dashboard Stats Endpoint ☐
+### Task R3.1 — Backend: Dashboard Stats Endpoint ✅
 ```
 The dashboard needs pre-aggregated stats the current backend doesn't provide.
 Add these endpoints to backend:
