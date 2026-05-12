@@ -6,6 +6,7 @@ import lombok.*;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Getter
@@ -15,12 +16,14 @@ import java.util.UUID;
 @AllArgsConstructor
 public class TaskResponseDTO {
     private UUID id;
+    private String taskIdentifier;
     private String title;
     private String description;
     private TaskPriority priority;
     private TaskStatus status;
     private UserResponseDTO assignee;
     private UUID projectId;
+    private List<SubtaskResponseDTO> subtasks;
     private LocalDate dueDate;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

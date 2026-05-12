@@ -69,6 +69,7 @@ public class TaskService implements com.teamsync.patterns.structural.proxy.TaskS
         Task task = Task.builder()
                 .title(request.getTitle())
                 .description(request.getDescription())
+                .taskIdentifier(generateTaskIdentifier(project))
                 .priority(request.getPriority() != null ? request.getPriority() : TaskPriority.MEDIUM)
                 .project(project)
                 .assignee(assignee)
@@ -178,15 +179,38 @@ public class TaskService implements com.teamsync.patterns.structural.proxy.TaskS
                 .build();
     }
 
+    private String generateTaskIdentifier(Project project) {
+        String prefix = project.getTitle().replaceAll("[^A-Za-z0-9]", "").toUpperCase();
+        if (prefix.length() >= 3) {
+            prefix = prefix.substring(0, 3);
+        } else {
+            prefix = String.format("%-3s", prefix).replace(' ', 'X');
+        }
+        long nextNumber = taskRepository.countByProject(project) + 1;
+        return prefix + "-" + nextNumber;
+    }
+
     public TaskResponseDTO toDTO(Task t) {
         return TaskResponseDTO.builder()
                 .id(t.getId())
+                .taskIdentifier(t.getTaskIdentifier())
                 .title(t.getTitle())
                 .description(t.getDescription())
                 .priority(t.getPriority())
                 .status(t.getStatus())
                 .assignee(userToDTO(t.getAssignee()))
                 .projectId(t.getProject().getId())
+                .subtasks(t.getSubtasks().stream()
+                        .map(subtask -> com.teamsync.presentation.dto.SubtaskResponseDTO.builder()
+                                .id(subtask.getId())
+                                .title(subtask.getTitle())
+                                .completed(subtask.isCompleted())
+                                .taskId(t.getId())
+                                .assignee(userToDTO(subtask.getAssignee()))
+                                .dueDate(subtask.getDueDate())
+                                .createdAt(subtask.getCreatedAt())
+                                .build())
+                        .toList())
                 .dueDate(t.getDueDate())
                 .createdAt(t.getCreatedAt())
                 .updatedAt(t.getUpdatedAt())

@@ -8,11 +8,14 @@ import com.teamsync.patterns.creational.prototype.TaskTemplateService;
 import com.teamsync.presentation.dto.AddDependencyRequestDTO;
 import com.teamsync.presentation.dto.AutoAssignRequestDTO;
 import com.teamsync.presentation.dto.SaveTemplateRequestDTO;
+import com.teamsync.presentation.dto.SubtaskRequestDTO;
+import com.teamsync.presentation.dto.SubtaskResponseDTO;
 import com.teamsync.presentation.dto.TaskRequestDTO;
 import com.teamsync.presentation.dto.TaskResponseDTO;
 import com.teamsync.presentation.dto.TaskStatusUpdateDTO;
 import com.teamsync.patterns.structural.proxy.TaskService;
 import com.teamsync.service.TaskDependencyService;
+import com.teamsync.service.SubtaskService;
 import com.teamsync.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -32,13 +35,16 @@ public class TaskController {
 
     private final TaskService taskService;
     private final TaskDependencyService dependencyService;
+    private final SubtaskService subtaskService;
     private final TaskTemplateService templateService;
     private final UserService userService;
 
     public TaskController(TaskService taskService, TaskDependencyService dependencyService,
-                           TaskTemplateService templateService, UserService userService) {
+                           SubtaskService subtaskService, TaskTemplateService templateService,
+                           UserService userService) {
         this.taskService = taskService;
         this.dependencyService = dependencyService;
+        this.subtaskService = subtaskService;
         this.templateService = templateService;
         this.userService = userService;
     }
@@ -155,6 +161,39 @@ public class TaskController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void removeDependency(@PathVariable UUID id, @PathVariable UUID depId) {
         dependencyService.removeDependency(id, depId);
+    }
+
+    @Operation(summary = "Create a subtask under a task")
+    @ApiResponses({
+        @ApiResponse(responseCode = "201", description = "Subtask created"),
+        @ApiResponse(responseCode = "404", description = "Task or assignee not found")
+    })
+    @PostMapping("/tasks/{id}/subtasks")
+    @ResponseStatus(HttpStatus.CREATED)
+    public SubtaskResponseDTO createSubtask(@PathVariable UUID id,
+                                            @Valid @RequestBody SubtaskRequestDTO request) {
+        return subtaskService.createSubtask(id, request);
+    }
+
+    @Operation(summary = "Toggle subtask completion")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Subtask toggled"),
+        @ApiResponse(responseCode = "404", description = "Task or subtask not found")
+    })
+    @PutMapping("/tasks/{id}/subtasks/{sid}/toggle")
+    public SubtaskResponseDTO toggleSubtask(@PathVariable UUID id, @PathVariable UUID sid) {
+        return subtaskService.toggleSubtask(id, sid);
+    }
+
+    @Operation(summary = "Delete a subtask")
+    @ApiResponses({
+        @ApiResponse(responseCode = "204", description = "Subtask deleted"),
+        @ApiResponse(responseCode = "404", description = "Task or subtask not found")
+    })
+    @DeleteMapping("/tasks/{id}/subtasks/{sid}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteSubtask(@PathVariable UUID id, @PathVariable UUID sid) {
+        subtaskService.deleteSubtask(id, sid);
     }
 
     @Operation(summary = "List tasks that cannot start yet due to unfinished dependencies")

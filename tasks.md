@@ -936,7 +936,7 @@ Verify: activity feed on right shows real data grouped by date.
 
 ## PHASE R5 — Task Board + Task Detail Drawer Redesign
 
-### Task R5.1 — Backend: Task Identifier + Subtasks ☐
+### Task R5.1 — Backend: Task Identifier + Subtasks ✅
 ```
 The task detail drawer (screenshot 4) shows:
   - Task identifier: "DES-120" (short ID format)

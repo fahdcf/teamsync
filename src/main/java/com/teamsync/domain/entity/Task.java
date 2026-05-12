@@ -9,6 +9,8 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -29,6 +31,9 @@ public class Task {
 
     @Column(columnDefinition = "TEXT")
     private String description;
+
+    @Column(unique = true)
+    private String taskIdentifier;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -56,6 +61,11 @@ public class Task {
     )
     @Builder.Default
     private java.util.Set<Task> dependencies = new java.util.HashSet<>();
+
+    @OneToMany(mappedBy = "task", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("createdAt ASC")
+    @Builder.Default
+    private List<Subtask> subtasks = new ArrayList<>();
 
     private LocalDate dueDate;
 
