@@ -1750,7 +1750,7 @@ Verify: TEAM_MEMBER role does not see Archive button (use *ngIf checking user ro
  
 ## PHASE 13 — Task Board (Core UI)
  
-### Task 13.1 — Kanban Task Board ☐
+### Task 13.1 — Kanban Task Board ✅
 ```
 src/app/features/task/task-board/
  
