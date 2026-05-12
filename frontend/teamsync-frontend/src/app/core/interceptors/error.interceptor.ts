@@ -10,20 +10,25 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
   const toastr = inject(ToastrService);
   const tokenService = inject(TokenService);
 
+  // Auth endpoints handle their own errors with inline messages
+  const isAuthEndpoint = req.url.includes('/auth/');
+
   return next(req).pipe(
     catchError((error: HttpErrorResponse) => {
-      if (error.status === 0) {
-        toastr.error('Cannot connect to server');
-      } else if (error.status === 401) {
-        tokenService.removeToken();
-        router.navigate(['/login']);
-        toastr.error('Session expired');
-      } else if (error.status === 403) {
-        toastr.error("You don't have permission to do this");
-      } else if (error.status === 404) {
-        toastr.error('Resource not found');
-      } else if (error.status >= 500) {
-        toastr.error('Server error. Please try again.');
+      if (!isAuthEndpoint) {
+        if (error.status === 0) {
+          toastr.error('Cannot connect to server');
+        } else if (error.status === 401) {
+          tokenService.removeToken();
+          router.navigate(['/login']);
+          toastr.error('Session expired. Please sign in again.');
+        } else if (error.status === 403) {
+          toastr.error("You don't have permission to do this");
+        } else if (error.status === 404) {
+          toastr.error('Resource not found');
+        } else if (error.status >= 500) {
+          toastr.error('Server error. Please try again.');
+        }
       }
       return throwError(() => error);
     })

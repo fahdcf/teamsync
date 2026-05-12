@@ -2,6 +2,7 @@ import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { RouterLink, Router } from '@angular/router';
+import { HttpErrorResponse } from '@angular/common/http';
 import { switchMap, finalize } from 'rxjs';
 import { AuthService } from '../../../api/auth.service';
 import { AuthStore } from '../../../store/auth.store';
@@ -31,6 +32,8 @@ import { UserRole } from '../../../shared/models/user.model';
           <p class="auth-subtitle">Start collaborating today</p>
 
           <form [formGroup]="form" (ngSubmit)="onSubmit()" class="auth-form">
+            <div *ngIf="serverError" class="auth-error">{{ serverError }}</div>
+
             <app-input
               label="Username"
               placeholder="johndoe"
@@ -125,6 +128,11 @@ import { UserRole } from '../../../shared/models/user.model';
       background: none; border: none; font-size: 16px; color: var(--color-muted); padding: 0;
     }
     .auth-link { margin: 20px 0 0; font-size: 14px; color: var(--color-muted); text-align: center; }
+    .auth-error {
+      background: rgba(239,68,68,0.1); border: 1px solid var(--color-danger);
+      border-radius: var(--radius-md); color: var(--color-danger);
+      padding: 10px 14px; font-size: 13px;
+    }
   `]
 })
 export default class RegisterComponent {
@@ -143,6 +151,7 @@ export default class RegisterComponent {
 
   isLoading = false;
   showPassword = false;
+  serverError = '';
 
   fieldError(name: string): string {
     const ctrl = this.form.get(name);
@@ -157,6 +166,7 @@ export default class RegisterComponent {
   onSubmit(): void {
     if (this.form.invalid) { this.form.markAllAsTouched(); return; }
     this.isLoading = true;
+    this.serverError = '';
     const { email, password, username, role } = this.form.value;
     this.authService.register({ username: username!, email: email!, password: password!, role: role as UserRole }).pipe(
       switchMap(() => this.authService.login({ email: email!, password: password! })),
@@ -170,7 +180,17 @@ export default class RegisterComponent {
         this.authStore.setUser(user);
         this.router.navigate(['/dashboard']);
       },
-      error: () => {}
+      error: (err: HttpErrorResponse) => {
+        if (err.status === 0) {
+          this.serverError = 'Cannot connect to server. Please try again.';
+        } else if (err.status === 409) {
+          this.serverError = 'Email or username is already in use.';
+        } else if (err.status === 400) {
+          this.serverError = 'Invalid registration data. Please check your inputs.';
+        } else {
+          this.serverError = 'Something went wrong. Please try again.';
+        }
+      }
     });
   }
 }

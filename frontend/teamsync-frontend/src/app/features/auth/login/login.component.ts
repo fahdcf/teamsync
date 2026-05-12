@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { Router } from '@angular/router';
+import { HttpErrorResponse } from '@angular/common/http';
 import { switchMap, finalize } from 'rxjs';
 import { AuthService } from '../../../api/auth.service';
 import { AuthStore } from '../../../store/auth.store';
@@ -33,6 +34,8 @@ import { InputComponent } from '../../../shared/components/input/input.component
           <p class="auth-subtitle">Sign in to your account</p>
 
           <form [formGroup]="form" (ngSubmit)="onSubmit()" class="auth-form">
+            <div *ngIf="serverError" class="auth-error">{{ serverError }}</div>
+
             <app-input
               label="Email"
               type="email"
@@ -118,6 +121,11 @@ import { InputComponent } from '../../../shared/components/input/input.component
       color: var(--color-muted); padding: 0;
     }
     .auth-link { margin: 20px 0 0; font-size: 14px; color: var(--color-muted); text-align: center; }
+    .auth-error {
+      background: rgba(239,68,68,0.1); border: 1px solid var(--color-danger);
+      border-radius: var(--radius-md); color: var(--color-danger);
+      padding: 10px 14px; font-size: 13px;
+    }
   `]
 })
 export default class LoginComponent {
@@ -134,6 +142,7 @@ export default class LoginComponent {
 
   isLoading = false;
   showPassword = false;
+  serverError = '';
 
   get emailError(): string {
     const ctrl = this.form.get('email');
@@ -154,6 +163,7 @@ export default class LoginComponent {
   onSubmit(): void {
     if (this.form.invalid) { this.form.markAllAsTouched(); return; }
     this.isLoading = true;
+    this.serverError = '';
     const { email, password } = this.form.value;
     this.authService.login({ email: email!, password: password! }).pipe(
       switchMap(res => {
@@ -166,7 +176,15 @@ export default class LoginComponent {
         this.authStore.setUser(user);
         this.router.navigate(['/dashboard']);
       },
-      error: () => {}
+      error: (err: HttpErrorResponse) => {
+        if (err.status === 0) {
+          this.serverError = 'Cannot connect to server. Please try again.';
+        } else if (err.status === 401 || err.status === 400) {
+          this.serverError = 'Invalid email or password.';
+        } else {
+          this.serverError = 'Something went wrong. Please try again.';
+        }
+      }
     });
   }
 }

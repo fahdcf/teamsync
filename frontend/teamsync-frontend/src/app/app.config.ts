@@ -1,9 +1,10 @@
-import { ApplicationConfig, provideBrowserGlobalErrorListeners } from '@angular/core';
+import { ApplicationConfig, provideBrowserGlobalErrorListeners, provideZoneChangeDetection } from '@angular/core';
 import { provideRouter, TitleStrategy, RouterStateSnapshot } from '@angular/router';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { provideAnimations } from '@angular/platform-browser/animations';
 import { Title } from '@angular/platform-browser';
 import { Injectable } from '@angular/core';
+import { provideToastr } from 'ngx-toastr';
 
 import { routes } from './app.routes';
 import { authInterceptor } from './core/interceptors/auth.interceptor';
@@ -21,9 +22,11 @@ class AppTitleStrategy extends TitleStrategy {
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
+    provideZoneChangeDetection({ eventCoalescing: true }),
     provideRouter(routes),
     provideHttpClient(withInterceptors([authInterceptor, errorInterceptor])),
     provideAnimations(),
+    provideToastr({ timeOut: 3000, positionClass: 'toast-top-right', preventDuplicates: true }),
     { provide: TitleStrategy, useClass: AppTitleStrategy },
   ]
 };
