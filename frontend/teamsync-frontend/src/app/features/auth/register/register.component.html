@@ -1,0 +1,70 @@
+<div class="auth-page">
+  <aside class="auth-story">
+    <div class="brand-mark">
+      <span>◆</span>
+      <strong>TeamSync</strong>
+    </div>
+
+    <figure>
+      <blockquote>
+        “Bring every workspace, sprint, and decision into one calm operating system for ambitious teams.”
+      </blockquote>
+      <figcaption>
+        <span class="person-avatar">MJ</span>
+        <span>Mike Johnson, Product Lead at Northstar</span>
+      </figcaption>
+    </figure>
+
+    <div class="proof-row">
+      <span>25K+ Teams</span>
+      <span>99.9% Uptime</span>
+      <span>4.9/5 Rating</span>
+    </div>
+  </aside>
+
+  <main class="auth-form-panel">
+    <section class="form-card">
+      <h1>Create your account</h1>
+      <p>Start collaborating with your team today</p>
+
+      <form [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
+        <div *ngIf="serverError" class="server-error">{{ serverError }}</div>
+
+        <label class="field">
+          <span>Username</span>
+          <input autocomplete="username" placeholder="johndoe" formControlName="username">
+          <small *ngIf="fieldError('username')">{{ fieldError('username') }}</small>
+        </label>
+
+        <label class="field">
+          <span>Email</span>
+          <input type="email" autocomplete="email" placeholder="you@example.com" formControlName="email">
+          <small *ngIf="fieldError('email')">{{ fieldError('email') }}</small>
+        </label>
+
+        <label class="field">
+          <span>Password</span>
+          <div class="password-control">
+            <input [type]="showPassword ? 'text' : 'password'" autocomplete="new-password" placeholder="••••••••" formControlName="password">
+            <button type="button" (click)="showPassword = !showPassword">{{ showPassword ? 'Hide' : 'Show' }}</button>
+          </div>
+          <small *ngIf="fieldError('password')">{{ fieldError('password') }}</small>
+        </label>
+
+        <label class="field">
+          <span>Role</span>
+          <select formControlName="role">
+            <option value="TEAM_MEMBER">Team Member</option>
+            <option value="PROJECT_MANAGER">Project Manager</option>
+          </select>
+        </label>
+
+        <button class="submit-btn" type="submit" [disabled]="isLoading">
+          {{ isLoading ? 'Creating account...' : 'Create account →' }}
+        </button>
+      </form>
+
+      <p class="switch-link">Already have an account? <a routerLink="/login">Sign in</a></p>
+    </section>
+  </main>
+</div>

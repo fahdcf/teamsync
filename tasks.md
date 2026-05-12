@@ -1365,7 +1365,7 @@ Verify: sub-navigation switches content without page reload.
 
 ## PHASE R7 — Auth Pages Redesign
 
-### Task R7.1 — Auth Pages Redesign ☐
+### Task R7.1 — Auth Pages Redesign ✅
 ```
 The login and register pages need to match the design language of the rest of the app.
 They are currently generic. Make them premium.

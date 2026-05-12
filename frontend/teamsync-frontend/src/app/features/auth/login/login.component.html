@@ -1,0 +1,60 @@
+<div class="auth-page">
+  <aside class="auth-story">
+    <div class="brand-mark">
+      <span>◆</span>
+      <strong>TeamSync</strong>
+    </div>
+
+    <figure>
+      <blockquote>
+        “The best project management tool we've ever used. Intuitive, powerful, and packed with intelligence.”
+      </blockquote>
+      <figcaption>
+        <span class="person-avatar">SC</span>
+        <span>Sarah Chen, CEO at TechFlow</span>
+      </figcaption>
+    </figure>
+
+    <div class="proof-row">
+      <span>25K+ Teams</span>
+      <span>99.9% Uptime</span>
+      <span>4.9/5 Rating</span>
+    </div>
+  </aside>
+
+  <main class="auth-form-panel">
+    <section class="form-card">
+      <h1>Welcome back</h1>
+      <p>Sign in to your TeamSync account</p>
+
+      <form [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
+        <div *ngIf="serverError" class="server-error">{{ serverError }}</div>
+
+        <label class="field">
+          <span>Email</span>
+          <input type="email" autocomplete="email" placeholder="you@example.com" formControlName="email">
+          <small *ngIf="emailError">{{ emailError }}</small>
+        </label>
+
+        <label class="field">
+          <span>Password</span>
+          <div class="password-control">
+            <input [type]="showPassword ? 'text' : 'password'" autocomplete="current-password" placeholder="••••••••" formControlName="password">
+            <button type="button" (click)="showPassword = !showPassword">{{ showPassword ? 'Hide' : 'Show' }}</button>
+          </div>
+          <small *ngIf="passwordError">{{ passwordError }}</small>
+        </label>
+
+        <a class="forgot-link">Forgot password?</a>
+
+        <button class="submit-btn" type="submit" [disabled]="isLoading">
+          {{ isLoading ? 'Signing in...' : 'Sign in' }}
+        </button>
+      </form>
+
+      <div class="divider"><span>or continue with</span></div>
+
+      <p class="switch-link">Don't have an account? <a routerLink="/register">Create one →</a></p>
+    </section>
+  </main>
+</div>
