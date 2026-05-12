@@ -969,7 +969,7 @@ Verify: GET /tasks/{id} now returns taskIdentifier and subtasks array.
 Verify: POST /tasks/{id}/subtasks creates a subtask. Toggle works.
 ```
 
-### Task R5.2 — Task Board Page Redesign ☐
+### Task R5.2 — Task Board Page Redesign ✅
 ```
 Reference: Screenshot 4 : c:\Users\pp\Downloads\ChatGPT Image 12 mai 2026, 17_04_44.png — the board BEHIND the open drawer.
 

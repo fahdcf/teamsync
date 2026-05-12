@@ -1,0 +1,83 @@
+<div class="task-board-shell">
+  <div *ngIf="isLoading" class="board board--skeleton" aria-label="Loading task board">
+    <section *ngFor="let col of columns" class="column">
+      <div class="column-header">
+        <div class="col-title-row">
+          <span class="column-title">{{ col.label }}</span>
+          <span class="task-count">0</span>
+        </div>
+      </div>
+      <app-skeleton type="card"></app-skeleton>
+      <app-skeleton type="card"></app-skeleton>
+      <app-skeleton type="card"></app-skeleton>
+    </section>
+  </div>
+
+  <app-empty-state
+    *ngIf="!isLoading && hasError"
+    variant="error"
+    description="Failed to load tasks"
+    (action)="loadTasks()">
+  </app-empty-state>
+
+  <div *ngIf="!isLoading && !hasError" class="board" cdkDropListGroup>
+    <section *ngFor="let col of columns" class="column">
+      <header class="column-header">
+        <div class="col-title-row">
+          <span class="column-title">{{ col.label }}</span>
+          <span class="task-count">{{ col.tasks.length }}</span>
+        </div>
+        <button class="add-btn" type="button" aria-label="Add task" (click)="openCreate(col.status)">+</button>
+      </header>
+
+      <div
+        class="column-body"
+        cdkDropList
+        [id]="col.status"
+        [cdkDropListData]="col.tasks"
+        [cdkDropListConnectedTo]="columnIds"
+        (cdkDropListDropped)="onDrop($event)">
+        <div *ngFor="let task of col.tasks" cdkDrag [cdkDragData]="task" class="task-card-drag">
+          <app-task-card
+            [task]="task"
+            [commentCount]="commentCountFor(task)"
+            (cardClick)="openTask(task)"
+            (deleted)="deleteTask(task)">
+          </app-task-card>
+        </div>
+
+        <div *ngIf="!col.tasks.length" class="empty-column">
+          <span>No tasks</span>
+        </div>
+
+        <button class="column-add-task" type="button" (click)="openCreate(col.status)">+ Add task</button>
+      </div>
+    </section>
+  </div>
+</div>
+
+<app-modal [isOpen]="isCreateModalOpen" title="New Task" (closed)="isCreateModalOpen = false">
+  <form [formGroup]="createForm" (ngSubmit)="createTask()" class="form">
+    <app-input label="Title" placeholder="Task title" formControlName="title"></app-input>
+    <app-input label="Description" placeholder="Optional description" formControlName="description"></app-input>
+    <div class="form-row">
+      <div class="field">
+        <label class="field-label">Priority</label>
+        <select class="field-select" formControlName="priority">
+          <option value="LOW">LOW</option>
+          <option value="MEDIUM">MEDIUM</option>
+          <option value="HIGH">HIGH</option>
+          <option value="CRITICAL">CRITICAL</option>
+        </select>
+      </div>
+      <div class="field">
+        <label class="field-label">Due Date</label>
+        <input type="date" class="field-select" formControlName="dueDate">
+      </div>
+    </div>
+    <div class="form-actions">
+      <app-button variant="secondary" size="sm" (click)="isCreateModalOpen = false">Cancel</app-button>
+      <app-button type="submit" size="sm" [loading]="isCreating">Create Task</app-button>
+    </div>
+  </form>
+</app-modal>

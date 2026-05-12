@@ -1,7 +1,9 @@
 import { Component, Input, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
+import { ActivatedRoute, Router } from '@angular/router';
 import { DragDropModule, CdkDragDrop, moveItemInArray, transferArrayItem } from '@angular/cdk/drag-drop';
+import { debounceTime, distinctUntilChanged, Subject } from 'rxjs';
 import { TaskService } from '../../../api/task.service';
 import { Task, TaskStatus, TaskPriority } from '../../../shared/models/task.model';
 import { TaskCardComponent } from '../task-card/task-card.component';
@@ -9,10 +11,7 @@ import { ModalComponent } from '../../../shared/components/modal/modal.component
 import { ButtonComponent } from '../../../shared/components/button/button.component';
 import { InputComponent } from '../../../shared/components/input/input.component';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
-import { SpinnerComponent } from '../../../shared/components/spinner/spinner.component';
 import { SkeletonComponent } from '../../../shared/components/skeleton/skeleton.component';
-import { debounceTime, distinctUntilChanged, Subject } from 'rxjs';
-import { Router } from '@angular/router';
 
 interface Column {
   status: TaskStatus;
@@ -24,193 +23,36 @@ interface Column {
   selector: 'app-task-board',
   standalone: true,
   imports: [
-    CommonModule, ReactiveFormsModule, DragDropModule,
-    TaskCardComponent, ModalComponent, ButtonComponent, InputComponent,
-    EmptyStateComponent, SkeletonComponent
+    CommonModule,
+    ReactiveFormsModule,
+    DragDropModule,
+    TaskCardComponent,
+    ModalComponent,
+    ButtonComponent,
+    InputComponent,
+    EmptyStateComponent,
+    SkeletonComponent,
   ],
-  template: `
-    <!-- Filter bar -->
-    <div class="filter-bar">
-      <input class="search-input" placeholder="Search tasks…"
-        (input)="onKeywordChange($event)" [value]="filters.keyword || ''">
-      <select class="filter-select" (change)="onPriorityChange($event)">
-        <option value="">All priorities</option>
-        <option *ngFor="let p of priorities" [value]="p">{{ p }}</option>
-      </select>
-      <button *ngIf="hasFilters" class="clear-btn" (click)="clearFilters()">Clear</button>
-    </div>
-
-    <div *ngIf="isLoading" class="board board--skeleton">
-      <div *ngFor="let col of columns" class="column">
-        <app-skeleton type="list-item"></app-skeleton>
-        <app-skeleton type="card"></app-skeleton>
-        <app-skeleton type="card"></app-skeleton>
-      </div>
-    </div>
-
-    <app-empty-state
-      *ngIf="!isLoading && hasError"
-      variant="error"
-      description="Failed to load tasks"
-      (action)="loadTasks()">
-    </app-empty-state>
-
-    <!-- Kanban board -->
-    <div *ngIf="!isLoading && !hasError" class="board" cdkDropListGroup>
-      <div *ngFor="let col of columns" class="column">
-        <div class="column-header">
-          <div class="col-title-row">
-            <span class="status-dot" [class]="col.status.toLowerCase()"></span>
-            <span class="column-title">{{ col.label }}</span>
-            <span class="task-count">{{ col.tasks.length }}</span>
-          </div>
-          <button class="add-btn" (click)="openCreate(col.status)">+</button>
-        </div>
-
-        <div class="column-body"
-          cdkDropList
-          [id]="col.status"
-          [cdkDropListData]="col.tasks"
-          [cdkDropListConnectedTo]="columnIds"
-          (cdkDropListDropped)="onDrop($event)">
-          <div *ngFor="let task of col.tasks" cdkDrag [cdkDragData]="task">
-            <app-task-card
-              [task]="task"
-              [commentCount]="task.dependencies.length"
-              (cardClick)="router.navigate(['/tasks', task.id])"
-              (deleted)="deleteTask(task)">
-            </app-task-card>
-          </div>
-          <app-empty-state
-            *ngIf="!col.tasks.length"
-            title="" description="No tasks" [minimal]="true">
-          </app-empty-state>
-          <button class="column-add-task" type="button" (click)="openCreate(col.status)">+ Add task</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Create task modal -->
-    <app-modal [isOpen]="isCreateModalOpen" title="New Task" (closed)="isCreateModalOpen = false">
-      <form [formGroup]="createForm" (ngSubmit)="createTask()" class="form">
-        <app-input label="Title" placeholder="Task title" formControlName="title"></app-input>
-        <app-input label="Description" placeholder="Optional description" formControlName="description"></app-input>
-        <div class="form-row">
-          <div class="field">
-            <label class="field-label">Priority</label>
-            <select class="field-select" formControlName="priority">
-              <option value="LOW">LOW</option>
-              <option value="MEDIUM">MEDIUM</option>
-              <option value="HIGH">HIGH</option>
-              <option value="CRITICAL">CRITICAL</option>
-            </select>
-          </div>
-          <div class="field">
-            <label class="field-label">Due Date</label>
-            <input type="date" class="field-select" formControlName="dueDate">
-          </div>
-        </div>
-        <div class="form-actions">
-          <app-button variant="secondary" size="sm" (click)="isCreateModalOpen = false">Cancel</app-button>
-          <app-button type="submit" size="sm" [loading]="isCreating">Create Task</app-button>
-        </div>
-      </form>
-    </app-modal>
-  `,
-  styles: [`
-    .filter-bar {
-      display: flex; align-items: center; gap: 8px; margin-bottom: 20px;
-    }
-    .search-input, .filter-select {
-      background: var(--color-surface); border: 1px solid var(--color-border);
-      border-radius: var(--radius-md); color: var(--color-text);
-      padding: 8px 12px; font-size: 13px; outline: none;
-    }
-    .search-input { flex: 1; }
-    .search-input:focus, .filter-select:focus { border-color: var(--color-accent); }
-    .clear-btn {
-      background: none; border: 1px solid var(--color-border);
-      border-radius: var(--radius-md); color: var(--color-muted);
-      padding: 8px 12px; font-size: 13px;
-    }
-    .clear-btn:hover { border-color: var(--color-accent); color: var(--color-accent); }
-    .board {
-      display: flex; gap: 12px; overflow-x: auto; padding-bottom: 16px;
-      min-height: calc(100vh - 220px);
-      scroll-snap-type: x mandatory;
-    }
-    .column {
-      width: 220px; flex: 0 0 220px; scroll-snap-align: start;
-      background: transparent; padding: 0;
-    }
-    @media (max-width: 767px) { .column { width: calc(100vw - 48px); } }
-    .column-header {
-      display: flex; align-items: center; justify-content: space-between;
-      margin-bottom: 10px;
-    }
-    .col-title-row { display: flex; align-items: center; gap: 6px; }
-    .status-dot {
-      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
-    }
-    .status-dot.todo        { background: var(--color-muted); }
-    .status-dot.in_progress { background: var(--color-accent); }
-    .status-dot.blocked     { background: var(--color-danger); }
-    .status-dot.in_review   { background: var(--color-warning); }
-    .status-dot.done        { background: var(--color-success); }
-    .column-title { font-size: 13px; font-weight: 500; color: var(--text-secondary); }
-    .task-count {
-      background: var(--bg-elevated); color: var(--text-secondary);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-full); font-size: 11px; padding: 2px 8px;
-    }
-    .add-btn {
-      width: 24px; height: 24px; border-radius: var(--radius-full);
-      background: var(--bg-elevated); border: 0; color: var(--text-secondary);
-      font-size: 17px; line-height: 1; padding: 0;
-    }
-    .add-btn:hover { color: var(--text-primary); background: var(--bg-overlay); }
-    .column-body {
-      display: flex; flex-direction: column; gap: 8px;
-      min-height: 80px;
-    }
-    .column-add-task {
-      width: 100%; height: 36px;
-      border: 1px dashed var(--border-default);
-      border-radius: var(--radius-md);
-      background: transparent;
-      color: var(--text-tertiary);
-      font-size: 13px;
-    }
-    .column-add-task:hover { background: var(--bg-elevated); color: var(--text-secondary); }
-    .cdk-drag-placeholder { opacity: 0.4; }
-    .cdk-drag-animating { transition: transform 250ms cubic-bezier(0,0,0.2,1); }
-    .form { display: flex; flex-direction: column; gap: 16px; }
-    .form-row { display: flex; gap: 12px; }
-    .field { flex: 1; display: flex; flex-direction: column; gap: 4px; }
-    .field-label { font-size: 13px; font-weight: 500; color: var(--color-muted); }
-    .field-select {
-      background: var(--color-surface); border: 1px solid var(--color-border);
-      border-radius: var(--radius-md); color: var(--color-text); padding: 10px 12px; font-size: 14px; outline: none;
-    }
-    .form-actions { display: flex; gap: 8px; justify-content: flex-end; }
-  `]
+  templateUrl: './task-board.component.html',
+  styleUrl: './task-board.component.scss',
 })
 export default class TaskBoardComponent implements OnInit {
   @Input() projectId = '';
+
   private readonly taskService = inject(TaskService);
-  readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   private readonly fb = inject(FormBuilder);
   private readonly keywordSubject = new Subject<string>();
 
-  columns: Column[] = [
-    { status: 'TODO',        label: 'To Do',       tasks: [] },
-    { status: 'IN_PROGRESS', label: 'In Progress',  tasks: [] },
-    { status: 'BLOCKED',     label: 'Blocked',      tasks: [] },
-    { status: 'IN_REVIEW',   label: 'In Review',    tasks: [] },
-    { status: 'DONE',        label: 'Done',         tasks: [] },
-  ];
+  readonly router = inject(Router);
 
-  get columnIds(): string[] { return this.columns.map(c => c.status); }
+  columns: Column[] = [
+    { status: 'TODO', label: 'To do', tasks: [] },
+    { status: 'IN_PROGRESS', label: 'In Progress', tasks: [] },
+    { status: 'IN_REVIEW', label: 'In Review', tasks: [] },
+    { status: 'BLOCKED', label: 'Blocked', tasks: [] },
+    { status: 'DONE', label: 'Done', tasks: [] },
+  ];
 
   filters: { keyword?: string; priority?: string } = {};
   priorities: TaskPriority[] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
@@ -224,30 +66,46 @@ export default class TaskBoardComponent implements OnInit {
     title: ['', Validators.required],
     description: [''],
     priority: ['MEDIUM' as TaskPriority],
-    dueDate: ['']
+    dueDate: [''],
   });
+
+  get columnIds(): string[] {
+    return this.columns.map((column) => column.status);
+  }
 
   get hasFilters(): boolean {
     return !!(this.filters.keyword || this.filters.priority);
   }
 
   ngOnInit(): void {
+    this.projectId = this.projectId || this.route.snapshot.paramMap.get('id') || '';
     this.loadTasks();
-    this.keywordSubject.pipe(debounceTime(300), distinctUntilChanged()).subscribe(kw => {
-      this.filters = { ...this.filters, keyword: kw || undefined };
+    this.keywordSubject.pipe(debounceTime(300), distinctUntilChanged()).subscribe((keyword) => {
+      this.filters = { ...this.filters, keyword: keyword || undefined };
       this.loadTasks();
     });
   }
 
   loadTasks(): void {
+    if (!this.projectId) {
+      this.hasError = true;
+      this.isLoading = false;
+      return;
+    }
+
     this.isLoading = true;
     this.hasError = false;
     this.taskService.getByProject(this.projectId, this.filters).subscribe({
-      next: tasks => {
-        this.columns.forEach(col => col.tasks = tasks.filter(t => t.status === col.status));
+      next: (tasks) => {
+        this.columns.forEach((column) => {
+          column.tasks = tasks.filter((task) => task.status === column.status);
+        });
         this.isLoading = false;
       },
-      error: () => { this.hasError = true; this.isLoading = false; }
+      error: () => {
+        this.hasError = true;
+        this.isLoading = false;
+      },
     });
   }
 
@@ -256,14 +114,16 @@ export default class TaskBoardComponent implements OnInit {
       moveItemInArray(event.container.data, event.previousIndex, event.currentIndex);
       return;
     }
+
     const task = event.previousContainer.data[event.previousIndex];
     const newStatus = event.container.id as TaskStatus;
     transferArrayItem(event.previousContainer.data, event.container.data, event.previousIndex, event.currentIndex);
+
     this.taskService.changeStatus(task.id, { status: newStatus }).subscribe({
       error: () => {
         transferArrayItem(event.container.data, event.previousContainer.data, event.currentIndex, event.previousIndex);
         alert('Invalid status transition');
-      }
+      },
     });
   }
 
@@ -274,30 +134,46 @@ export default class TaskBoardComponent implements OnInit {
 
   createTask(): void {
     if (this.createForm.invalid) return;
+
     this.isCreating = true;
     const { title, description, priority, dueDate } = this.createForm.value;
-    this.taskService.create(this.projectId, {
-      title: title!, description: description || '', priority: priority as TaskPriority,
-      dueDate: dueDate || undefined
-    }).subscribe({
-      next: task => {
-        const col = this.columns.find(c => c.status === task.status);
-        if (col) col.tasks.unshift(task);
-        this.isCreateModalOpen = false;
-        this.createForm.reset({ priority: 'MEDIUM' });
-        this.isCreating = false;
-      },
-      error: () => { this.isCreating = false; }
-    });
+
+    this.taskService
+      .create(this.projectId, {
+        title: title!,
+        description: description || '',
+        priority: priority as TaskPriority,
+        dueDate: dueDate || undefined,
+      })
+      .subscribe({
+        next: (task) => {
+          const column = this.columns.find((candidate) => candidate.status === task.status);
+          if (column) column.tasks.unshift(task);
+          this.isCreateModalOpen = false;
+          this.createForm.reset({ priority: 'MEDIUM' });
+          this.isCreating = false;
+        },
+        error: () => {
+          this.isCreating = false;
+        },
+      });
   }
 
   deleteTask(task: Task): void {
     this.taskService.delete(task.id).subscribe({
       next: () => {
-        const col = this.columns.find(c => c.status === task.status);
-        if (col) col.tasks = col.tasks.filter(t => t.id !== task.id);
-      }
+        const column = this.columns.find((candidate) => candidate.status === task.status);
+        if (column) column.tasks = column.tasks.filter((candidate) => candidate.id !== task.id);
+      },
     });
+  }
+
+  openTask(task: Task): void {
+    this.router.navigate(['/tasks', task.id]);
+  }
+
+  commentCountFor(task: Task): number {
+    return task.dependencies?.length ?? 0;
   }
 
   onKeywordChange(event: Event): void {
@@ -305,8 +181,8 @@ export default class TaskBoardComponent implements OnInit {
   }
 
   onPriorityChange(event: Event): void {
-    const val = (event.target as HTMLSelectElement).value;
-    this.filters = { ...this.filters, priority: val || undefined };
+    const value = (event.target as HTMLSelectElement).value;
+    this.filters = { ...this.filters, priority: value || undefined };
     this.loadTasks();
   }
 
