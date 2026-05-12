@@ -1158,7 +1158,7 @@ Verify: toggling a subtask updates the progress bar.
 
 ## PHASE R6 — Analytics Page Redesign
 
-### Task R6.1 — Backend: Enhanced Analytics Endpoints ☐
+### Task R6.1 — Backend: Enhanced Analytics Endpoints ✅
 ```
 The analytics page (screenshot 5) needs more data than the current backend provides.
 

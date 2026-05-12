@@ -32,7 +32,7 @@ public class Task {
     @Column(columnDefinition = "TEXT")
     private String description;
 
-    @Column(unique = true)
+    @Column
     private String taskIdentifier;
 
     @Enumerated(EnumType.STRING)

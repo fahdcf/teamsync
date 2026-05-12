@@ -4,6 +4,7 @@ import com.teamsync.service.AnalyticsService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -40,5 +41,19 @@ public class AnalyticsController {
     @GetMapping("/projects/{id}/health")
     public Map<String, Object> getHealth(@PathVariable UUID id) {
         return analyticsService.getProjectHealth(id);
+    }
+
+    @Operation(summary = "Get workspace-level team performance analytics for the current user")
+    @ApiResponse(responseCode = "200", description = "Team performance analytics returned")
+    @GetMapping("/team/performance")
+    public Map<String, Object> getTeamPerformance(Authentication auth) {
+        return analyticsService.getTeamPerformance(auth.getName());
+    }
+
+    @Operation(summary = "Get rule-based analytics insights for the current user's workspaces")
+    @ApiResponse(responseCode = "200", description = "Insight cards returned")
+    @GetMapping("/insights")
+    public List<Map<String, Object>> getInsights(Authentication auth) {
+        return analyticsService.getInsights(auth.getName());
     }
 }
