@@ -27,22 +27,28 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR, ReactiveFormsModule } from '@a
     </div>
   `,
   styles: [`
-    .field { display: flex; flex-direction: column; gap: 4px; }
-    .field__label { font-size: 13px; font-weight: 500; color: var(--color-muted); }
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    .field__label {
+      font-size: 12px;
+      font-weight: 400;
+      color: var(--text-secondary);
+    }
     .field__input {
-      background: var(--color-surface);
-      border: 1px solid var(--color-border);
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-subtle);
       border-radius: var(--radius-md);
-      color: var(--color-text);
-      padding: 10px 14px;
-      font-size: 14px;
+      color: var(--text-primary);
+      padding: 0 12px;
+      height: 36px;
+      font-size: 13px;
       outline: none;
       transition: border-color 0.15s;
     }
-    .field__input:focus { border-color: var(--color-accent); }
-    .field__input--error { border-color: var(--color-danger); }
+    .field__input::placeholder { color: var(--text-tertiary); }
+    .field__input:focus { border-color: var(--border-default); }
+    .field__input--error { border-color: var(--danger); }
     .field__input:disabled { opacity: 0.5; cursor: not-allowed; }
-    .field__error { font-size: 12px; color: var(--color-danger); }
+    .field__error { font-size: 12px; color: var(--danger); }
   `]
 })
 export class InputComponent implements ControlValueAccessor {

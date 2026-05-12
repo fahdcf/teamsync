@@ -1,2445 +1,1597 @@
-# TeamSync — Task List for Claude Code
+# TeamSync — Redesign Task List
 
-> Strategy: Build small working MVPs, add complexity incrementally.
-> Each task = one Claude Code session. App must run after every phase.
-> Patterns rule: every pattern goes in `patterns/<category>/<name>/` with a README.md.
+> These tasks replace the previous frontend phases entirely.
+> Agent rule: find first ☐, implement pixel-perfectly matching the reference screenshots, verify, mark ✅, commit, push, repeat.
+> Every task must match the reference design exactly before moving on.
+> If backend endpoints are missing, implement them first before the Angular task.
 
 ---
 
-## PHASE 1 — Foundation (Working Auth App)
+## Design System Reference (read this before every task)
 
-### Task 1.1 — Project Scaffolding ✅
-```
-Create a Spring Boot 3 project with Maven.
+### Color Palette (extracted from screenshots)
+```scss
+// Backgrounds — near-black with warm undertones
+$bg-base:       #0C0C0E;   // deepest background
+$bg-surface:    #141416;   // cards, sidebar
+$bg-elevated:   #1C1C1F;   // hover states, inputs
+$bg-overlay:    #242428;   // modals, dropdowns
 
-Dependencies:
-- Spring Web
-- Spring Data JPA
-- Spring Security
-- PostgreSQL Driver
-- Lombok
-- Validation (hibernate-validator)
-- jjwt 0.11.5 (io.jsonwebtoken)
-- SpringDoc OpenAPI (springdoc-openapi-starter-webmvc-ui)
+// Borders
+$border-subtle: rgba(255,255,255,0.06);
+$border-default: rgba(255,255,255,0.10);
+$border-strong: rgba(255,255,255,0.18);
 
-Package structure to create (empty for now):
-  com.teamsync
-    ├── presentation/controller/
-    ├── presentation/dto/
-    ├── service/
-    ├── repository/
-    ├── domain/entity/
-    ├── domain/enums/
-    ├── infrastructure/security/
-    ├── infrastructure/config/
-    └── patterns/
-        ├── creational/singleton/
-        ├── creational/factory/
-        ├── creational/builder/
-        ├── creational/prototype/
-        ├── structural/facade/
-        ├── structural/adapter/
-        ├── structural/proxy/
-        ├── structural/decorator/
-        ├── behavioral/observer/
-        ├── behavioral/strategy/
-        ├── behavioral/state/
-        ├── behavioral/command/
-        ├── behavioral/chain/
-        └── behavioral/template/
+// Accent — warm amber/gold (from screenshots, NOT cold indigo)
+$accent:        #D4A853;   // primary gold/amber
+$accent-hover:  #E8BC6B;
+$accent-dim:    rgba(212,168,83,0.15);
 
-application.properties: configure PostgreSQL, JWT secret (min 32 chars), port 8080.
+// Status colors (subtle, muted — not neon)
+$success:       #4ADE80;   // green — DONE tasks
+$warning:       #F59E0B;   // amber — IN_REVIEW, AT_RISK
+$danger:        #EF4444;   // red — BLOCKED, OVERDUE
+$info:          #60A5FA;   // blue — IN_PROGRESS
+$muted-text:    #6B6B7A;   // secondary text
 
-Goal: app starts with no errors. All packages exist.
+// Text
+$text-primary:  #F2F2F5;
+$text-secondary: #9999A8;
+$text-tertiary: #5A5A6A;
+
+// Special — warm glow effect behind hero sections (seen in workspace/analytics headers)
+$warm-glow: radial-gradient(ellipse 60% 40% at 70% 20%, rgba(180,130,60,0.18) 0%, transparent 70%);
 ```
 
-### Task 1.2 — User Entity + Repository ✅
-```
-Create:
-- Role enum (ADMIN, PROJECT_MANAGER, TEAM_MEMBER) in domain/enums/
-- User entity in domain/entity/ (id UUID, username, email, password, role, createdAt)
-- UserRepository in repository/ (JpaRepository<User, UUID>)
-- UserResponseDTO in presentation/dto/ (id, username, email, role — NO password)
-- UserRequestDTO in presentation/dto/ (username, email, password, role)
+### Typography
+```scss
+// Font: Geist Sans (primary), Geist Mono (code/ids)
+// Import in index.html: https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap
+// Use Inter as fallback if Geist unavailable
 
-Goal: entity maps to DB table on startup (spring.jpa.hibernate.ddl-auto=update).
-```
-
-### Task 1.3 — JWT Auth System ✅
-```
-Implement full JWT authentication:
-
-infrastructure/security/:
-- JwtUtil: generateToken(email), validateToken(token), extractEmail(token)
-- JwtAuthFilter: extends OncePerRequestFilter, reads Bearer token, sets SecurityContext
-- UserDetailsServiceImpl: loads UserDetails by email from UserRepository
-- SecurityConfig: permit /auth/**, /patterns/**, /swagger-ui/**, require auth elsewhere
-
-service/:
-- AuthService: register(request) saves user with BCrypt password, login(request) returns JWT string
-
-presentation/controller/:
-- AuthController: POST /auth/register → UserResponseDTO, POST /auth/login → { token: "..." }
-
-Goal: register and login work via Postman. JWT token returned on login.
+$font-xs:   11px;  // metadata, chips
+$font-sm:   12px;  // secondary labels
+$font-base: 13px;  // body text (smaller than typical — this app is dense)
+$font-md:   14px;  // default UI text
+$font-lg:   16px;  // section headings
+$font-xl:   20px;  // page titles
+$font-2xl:  24px;  // dashboard greeting sub
+$font-3xl:  32px;  // hero numbers
+$font-hero: 56px;  // landing page headline
 ```
 
-### Task 1.4 — User Profile Endpoints ✅
+### Spacing & Layout
 ```
-service/:
-- UserService: getCurrentUser(email), updateUsername(email, newUsername), getAllUsers()
+Sidebar width: 200px (NOT 240px — tighter, more content space)
+Navbar height: 52px
+Content padding: 32px
+Card padding: 20px
+Gap between cards: 12px
+Border radius: 8px (cards), 6px (inputs/buttons), 12px (modals)
+```
 
-presentation/controller/:
-- UserController:
-  GET  /users/me       → UserResponseDTO (current authenticated user)
-  PUT  /users/me       → update username
-  GET  /users          → List<UserResponseDTO> — ADMIN only (@PreAuthorize)
+### Component Patterns (from screenshots)
+```
+Stat cards: bg-surface, border border-subtle, rounded-lg, p-5
+  → Large number (font-3xl, font-bold), label (font-sm, text-secondary)
+  → Small sparkline chart bottom (Canvas, 60px tall, no axes, no gridlines)
+  → Trend indicator: ↑12% from last week (green if positive, red if negative)
 
-Enable @EnableMethodSecurity in SecurityConfig.
+Task cards (Kanban): bg-elevated, rounded-md, p-4, no heavy border
+  → Title (font-md, font-medium), priority dot, date, avatars, comment count
+  → Selected card: slightly brighter background + subtle left accent border
 
-Goal: all 3 endpoints work with Bearer token. /users returns 403 for non-ADMIN.
+Project rows (Workspace): full-width list item with thumbnail image (left), data columns (right)
+  → NOT a card grid — it's a table-like list with image previews
+
+Navbar: bg-base, border-b border-subtle, flex row
+  → Left: search bar (rounded-full, bg-elevated, 400px wide)
+  → Center: breadcrumb (Workspace → Project)
+  → Right: + New button, notification bell with count, workspace selector, avatar stack
+
+Sidebar: bg-surface, border-r border-subtle, no heavy styling
+  → Nav items: icon (18px) + label, active = bg-elevated + text-primary, inactive = text-tertiary
+  → Bottom: user avatar + name + role, AI Assistant badge
 ```
 
 ---
 
-## PHASE 2 — Workspace + Project + First Patterns
+## PHASE R1 — Design System Overhaul (Foundation)
 
-### Task 2.1 — Workspace Entity + CRUD ✅
+### Task R1.1 — Replace Design System Tokens ✅
 ```
-domain/entity/:
-- Workspace (id UUID, name, description, owner ManyToOne User, members ManyToMany User, createdAt)
-
-repository/:
-- WorkspaceRepository: findByOwner(User), findByMembersContaining(User)
-
-service/:
-- WorkspaceService: create, findById, getMyWorkspaces, addMember(workspaceId, email), removeMember
-
-presentation/dto/:
-- WorkspaceRequestDTO, WorkspaceResponseDTO
-
-presentation/controller/:
-- WorkspaceController:
-  POST   /workspaces                          → create
-  GET    /workspaces                          → my workspaces (owned + member of)
-  GET    /workspaces/{id}                     → details
-  POST   /workspaces/{id}/members             → add member by email
-  DELETE /workspaces/{id}/members/{userId}    → remove member
-
-Goal: workspace CRUD works end-to-end.
-```
-
-### Task 2.2 — Project Entity + CRUD ✅
-```
-domain/enums/:
-- ProjectStatus: PLANNING, ACTIVE, ON_HOLD, COMPLETED, ARCHIVED
-
-domain/entity/:
-- Project (id UUID, title, description, status, deadline LocalDate, progress int,
-           workspace ManyToOne, manager ManyToOne User, createdAt)
-
-repository/:
-- ProjectRepository: findByWorkspace, findByManager
-
-service/:
-- ProjectService: create, update, archive, findByWorkspace, findById
-
-presentation/dto/:
-- ProjectRequestDTO, ProjectResponseDTO
-
-presentation/controller/:
-- ProjectController:
-  POST /workspaces/{workspaceId}/projects     → create project
-  GET  /workspaces/{workspaceId}/projects     → list projects
-  GET  /projects/{id}                         → details
-  PUT  /projects/{id}                         → update
-  PUT  /projects/{id}/archive                 → set status=ARCHIVED
-
-Goal: project CRUD works scoped to workspace.
-```
-
-### Task 2.3 — PATTERN: Singleton + Facade ✅
-```
-Implement two patterns. Each goes in its own sub-package with a README.md.
-
---- PATTERN 1: Singleton ---
-Package: patterns/creational/singleton/
-
-Create AppLogger.java:
-- Private static instance
-- Private constructor
-- Public static getInstance() returning the single instance
-- Methods: info(String msg), warn(String msg), error(String msg) — print to console with timestamp
-- Annotate with @Component using a trick: Spring-managed singleton via private constructor workaround,
-  OR use pure GoF singleton (static getInstance) — pure GoF is preferred for academic clarity
-
-Create README.md in patterns/creational/singleton/:
-  # Singleton Pattern
-  Ensures only one instance of AppLogger exists in the application.
-  AppLogger uses a private constructor and a static getInstance() method.
-  All services call AppLogger.getInstance().info(...) to log — never create a new logger.
-
-Use AppLogger in WorkspaceService and ProjectService for logging create/update actions.
-
---- PATTERN 2: Facade ---
-Package: patterns/structural/facade/
-
-Create ProjectManagementFacade.java:
-- Injected dependencies: ProjectService, WorkspaceService, UserService
-- Method: initializeProject(workspaceId, projectTitle, managerEmail)
-  → validates workspace exists
-  → creates project
-  → assigns manager
-  → logs via AppLogger
-  → returns ProjectResponseDTO
-- This hides 3 service calls behind one method
-
-Create README.md in patterns/structural/facade/:
-  # Facade Pattern
-  ProjectManagementFacade provides a single method to initialize a project.
-  Without the facade, callers would need to: find workspace, create project, find user, assign manager.
-  The facade hides this complexity behind one initializeProject() call.
-
-Add endpoint in ProjectController:
-  POST /projects/initialize → calls facade.initializeProject(...)
-
---- ACADEMIC ENDPOINT ---
-Create PatternsController in presentation/controller/:
-  GET /patterns → returns a hardcoded JSON list of all 14 patterns:
-  [{ "name": "Singleton", "category": "Creational", "package": "patterns.creational.singleton", "purpose": "..." }, ...]
-
-Goal: /projects/initialize works; /patterns returns all 14 entries; AppLogger logs are visible in console.
-```
-
----
-
-## PHASE 3 — Task System (Core Value)
-
-### Task 3.1 — Task Entity + CRUD ✅
-```
-domain/enums/:
-- TaskStatus: TODO, IN_PROGRESS, BLOCKED, IN_REVIEW, DONE
-- TaskPriority: LOW, MEDIUM, HIGH, CRITICAL
-
-domain/entity/:
-- Task (id UUID, title, description, priority, status, assignee ManyToOne User,
-        project ManyToOne Project, dueDate LocalDate, createdAt, updatedAt)
-
-repository/:
-- TaskRepository: findByProject, findByAssignee, findByProjectAndStatus
-
-service/:
-- TaskService: create, update, delete, findByProject, findByAssignee, findById
-
-presentation/dto/:
-- TaskRequestDTO, TaskResponseDTO
-
-presentation/controller/:
-- TaskController:
-  POST   /projects/{projectId}/tasks      → create
-  GET    /projects/{projectId}/tasks      → list (optional ?status=, ?priority=)
-  GET    /tasks/{id}                      → details
-  PUT    /tasks/{id}                      → update title/description/priority/dueDate
-  DELETE /tasks/{id}                      → delete
-  PUT    /tasks/{id}/assign               → assign to userId
-
-Goal: task CRUD works scoped to project.
-```
-
-### Task 3.2 — PATTERN: State Machine ✅
-```
-Package: patterns/behavioral/state/
-
-Create the following:
-
-TaskState.java (interface):
-  void handle(Task task, TaskStatus targetStatus, TaskRepository repo);
-  boolean canTransitionTo(TaskStatus target);
-
-Concrete states (one class each):
-- TodoState        → can go to: IN_PROGRESS
-- InProgressState  → can go to: IN_REVIEW, BLOCKED
-- BlockedState     → can go to: IN_PROGRESS
-- InReviewState    → can go to: DONE, IN_PROGRESS
-- DoneState        → no transitions allowed
-
-TaskStateMachine.java:
-- getCurrentState(Task task) → returns the right concrete state
-- transition(Task task, TaskStatus target, TaskRepository repo):
-    gets current state → checks canTransitionTo → calls handle → saves
-
-Create README.md:
-  # State Pattern
-  Each TaskStatus has a corresponding State class that knows which transitions are valid.
-  TaskStateMachine holds no transition logic itself — it delegates to the current state.
-  Example: InProgressState allows going to IN_REVIEW or BLOCKED, but not directly to DONE.
-
-Wire into TaskService:
-- New method: changeStatus(taskId, targetStatus) — goes through TaskStateMachine, never sets status directly
-
-Add endpoint:
-  PUT /tasks/{id}/status   body: { "status": "IN_REVIEW" }
-
-Goal: valid transitions work; invalid ones return 400 with "Invalid transition: IN_PROGRESS → DONE".
-```
-
-### Task 3.3 — Task Dependencies ✅
-```
-Add to Task entity:
-- dependencies: ManyToMany self-reference (a task can depend on multiple tasks)
-
-Add to TaskRepository:
-- findByDependenciesContaining(Task task)
-
-Create TaskDependencyService:
-- addDependency(taskId, dependsOnId): validates no circular dependency (BFS check), saves
-- removeDependency(taskId, dependsOnId)
-- canStart(Task task): returns true if all dependency tasks have status=DONE
-- getBlockedTasks(projectId): tasks where canStart() is false
-
-Wire into TaskStateMachine:
-- TodoState.canTransitionTo(IN_PROGRESS) also checks TaskDependencyService.canStart()
-
-Add endpoints:
-  POST   /tasks/{id}/dependencies              body: { "dependsOnTaskId": "..." }
-  DELETE /tasks/{id}/dependencies/{depId}
-  GET    /projects/{id}/tasks/blocked          → tasks that cannot start yet
-
-Goal: task B blocked until task A is DONE. Circular dependency rejected with 400.
-```
-
-### Task 3.4 — PATTERN: Strategy + Prototype ✅
-```
---- PATTERN 1: Strategy ---
-Package: patterns/behavioral/strategy/
-
-AssignmentStrategy.java (interface):
-  User assign(List<User> projectMembers, Task task, TaskRepository taskRepository);
-
-Concrete strategies:
-- WorkloadStrategy: assigns to member with fewest IN_PROGRESS tasks
-- RoundRobinStrategy: assigns in rotation (use a simple static counter per project)
-- ManualStrategy: no-op, throws UnsupportedOperationException (use direct assign endpoint instead)
-
-TaskAssignmentService.java:
-- setStrategy(AssignmentStrategy strategy)
-- autoAssign(Task task, List<User> members) → calls strategy.assign(...)
-
-Create README.md:
-  # Strategy Pattern
-  AssignmentStrategy defines the algorithm interface. WorkloadStrategy and RoundRobinStrategy
-  are interchangeable implementations. TaskAssignmentService runs whichever strategy is injected,
-  with no if/else logic in the service itself.
-
-Add endpoint:
-  POST /projects/{projectId}/tasks/auto-assign?strategy=workload|roundrobin
-  body: { "taskId": "..." }
-
---- PATTERN 2: Prototype ---
-Package: patterns/creational/prototype/
-
-CloneableTask.java (interface):
-  CloneableTask cloneTask();
-
-TaskTemplate.java (implements CloneableTask):
-- Fields: templateName, title, description, priority, defaultDueDays (int)
-- cloneTask() returns a new TaskTemplate with same fields (deep copy)
-- Store as a simple entity in DB (TaskTemplate table)
-
-TaskTemplateRepository, TaskTemplateService.
-
-Add endpoints:
-  POST /projects/{id}/templates            → save current task structure as template
-  GET  /projects/{id}/templates            → list templates
-  POST /tasks/from-template/{templateId}   → clone template → create task with pre-filled fields
-
-Create README.md:
-  # Prototype Pattern
-  TaskTemplate implements cloneTask() to produce a deep copy of itself.
-  Instead of constructing a new task from scratch, callers clone a template.
-  This avoids re-specifying title, description, priority, and due date every time.
-
-Goal: auto-assign endpoint works with both strategies; task created from template has pre-filled fields.
-```
-
----
-
-## PHASE 4 — Remaining Patterns (All 14 Done)
-
-### Task 4.1 — PATTERN: Observer + Factory Method ✅
-```
---- PATTERN 1: Observer ---
-Package: patterns/behavioral/observer/
-
-ProjectEvent.java (record or class): eventType (enum), payload (Object), triggeredBy (User)
-ProjectEventType enum: TASK_CREATED, TASK_STATUS_CHANGED, TASK_ASSIGNED, COMMENT_ADDED, PROJECT_UPDATED
-
-ProjectEventListener.java (interface):
-  void onEvent(ProjectEvent event);
-
-ProjectEventPublisher.java:
-- List<ProjectEventListener> listeners (injected via constructor)
-- publish(ProjectEvent event): calls onEvent on each listener
-
-Listeners to implement (stubs for now, wired later):
-- ActivityLogListener: prints "ACTIVITY: [action]" to console (real persistence in Phase 5)
-- NotificationListener: prints "NOTIFY: [recipient] — [message]" (real notifications below)
-
-Wire into TaskService: publish event after create, changeStatus, assign.
-Wire into ProjectService: publish event after update.
-
-Create README.md:
-  # Observer Pattern
-  ProjectEventPublisher maintains a list of ProjectEventListeners.
-  When a task changes status, the publisher calls onEvent() on all listeners.
-  Listeners (ActivityLogListener, NotificationListener) react independently.
-  The publisher knows nothing about what listeners do — fully decoupled.
-
---- PATTERN 2: Factory Method ---
-Package: patterns/creational/factory/
-
-Notification.java entity: id, type (enum), message, recipient ManyToOne User, readStatus boolean, createdAt
-NotificationType enum: IN_APP, EMAIL
-
-NotificationFactory.java (abstract class):
-  abstract Notification createNotification(User recipient, String message);
-  final void notifyUser(User recipient, String message) { save(createNotification(...)); }
-
-Concrete factories:
-- InAppNotificationFactory: creates Notification with type=IN_APP
-- EmailNotificationFactory: creates Notification with type=EMAIL, logs "EMAIL SENT to [email]"
-
-NotificationRepository, NotificationService (wraps factory selection).
-
-Wire NotificationListener (from Observer) to call the right factory based on notification type.
-
-Create README.md:
-  # Factory Method Pattern
-  NotificationFactory defines createNotification() as abstract.
-  InAppNotificationFactory and EmailNotificationFactory each implement it differently.
-  The caller uses notifyUser() on the factory — never calls new Notification() directly.
-
-Add endpoints:
-  GET /notifications                → current user's unread notifications
-  PUT /notifications/{id}/read      → mark as read
-
-Goal: task status change → observer fires → factory creates notification → GET /notifications returns it.
-```
-
-### Task 4.2 — PATTERN: Command (Undo) ✅
-```
-Package: patterns/behavioral/command/
-
-TaskCommand.java (interface):
-  void execute();
-  void undo();
-
-Concrete commands:
-- DeleteTaskCommand:
-    execute(): saves full task snapshot (all fields) in memory, then deletes from DB
-    undo(): re-inserts saved snapshot
-- AssignTaskCommand:
-    execute(): stores previousAssignee, sets new assignee
-    undo(): restores previousAssignee
-- ChangeStatusCommand:
-    execute(): stores previousStatus, changes to new status via StateMachine
-    undo(): directly sets previousStatus (bypass state machine for undo)
-
-TaskCommandInvoker.java:
-- Per-user history: Map<UUID, Deque<TaskCommand>> (userId → stack, max 10)
-- execute(userId, command): runs execute(), pushes to stack
-- undo(userId): pops last command, calls undo()
-
-Refactor in TaskService:
-- deleteTask → goes through DeleteTaskCommand via invoker
-- changeStatus → goes through ChangeStatusCommand via invoker
-- assignTask → goes through AssignTaskCommand via invoker
-
-Add endpoint:
-  POST /tasks/undo    → undoes last action for current user
-
-Create README.md:
-  # Command Pattern
-  Each action (delete, assign, change status) is wrapped in a Command object with execute() and undo().
-  TaskCommandInvoker keeps a per-user history stack.
-  Calling POST /tasks/undo pops the last command and calls undo() — no action-specific logic in the controller.
-
-Goal: delete a task → POST /tasks/undo → task is restored in DB.
-```
-
-### Task 4.3 — PATTERN: Chain of Responsibility + Decorator ✅
-```
---- PATTERN 1: Chain of Responsibility ---
-Package: patterns/behavioral/chain/
-
-TaskValidator.java (abstract class):
-  private TaskValidator next;
-  setNext(TaskValidator next): returns next (fluent)
-  abstract void validate(TaskRequestDTO request, Project project);
-  protected void passToNext(request, project): calls next.validate if next != null
-
-Concrete validators (one class each):
-- TitleValidator:   rejects if title is blank or > 100 chars
-- DeadlineValidator: rejects if dueDate is in the past
-- AssigneeValidator: rejects if assigneeId is not a member of the project
-- PriorityValidator: rejects if priority is null
-
-ValidationChainFactory.java:
-- buildChain(): returns TitleValidator → DeadlineValidator → AssigneeValidator → PriorityValidator
-
-Wire into TaskService.createTask(): run request through chain before saving.
-
-Create README.md:
-  # Chain of Responsibility Pattern
-  Each validator handles one rule. If the rule passes, it calls the next validator.
-  If it fails, it throws a ValidationException immediately.
-  The chain is assembled by ValidationChainFactory: Title → Deadline → Assignee → Priority.
-  TaskService passes the request to the first validator and lets the chain handle the rest.
-
---- PATTERN 2: Decorator ---
-Package: patterns/structural/decorator/
-
-NotificationSender.java (interface):
-  void send(Notification notification);
-
-InAppSender.java (base implementation):
-  send(): marks notification as sent (logs to console)
-
-EmailDecorator.java (wraps NotificationSender):
-  private NotificationSender wrapped;
-  send(): calls wrapped.send(), then also logs "EMAIL → [recipient email]: [message]"
-
-UrgentDecorator.java (wraps NotificationSender):
-  send(): prepends "[URGENT] " to notification message, then calls wrapped.send()
-
-Usage in NotificationService:
-- For HIGH/CRITICAL priority tasks: UrgentDecorator(EmailDecorator(InAppSender))
-- For normal tasks: InAppSender only
-
-Create README.md:
-  # Decorator Pattern
-  NotificationSender is the base interface. InAppSender is the plain implementation.
-  EmailDecorator wraps any sender and adds email sending on top.
-  UrgentDecorator wraps any sender and prepends [URGENT] to the message.
-  They can be stacked: UrgentDecorator(EmailDecorator(InAppSender)) sends urgent + email + in-app.
-
-Goal: invalid tasks rejected with specific message per validator; CRITICAL tasks get [URGENT] prefix + email log.
-```
-
-### Task 4.4 — PATTERN: Adapter + Proxy ✅
-```
---- PATTERN 1: Adapter ---
-Package: patterns/structural/adapter/
-
-MockExternalEmailClient.java (simulates incompatible third-party API):
-  void sendMessage(String recipient, String content)  // different method name + signature
-
-EmailService.java (our interface):
-  void sendEmail(String to, String subject, String body);
-
-EmailServiceAdapter.java (implements EmailService, wraps MockExternalEmailClient):
-  sendEmail(to, subject, body):
-    → calls client.sendMessage(to, subject + " | " + body)
-
-Wire EmailServiceAdapter into EmailDecorator (from 4.3) to replace the console log.
-
-Create README.md:
-  # Adapter Pattern
-  MockExternalEmailClient has sendMessage() — incompatible with our EmailService interface.
-  EmailServiceAdapter implements EmailService and translates sendEmail() calls to sendMessage().
-  The rest of the app only knows about EmailService — the third-party API is completely hidden.
-
---- PATTERN 2: Proxy ---
-Package: patterns/structural/proxy/
-
-Create TaskService.java as an interface with methods:
-  createTask, updateTask, deleteTask, assignTask, changeStatus, findById, findByProject
-
-TaskServiceImpl.java: current TaskService logic, now implements the interface
-
-TaskServiceProxy.java (implements TaskService, wraps TaskServiceImpl):
-  For deleteTask: checks caller has role ADMIN or PROJECT_MANAGER, else throws AccessDeniedException
-  For assignTask: checks caller is a member of the task's project, else throws AccessDeniedException
-  All other methods: delegate directly to impl with no checks
-
-Wire proxy: inject TaskServiceProxy wherever TaskService is injected (use @Primary on proxy).
-
-Create README.md:
-  # Proxy Pattern
-  TaskServiceProxy sits in front of TaskServiceImpl and controls access.
-  Before delete: checks the caller has ADMIN or PROJECT_MANAGER role.
-  Before assign: checks the caller is a project member.
-  If checks pass, it delegates to TaskServiceImpl. The controller never talks to the impl directly.
-
-Goal: non-manager trying to delete a task gets 403. Adapter logs "EXTERNAL EMAIL SENT" on notifications.
-All 14 patterns now implemented. GET /patterns returns all 14.
-```
-
----
-
-## PHASE 5 — Collaboration Features
-
-### Task 5.1 — Comments System ✅
-```
-domain/entity/:
-- Comment (id UUID, content, author ManyToOne User, task ManyToOne Task,
-           parentComment ManyToOne Comment nullable, createdAt)
-
-repository/:
-- CommentRepository: findByTask, findByParentComment
-
-service/:
-- CommentService: addComment, addReply, deleteComment (author or ADMIN only), findByTask
-
-presentation/dto/:
-- CommentRequestDTO, CommentResponseDTO (includes replies list)
-
-presentation/controller/:
-- CommentController:
-  POST   /tasks/{id}/comments       → add comment
-  GET    /tasks/{id}/comments       → list with nested replies
-  POST   /comments/{id}/replies     → reply to comment
-  DELETE /comments/{id}             → delete (author or ADMIN)
-
-Wire Observer: CommentService publishes COMMENT_ADDED event after saving.
-NotificationListener notifies the task assignee via factory.
-
-Goal: threaded comments work; assignee gets in-app notification on new comment.
-```
-
-### Task 5.2 — Activity Feed (Wire Observer Fully) ✅
-```
-domain/entity/:
-- ActivityLog (id UUID, action String, user ManyToOne User,
-               entityType String, entityId UUID, createdAt)
-
-repository/:
-- ActivityLogRepository: findByEntityId, findTop50ByOrderByCreatedAtDesc
-
-service/:
-- ActivityLogService: log(user, action, entityType, entityId), findByProject, findByWorkspace
-
-Update ActivityLogListener (from Observer):
-- Now persists real ActivityLog entries instead of console printing
-- Format: "Ahmed moved task 'Backend API' to IN_PROGRESS"
-
-presentation/controller/:
-- ActivityController:
-  GET /projects/{id}/activity      → last 50 activity entries for project
-  GET /workspaces/{id}/activity    → workspace-level feed
-  GET /users/me/activity           → personal feed
-
-Goal: every task change, assignment, and comment creates a real activity log entry.
-```
-
----
-
-## PHASE 6 — Analytics + Reports
-
-### Task 6.1 — Analytics Endpoints ✅
-```
-service/:
-- AnalyticsService:
-  getProjectStats(projectId):
-    → total tasks, count by status, count by priority, overdue count, completion %
-  getTeamWorkload(projectId):
-    → per-member: name, activeTaskCount, completedTaskCount
-  getProjectHealth(projectId):
-    → ON_TRACK if progress >= 70% and no overdue tasks
-    → AT_RISK if progress 40-69% or few overdue tasks
-    → DELAYED otherwise
-
-presentation/controller/:
-- AnalyticsController:
-  GET /analytics/projects/{id}/stats
-  GET /analytics/projects/{id}/team-workload
-  GET /analytics/projects/{id}/health
-
-Goal: analytics data returned as JSON, ready for any frontend chart library.
-```
-
-### Task 6.2 — PATTERN: Builder + Template Method (Reports) ✅
-```
---- PATTERN 1: Template Method ---
-Package: patterns/behavioral/template/
-
-ReportGenerator.java (abstract class):
-  final String generate(UUID projectId):    ← template method, cannot be overridden
-    data = collectData(projectId)
-    processed = processData(data)
-    return formatOutput(processed)
-  
-  abstract Map<String, Object> collectData(UUID projectId);
-  abstract Map<String, Object> processData(Map<String, Object> data);
-  abstract String formatOutput(Map<String, Object> processed);
-
-Concrete subclasses:
-- JsonReportGenerator: formatOutput returns JSON string (use Jackson ObjectMapper)
-- CsvReportGenerator:  formatOutput returns CSV rows as string
-- PdfReportGenerator:  formatOutput returns "PDF REPORT: [summary]" (mock — no library needed)
-
-Create README.md:
-  # Template Method Pattern
-  ReportGenerator.generate() is the template method — it calls collectData, processData, formatOutput in order.
-  Subclasses cannot change the order of steps, only what each step does.
-  JsonReportGenerator, CsvReportGenerator, PdfReportGenerator each implement the 3 abstract methods.
-
---- PATTERN 2: Builder ---
-Package: patterns/creational/builder/
-
-Report.java:
-  Fields: projectTitle, generatedAt, format, sections (List<String>), dateRange (from/to)
-  Private constructor, no setters.
-
-ReportBuilder.java:
-  withProject(Project project)       → sets projectTitle
-  withFormat(String format)          → sets format
-  withSections(String... sections)   → adds to sections list
-  withDateRange(LocalDate from, LocalDate to)
-  build()                            → validates required fields, returns new Report
-
-Create README.md:
-  # Builder Pattern
-  Report has many optional fields and a private constructor.
-  ReportBuilder provides a fluent API to construct it step by step.
-  build() validates that required fields are set before creating the Report object.
-  No telescoping constructors, no partially-initialized objects.
-
-Wire together:
-- ReportService: uses ReportBuilder to create the Report, then picks the correct ReportGenerator subclass
-- Returns the formatted string as the response body
-
-Add endpoint:
-  GET /reports/projects/{id}?format=json|csv|pdf
-
-Goal: all 3 formats return different output for same project data.
-```
-
----
-
-## PHASE 7 — Polish + Finalization
-
-### Task 7.1 — Global Exception Handling ✅
-```
-Create GlobalExceptionHandler (@RestControllerAdvice):
-- EntityNotFoundException (custom) → 404
-- AccessDeniedException           → 403
-- ValidationException (custom)    → 400 with { field, message } list
-- IllegalStateException           → 400 (invalid state transitions)
-- Generic Exception               → 500
-
-Standard error response format for all errors:
-{
-  "timestamp": "...",
-  "status": 404,
-  "error": "Not Found",
-  "message": "Task not found: [id]",
-  "path": "/tasks/..."
+This is the most critical task. Everything visual depends on these tokens being correct.
+Wrong tokens = every page looks wrong. Get this exactly right.
+
+BACKEND: No changes needed.
+
+FRONTEND: Complete rewrite of src/styles.scss and all token files.
+
+Step 1 — Update src/styles.scss completely:
+
+:root {
+  /* Backgrounds */
+  --bg-base:      #0C0C0E;
+  --bg-surface:   #141416;
+  --bg-elevated:  #1C1C1F;
+  --bg-overlay:   #242428;
+
+  /* Borders */
+  --border-subtle:  rgba(255,255,255,0.06);
+  --border-default: rgba(255,255,255,0.10);
+  --border-strong:  rgba(255,255,255,0.18);
+
+  /* Accent — warm amber/gold */
+  --accent:       #D4A853;
+  --accent-hover: #E8BC6B;
+  --accent-dim:   rgba(212,168,83,0.15);
+  --accent-glow:  rgba(212,168,83,0.08);
+
+  /* Status */
+  --success:      #4ADE80;
+  --success-dim:  rgba(74,222,128,0.12);
+  --warning:      #F59E0B;
+  --warning-dim:  rgba(245,158,11,0.12);
+  --danger:       #EF4444;
+  --danger-dim:   rgba(239,68,68,0.12);
+  --info:         #60A5FA;
+  --info-dim:     rgba(96,165,250,0.12);
+
+  /* Text */
+  --text-primary:   #F2F2F5;
+  --text-secondary: #9999A8;
+  --text-tertiary:  #5A5A6A;
+  --text-accent:    #D4A853;
+
+  /* Spacing */
+  --sidebar-width:   200px;
+  --navbar-height:   52px;
+  --content-padding: 32px;
+
+  /* Radius */
+  --radius-sm:  4px;
+  --radius-md:  6px;
+  --radius-lg:  8px;
+  --radius-xl:  12px;
+  --radius-2xl: 16px;
+  --radius-full: 9999px;
+
+  /* Shadows */
+  --shadow-sm:  0 1px 2px rgba(0,0,0,0.4);
+  --shadow-md:  0 4px 12px rgba(0,0,0,0.5);
+  --shadow-lg:  0 8px 24px rgba(0,0,0,0.6);
+  --shadow-glow: 0 0 20px rgba(212,168,83,0.15);
 }
 
-Add @Valid to all controller @RequestBody params.
-Add validation annotations to all DTOs (@NotBlank, @NotNull, @Future, @Size).
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-family: 'Inter', -apple-system, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
 
-Goal: no stack traces leak. All errors return the standard JSON format.
-```
+/* Scrollbar styling */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-default); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
 
-### Task 7.2 — Swagger + Final Docs ✅
-```
-Configure SpringDoc:
-- Title: "TeamSync API", version "1.0", description: "Collaborative Project Management Platform"
-- JWT Bearer auth scheme (so Swagger UI has Authorize button)
-- Add @Tag to each controller (Auth, Users, Workspaces, Projects, Tasks, Comments, Notifications, Analytics, Reports, Patterns)
-- Add @Operation(summary="...") to every endpoint
-- Add @ApiResponse for common status codes (200, 201, 400, 401, 403, 404)
+/* Selection */
+::selection { background: var(--accent-dim); color: var(--text-primary); }
 
-Update GET /patterns to return full list:
-[{
-  "id": 1,
-  "name": "Singleton",
-  "category": "Creational",
-  "package": "com.teamsync.patterns.creational.singleton",
-  "keyClasses": ["AppLogger"],
-  "purpose": "Ensures one shared logger instance exists across the application"
-}, ...]
+Step 2 — Update src/app/shared/components/ — rewrite ALL shared components with new tokens:
 
-Goal: /swagger-ui.html shows all endpoints, grouped by tag, with working JWT auth.
-```
+button.component.scss:
+  primary: bg accent, text black (#0C0C0E), font-weight 500, border-radius radius-md
+    hover: bg accent-hover, shadow-glow
+  secondary: bg transparent, border border-default, text text-primary
+    hover: bg bg-elevated, border border-strong
+  danger: bg transparent, border danger, text danger
+    hover: bg danger-dim
+  ghost: bg transparent, text text-secondary
+    hover: bg bg-elevated, text text-primary
+  All buttons: font-size 13px, height 32px (sm), 36px (md), 40px (lg), padding 0 14px
 
-### Task 7.3 — Search + Filtering ✅
-```
-Add JPA Specification-based filtering to task list:
-GET /projects/{id}/tasks?status=IN_PROGRESS&priority=HIGH&assigneeId=...&keyword=...&overdue=true
+input.component.scss:
+  bg: bg-elevated
+  border: 1px solid border-subtle
+  border-radius: radius-md
+  color: text-primary
+  font-size: 13px
+  height: 36px
+  placeholder: text-tertiary
+  focus: border-color border-default, outline: none
+  error: border-color danger
+  Label: font-size 12px, color text-secondary, margin-bottom 6px
 
-Create TaskSpecification.java (implements Specification<Task>):
-- Each filter is a static method returning a Predicate
-- Combine with and() in TaskRepository
+badge.component.scss — new variant map:
+  success: bg success-dim, color success, font-size 11px, padding 2px 8px, radius full
+  warning: bg warning-dim, color warning
+  danger:  bg danger-dim, color danger
+  info:    bg info-dim, color info
+  muted:   bg bg-elevated, color text-secondary
+  accent:  bg accent-dim, color accent
 
-TaskRepository extends JpaSpecificationExecutor<Task>.
+Step 3 — Add Inter font to src/index.html:
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
-Apply same pattern to:
-- GET /projects?status=ACTIVE&managerId=...
-- GET /workspaces?keyword=...
-
-Goal: task filtering works with any combination of query params. No params = return all.
-```
-
-### Task 7.4 — README + Final Cleanup ✅
-```
-Create README.md at project root:
-
-# TeamSync
-
-## Description
-[2 sentences about the platform]
-
-## Tech Stack
-[table]
-
-## How to Run
-1. Start PostgreSQL (or use docker-compose up -d)
-2. Update application.properties with DB credentials
-3. mvn spring-boot:run
-4. Open http://localhost:8080/swagger-ui.html
-
-## Design Patterns (14 GoF Patterns)
-| # | Pattern | Category | Package | Purpose |
-...all 14 rows...
-
-## API Overview
-[list of main endpoint groups]
-
-Also:
-- Remove any System.out.println left from early phases, replace with AppLogger
-- Ensure all pattern README.md files are complete and accurate
-- Run app from scratch on a clean DB and verify all endpoints work
-
-Goal: project is demo-ready, presentable, and CV-ready.
-```
-
-
- 
-## PHASE 8 — Angular Frontend Foundation
- 
-### Task 8.1 — Angular Project Setup ✅
-```
-The frontend is a completely separate project from the backend.
-Repo structure:
-  /backend/    ← Spring Boot (already done)
-  /frontend/   ← Angular app (this phase)
- 
-Commands:
-  npm install -g @angular/cli
-  cd frontend
-  ng new teamsync-frontend --routing --style=scss --strict --standalone
-  cd teamsync-frontend
-  npm install
- 
-Additional packages to install:
-  npm install @angular/cdk
-  npm install @ng-icons/core @ng-icons/heroicons
-  npm install ngx-toastr
-  npm install chart.js ng2-charts
-  npm install @angular/animations
- 
-Angular project folder structure to generate:
-  src/app/
-  ├── core/                          ← singleton services, guards, interceptors
-  │   ├── interceptors/
-  │   │   ├── auth.interceptor.ts    ← attaches JWT to every request
-  │   │   └── error.interceptor.ts  ← handles 401/403/500 globally
-  │   ├── guards/
-  │   │   ├── auth.guard.ts         ← redirects to /login if not authenticated
-  │   │   └── guest.guard.ts        ← redirects to /dashboard if already authenticated
-  │   ├── services/
-  │   │   └── token.service.ts      ← get/set/remove token from localStorage
-  │   └── core.module.ts            ← (if using NgModules) or just barrel exports
-  ├── shared/                        ← reusable components, pipes, directives
-  │   ├── components/
-  │   │   ├── button/
-  │   │   ├── input/
-  │   │   ├── modal/
-  │   │   ├── spinner/
-  │   │   ├── badge/
-  │   │   ├── avatar/
-  │   │   ├── empty-state/
-  │   │   └── confirm-dialog/
-  │   ├── pipes/
-  │   │   ├── relative-time.pipe.ts
-  │   │   └── truncate.pipe.ts
-  │   ├── directives/
-  │   │   └── click-outside.directive.ts
-  │   └── models/                    ← TypeScript interfaces matching backend DTOs
-  │       ├── user.model.ts
-  │       ├── workspace.model.ts
-  │       ├── project.model.ts
-  │       ├── task.model.ts
-  │       ├── comment.model.ts
-  │       ├── notification.model.ts
-  │       ├── activity.model.ts
-  │       └── api-response.model.ts
-  ├── api/                           ← one service per backend resource, nothing else
-  │   ├── auth.service.ts
-  │   ├── workspace.service.ts
-  │   ├── project.service.ts
-  │   ├── task.service.ts
-  │   ├── comment.service.ts
-  │   ├── notification.service.ts
-  │   ├── analytics.service.ts
-  │   └── patterns.service.ts
-  ├── store/                         ← BehaviorSubject-based state management
-  │   ├── auth.store.ts
-  │   ├── workspace.store.ts
-  │   └── notification.store.ts
-  ├── layout/                        ← shell components
-  │   ├── navbar/
-  │   ├── sidebar/
-  │   └── page-wrapper/
-  └── features/                      ← one folder per feature/route
-      ├── auth/
-      │   ├── login/
-      │   └── register/
-      ├── dashboard/
-      ├── workspace/
-      │   ├── workspace-list/
-      │   └── workspace-detail/
-      ├── project/
-      │   ├── project-detail/
-      │   └── project-settings/
-      ├── task/
-      │   ├── task-board/
-      │   ├── task-detail/
-      │   └── task-card/
-      ├── notification/
-      └── patterns/
- 
-Every feature component is standalone (standalone: true).
-Every feature is lazy-loaded via loadComponent() in the router.
- 
-Environment files:
-  src/environments/environment.ts:
-    export const environment = {
-      production: false,
-      apiUrl: 'http://localhost:8080'
-    };
-  src/environments/environment.prod.ts:
-    export const environment = {
-      production: true,
-      apiUrl: 'http://localhost:8080'
-    };
- 
-CORS: backend already allows all origins in dev. Frontend always uses environment.apiUrl.
- 
-Goal: ng serve starts on port 4200 with no errors. Routing configured. All folders exist.
-Verify: browser opens localhost:4200 with default Angular page. No compilation errors.
-```
- 
-### Task 8.2 — Models + API Services ✅
-```
-Create ALL TypeScript models in src/app/shared/models/ matching backend DTOs exactly.
- 
---- MODELS ---
- 
-user.model.ts:
-  export type UserRole = 'ADMIN' | 'PROJECT_MANAGER' | 'TEAM_MEMBER';
-  export interface User {
-    id: string;
-    username: string;
-    email: string;
-    role: UserRole;
-    createdAt: string;
+Step 4 — Create src/app/shared/styles/_mixins.scss:
+  @mixin card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
   }
-  export interface LoginRequest { email: string; password: string; }
-  export interface RegisterRequest { username: string; email: string; password: string; role: UserRole; }
-  export interface LoginResponse { token: string; }
- 
-workspace.model.ts:
-  export interface Workspace {
-    id: string; name: string; description: string;
-    owner: User; members: User[]; createdAt: string;
+  @mixin card-elevated {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-lg);
   }
-  export interface CreateWorkspaceRequest { name: string; description: string; }
- 
-project.model.ts:
-  export type ProjectStatus = 'PLANNING' | 'ACTIVE' | 'ON_HOLD' | 'COMPLETED' | 'ARCHIVED';
-  export interface Project {
-    id: string; title: string; description: string;
-    status: ProjectStatus; deadline: string; progress: number;
-    workspace: Workspace; manager: User; createdAt: string;
-  }
-  export interface CreateProjectRequest { title: string; description: string; deadline: string; managerId: string; }
- 
-task.model.ts:
-  export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'BLOCKED' | 'IN_REVIEW' | 'DONE';
-  export type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
-  export interface Task {
-    id: string; title: string; description: string;
-    priority: TaskPriority; status: TaskStatus;
-    assignee: User | null; project: Project;
-    dependencies: Task[]; dueDate: string | null;
-    createdAt: string; updatedAt: string;
-  }
-  export interface CreateTaskRequest { title: string; description: string; priority: TaskPriority; dueDate?: string; assigneeId?: string; }
-  export interface ChangeStatusRequest { status: TaskStatus; }
- 
-comment.model.ts:
-  export interface Comment {
-    id: string; content: string; author: User;
-    taskId: string; parentCommentId: string | null;
-    replies: Comment[]; createdAt: string;
-  }
- 
-notification.model.ts:
-  export type NotificationType = 'IN_APP' | 'EMAIL';
-  export interface Notification {
-    id: string; type: NotificationType; message: string;
-    recipient: User; readStatus: boolean; createdAt: string;
-  }
- 
-activity.model.ts:
-  export interface ActivityLog {
-    id: string; action: string; user: User;
-    entityType: string; entityId: string; createdAt: string;
-  }
- 
-analytics.model.ts:
-  export interface ProjectStats {
-    totalTasks: number; byStatus: Record<TaskStatus, number>;
-    byPriority: Record<TaskPriority, number>; overdueCount: number; completionPercent: number;
-  }
-  export interface TeamWorkload {
-    member: User; activeTaskCount: number; completedTaskCount: number;
-  }
-  export type ProjectHealth = 'ON_TRACK' | 'AT_RISK' | 'DELAYED';
- 
-pattern.model.ts:
-  export interface Pattern {
-    id: number; name: string; category: string;
-    package: string; keyClasses: string[]; purpose: string;
-  }
- 
-api-response.model.ts:
-  export interface ApiError {
-    timestamp: string; status: number; error: string; message: string; path: string;
-  }
- 
---- API SERVICES (src/app/api/) ---
- 
-Each service:
-- Is @Injectable({ providedIn: 'root' })
-- Injects HttpClient
-- Uses environment.apiUrl as base
-- Returns Observable<T> from every method
-- Has NO error handling (interceptor handles that globally)
- 
-auth.service.ts:
-  login(req: LoginRequest): Observable<LoginResponse>  → POST /auth/login
-  register(req: RegisterRequest): Observable<User>     → POST /auth/register
-  getMe(): Observable<User>                            → GET /users/me
-  updateMe(data: Partial<User>): Observable<User>      → PUT /users/me
- 
-workspace.service.ts:
-  getAll(): Observable<Workspace[]>                                          → GET /workspaces
-  getById(id: string): Observable<Workspace>                                 → GET /workspaces/{id}
-  create(req: CreateWorkspaceRequest): Observable<Workspace>                 → POST /workspaces
-  addMember(id: string, email: string): Observable<Workspace>                → POST /workspaces/{id}/members  body: {email}
-  removeMember(workspaceId: string, userId: string): Observable<void>        → DELETE /workspaces/{id}/members/{userId}
- 
-project.service.ts:
-  getByWorkspace(workspaceId: string): Observable<Project[]>                 → GET /workspaces/{id}/projects
-  getById(id: string): Observable<Project>                                   → GET /projects/{id}
-  create(workspaceId: string, req: CreateProjectRequest): Observable<Project>→ POST /workspaces/{id}/projects
-  update(id: string, req: Partial<CreateProjectRequest>): Observable<Project>→ PUT /projects/{id}
-  archive(id: string): Observable<Project>                                   → PUT /projects/{id}/archive
-  initialize(data: any): Observable<Project>                                 → POST /projects/initialize
- 
-task.service.ts:
-  getByProject(projectId: string, filters?: any): Observable<Task[]>         → GET /projects/{id}/tasks
-  getById(id: string): Observable<Task>                                      → GET /tasks/{id}
-  create(projectId: string, req: CreateTaskRequest): Observable<Task>        → POST /projects/{id}/tasks
-  update(id: string, req: Partial<CreateTaskRequest>): Observable<Task>      → PUT /tasks/{id}
-  delete(id: string): Observable<void>                                       → DELETE /tasks/{id}
-  changeStatus(id: string, req: ChangeStatusRequest): Observable<Task>       → PUT /tasks/{id}/status
-  assign(id: string, userId: string): Observable<Task>                       → PUT /tasks/{id}/assign  body: {userId}
-  addDependency(id: string, dependsOnId: string): Observable<Task>           → POST /tasks/{id}/dependencies  body: {dependsOnTaskId}
-  removeDependency(id: string, depId: string): Observable<void>              → DELETE /tasks/{id}/dependencies/{depId}
-  undo(): Observable<void>                                                   → POST /tasks/undo
-  autoAssign(projectId: string, taskId: string, strategy: string): Observable<Task> → POST /projects/{id}/tasks/auto-assign?strategy=
- 
-comment.service.ts:
-  getByTask(taskId: string): Observable<Comment[]>                           → GET /tasks/{id}/comments
-  add(taskId: string, content: string): Observable<Comment>                  → POST /tasks/{id}/comments  body: {content}
-  reply(commentId: string, content: string): Observable<Comment>             → POST /comments/{id}/replies  body: {content}
-  delete(commentId: string): Observable<void>                                → DELETE /comments/{id}
- 
-notification.service.ts:
-  getAll(): Observable<Notification[]>                                       → GET /notifications
-  markRead(id: string): Observable<Notification>                             → PUT /notifications/{id}/read
- 
-analytics.service.ts:
-  getStats(projectId: string): Observable<ProjectStats>                      → GET /analytics/projects/{id}/stats
-  getTeamWorkload(projectId: string): Observable<TeamWorkload[]>             → GET /analytics/projects/{id}/team-workload
-  getHealth(projectId: string): Observable<ProjectHealth>                    → GET /analytics/projects/{id}/health
- 
-patterns.service.ts:
-  getAll(): Observable<Pattern[]>                                            → GET /patterns
- 
-Goal: all services compile. No HTTP calls yet — they'll be triggered by components.
-Verify: ng build produces no type errors.
-```
- 
-### Task 8.3 — Core Module: Interceptors + Guards + Store ✅
-```
---- INTERCEPTORS (src/app/core/interceptors/) ---
- 
-auth.interceptor.ts (functional interceptor):
-  import { inject } from '@angular/core';
-  import { HttpInterceptorFn } from '@angular/common/http';
-  import { TokenService } from '../services/token.service';
- 
-  export const authInterceptor: HttpInterceptorFn = (req, next) => {
-    const token = inject(TokenService).getToken();
-    if (token) {
-      req = req.clone({ setHeaders: { Authorization: `Bearer ${token}` } });
+  @mixin warm-glow-bg {
+    position: relative;
+    overflow: hidden;
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0; right: 0;
+      width: 60%; height: 100%;
+      background: radial-gradient(ellipse 80% 60% at 80% 30%, rgba(180,130,60,0.18) 0%, transparent 70%);
+      pointer-events: none;
     }
-    return next(req);
-  };
- 
-error.interceptor.ts (functional interceptor):
-  Catches HTTP errors:
-  - 401: clear token, navigate to /login, show toast "Session expired"
-  - 403: show toast "You don't have permission to do this"
-  - 404: show toast "Resource not found"
-  - 500: show toast "Server error. Please try again."
-  - Network error: show toast "Cannot connect to server"
-  All errors: re-throw so component can handle if needed.
-  Inject: Router, ToastrService, TokenService
- 
-Register both interceptors in app.config.ts:
-  provideHttpClient(withInterceptors([authInterceptor, errorInterceptor]))
- 
---- TOKEN SERVICE ---
- 
-core/services/token.service.ts:
-  @Injectable({ providedIn: 'root' })
-  private readonly KEY = 'teamsync_token';
-  getToken(): string | null
-  setToken(token: string): void
-  removeToken(): void
-  hasToken(): boolean
- 
---- GUARDS ---
- 
-core/guards/auth.guard.ts (functional guard):
-  export const authGuard: CanActivateFn = () => {
-    inject(TokenService).hasToken() ? true : inject(Router).createUrlTree(['/login'])
-  };
- 
-core/guards/guest.guard.ts (functional guard):
-  Opposite: if has token → redirect to /dashboard
- 
---- STATE STORES (src/app/store/) ---
- 
-auth.store.ts:
-  @Injectable({ providedIn: 'root' })
-  export class AuthStore {
-    private userSubject = new BehaviorSubject<User | null>(null);
-    user$ = this.userSubject.asObservable();
-    isAuthenticated$ = this.user$.pipe(map(u => u !== null));
- 
-    setUser(user: User): void
-    clearUser(): void
-    getUser(): User | null
- 
-    // On app init: if token exists, call AuthService.getMe() to hydrate user
-    init(): Observable<void>
   }
- 
-notification.store.ts:
-  @Injectable({ providedIn: 'root' })
-  export class NotificationStore {
-    private notifications$ = new BehaviorSubject<Notification[]>([]);
-    notifications$ = ...
-    unreadCount$ = this.notifications$.pipe(map(n => n.filter(x => !x.readStatus).length));
- 
-    load(): void         → calls NotificationService.getAll(), updates subject
-    markRead(id): void   → calls service, updates local state
-    startPolling(): void → setInterval(30000, this.load)
-    stopPolling(): void
-  }
- 
---- APP ROUTER (src/app/app.routes.ts) ---
- 
-export const routes: Routes = [
-  { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
-  { path: 'login',    canActivate: [guestGuard],  loadComponent: () => import('./features/auth/login/login.component') },
-  { path: 'register', canActivate: [guestGuard],  loadComponent: () => import('./features/auth/register/register.component') },
-  {
-    path: '',
-    canActivate: [authGuard],
-    loadComponent: () => import('./layout/page-wrapper/page-wrapper.component'),
-    children: [
-      { path: 'dashboard',             loadComponent: () => import('./features/dashboard/dashboard.component') },
-      { path: 'workspaces',            loadComponent: () => import('./features/workspace/workspace-list/workspace-list.component') },
-      { path: 'workspaces/:id',        loadComponent: () => import('./features/workspace/workspace-detail/workspace-detail.component') },
-      { path: 'projects/:id',          loadComponent: () => import('./features/project/project-detail/project-detail.component') },
-      { path: 'projects/:id/board',    loadComponent: () => import('./features/task/task-board/task-board.component') },
-      { path: 'tasks/:id',             loadComponent: () => import('./features/task/task-detail/task-detail.component') },
-    ]
-  },
-  { path: 'patterns', loadComponent: () => import('./features/patterns/patterns.component') },
-  { path: '**', redirectTo: 'dashboard' }
-];
- 
-Goal: routing works. Navigating to /dashboard without token redirects to /login.
-Verify: ng build --configuration=production has zero errors.
-```
- 
-### Task 8.4 — Design System + Shared Components ✅
-```
---- SCSS DESIGN SYSTEM (src/styles.scss) ---
- 
-Define CSS custom properties:
-  :root {
-    --color-bg:       #0F1117;
-    --color-surface:  #1A1D27;
-    --color-border:   #2A2D3E;
-    --color-accent:   #6366F1;
-    --color-success:  #22C55E;
-    --color-warning:  #F59E0B;
-    --color-danger:   #EF4444;
-    --color-text:     #F1F5F9;
-    --color-muted:    #64748B;
-    --radius-sm: 6px; --radius-md: 10px; --radius-lg: 16px; --radius-xl: 24px;
-    --shadow-sm: 0 1px 3px rgba(0,0,0,0.4);
-    --shadow-md: 0 4px 16px rgba(0,0,0,0.5);
-    --shadow-lg: 0 8px 32px rgba(0,0,0,0.6);
-  }
-  body { background: var(--color-bg); color: var(--color-text); font-family: 'Inter', sans-serif; margin: 0; }
- 
-Add Inter font in index.html:
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
- 
-Create a _mixins.scss partial for reusable patterns:
-  @mixin card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); }
+  @mixin truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   @mixin flex-center { display: flex; align-items: center; justify-content: center; }
-  @mixin truncate($lines: 1) { ... }
- 
---- SHARED COMPONENTS (src/app/shared/components/) ---
- 
-Each component is standalone: true. Each has its own .scss file. No inline styles.
- 
-button/button.component.ts:
-  Inputs: variant: 'primary'|'secondary'|'danger'|'ghost' = 'primary'
-          size: 'sm'|'md'|'lg' = 'md'
-          loading: boolean = false
-          disabled: boolean = false
-          type: string = 'button'
-  Template: <button [class]="classes" [disabled]="disabled || loading" [type]="type">
-              <app-spinner *ngIf="loading" size="sm"></app-spinner>
-              <ng-content *ngIf="!loading"></ng-content>
-            </button>
- 
-input/input.component.ts:
-  Inputs: label, placeholder, type='text', error='', disabled=false
-  Implements ControlValueAccessor (works with Angular forms)
-  Shows error message below field when error is set
- 
-modal/modal.component.ts:
-  Inputs: isOpen: boolean, title: string, size: 'sm'|'md'|'lg' = 'md'
-  Outputs: closed: EventEmitter<void>
-  Template: backdrop div + centered panel, ESC key closes, backdrop click closes
-  Uses Angular CDK Overlay or a simple fixed div approach
- 
-spinner/spinner.component.ts:
-  Input: size: 'sm'|'md'|'lg' = 'md', color = 'accent'
-  Pure CSS animated ring
- 
-badge/badge.component.ts:
-  Inputs: variant: 'success'|'warning'|'danger'|'info'|'muted', text: string
-  Small pill badge
- 
-avatar/avatar.component.ts:
-  Input: user: User, size: 'sm'|'md'|'lg' = 'md'
-  Shows initials in colored circle (color derived from username hash)
- 
-empty-state/empty-state.component.ts:
-  Inputs: icon: string, title: string, description: string, actionLabel?: string
-  Output: action: EventEmitter<void>
-  Centered layout with icon + text + optional CTA button
- 
-confirm-dialog/confirm-dialog.component.ts:
-  Inputs: isOpen, title, message, confirmLabel='Confirm', danger=false
-  Outputs: confirmed, cancelled
- 
---- PIPES (src/app/shared/pipes/) ---
- 
-relative-time.pipe.ts:
-  transform(dateString: string): string
-  Returns: "just now", "5m ago", "2h ago", "3d ago", "Jan 15"
- 
-truncate.pipe.ts:
-  transform(value: string, limit: number = 100): string
- 
---- DIRECTIVES (src/app/shared/directives/) ---
- 
-click-outside.directive.ts:
-  @Output() clickOutside = new EventEmitter<void>()
-  HostListener on document:click — emits when click is outside the host element
-  Used for dropdown menus
- 
-Goal: all shared components compile and render correctly.
-Verify: create a test page that renders each component — all display without errors.
+  @mixin flex-between { display: flex; align-items: center; justify-content: space-between; }
+
+Verify: ng build --configuration=production has zero errors.
+Verify: Visual check — background is deep near-black, not the old #0F1117.
+Verify: Accent color is warm amber #D4A853, not the old indigo #6366F1.
 ```
- 
+
+### Task R1.2 — Redesign Layout Shell (Sidebar + Navbar) ☐
+```
+Reference: screenshots 2, 3, 4 — study the sidebar and navbar carefully.
+
+BACKEND: No changes needed.
+
+FRONTEND: Complete rewrite of layout/ components.
+
+--- SIDEBAR (src/app/layout/sidebar/sidebar.component) ---
+
+Exact measurements from screenshots:
+  Width: 200px
+  Background: var(--bg-surface)
+  Border-right: 1px solid var(--border-subtle)
+  Padding-top: 20px
+
+Logo area (top):
+  Height: 52px (matches navbar)
+  Display: flex, align-items: center, padding: 0 16px
+  Logo: white diamond/crystal icon (use ◈ unicode or SVG) + "TeamSync" text
+  Font: 15px, font-weight 600, color text-primary
+  NO horizontal rule below logo — clean transition to nav items
+
+Nav items:
+  Each item: display flex, align-items center, gap 10px
+  Padding: 8px 12px, margin: 2px 8px
+  Border-radius: var(--radius-md)
+  Font-size: 13px, font-weight 400
+  Icon: 16px, color text-tertiary (inactive), text-primary (active)
+  Text: color text-tertiary (inactive), text-primary (active)
+  Active: background var(--bg-elevated), color text-primary, icon text-primary
+  Hover: background var(--bg-elevated)/60, color text-secondary
+  NO bold on active — just brightness change
+
+Nav items list (match screenshot 2 exactly):
+  - Dashboard (grid-2x2 icon)
+  - Workspaces (building icon)
+  - Projects (folder icon)
+  - Tasks (checkbox icon)
+  - Analytics (chart-bar icon)
+  - Notifications (bell icon) — shows count badge
+  - Settings (gear icon)
+  [separator line — thin, border-subtle]
+  
+Bottom section (pinned to bottom):
+  AI Assistant item:
+    Avatar circle (gradient purple-to-blue, 28px)
+    "AI Assistant" label + green online dot
+    "+" button on right
+  Trial usage bar:
+    "Trial usage" label, "78%" right, progress bar (accent color, 4px tall)
+    "Upgrade plan →" small link
+  User section:
+    Avatar (32px circle, real initials), username, role text
+    Down chevron for dropdown
+
+Sidebar collapse: clicking the top-right collapse button (<<) reduces to 52px wide, icons only.
+At 52px: hide all text, center icons, tooltip on hover showing label.
+
+--- NAVBAR (src/app/layout/navbar/navbar.component) ---
+
+Exact structure from screenshot 4:
+  Height: 52px
+  Background: var(--bg-base)
+  Border-bottom: 1px solid var(--border-subtle)
+  Padding: 0 20px
+  Display: flex, align-items: center, gap: 12px
+
+Left side (breadcrumb, screenshot 4 style):
+  [workspace icon] "Product Design Workspace" → "Design:System 2.0"
+  Each segment: text-secondary, font-size 13px
+  Arrow separator: › in text-tertiary
+  Last segment: text-primary
+  Clickable — navigate to workspace/project respectively
+
+Center (search bar, screenshots 2 and 4):
+  Width: 320px, flex: 0 0 320px
+  Background: var(--bg-elevated)
+  Border: 1px solid var(--border-subtle)
+  Border-radius: var(--radius-full)
+  Height: 32px
+  Padding: 0 12px
+  Font-size: 13px, color text-secondary
+  Left icon: search (14px, text-tertiary)
+  Right: "/" shortcut key pill (6px 8px, bg bg-overlay, border border-subtle, font-size 11px)
+  Placeholder: "Search projects, tasks, people..."
+  On focus: border-color border-default
+
+Right side (from left to right):
+  "+ New" button:
+    Height 32px, padding 0 14px
+    Border: 1px solid var(--border-default)
+    Border-radius: var(--radius-md)
+    Background: var(--bg-elevated)
+    Font-size: 13px, color text-primary
+    "▾" dropdown indicator on right
+  
+  Notification bell:
+    Icon button, 32x32
+    Bell icon (16px, text-secondary)
+    Count badge: 8px diameter circle, bg danger, font-size 10px, positioned top-right of icon
+    Hover: bg bg-elevated, icon text-primary
+  
+  Workspace selector (screenshot 3):
+    Shows current workspace icon + name
+    Background bg-elevated, border border-subtle, border-radius radius-md
+    Height 32px, padding 0 10px
+    Down chevron
+  
+  Avatar stack (right-most):
+    3 overlapping avatar circles (28px each), overlapping by -8px
+    "+2" text badge for overflow
+    Hover: slight spread animation
+
+Verify: navbar looks like screenshot 2/3/4 exactly. Search bar centered. Breadcrumb on left.
+Verify: sidebar active item highlighted, all icons render, bottom section shows correctly.
+```
+
 ---
- 
-## PHASE 9 — Layout Shell
- 
-### Task 9.1 — Layout Components ✅
+
+## PHASE R2 — Landing / Home Page
+
+### Task R2.1 — Backend: Add Public Stats Endpoint ☐
 ```
---- PAGE WRAPPER (src/app/layout/page-wrapper/) ---
- 
-page-wrapper.component.ts:
-  Standalone. Template is the app shell.
-  Contains: <app-sidebar> + <div class="main"> containing <app-navbar> + <router-outlet>
-  Layout:
-    display: flex; flex-direction: row; height: 100vh; overflow: hidden;
-  Main area: flex: 1; display: flex; flex-direction: column; overflow: hidden;
-  Content area: flex: 1; overflow-y: auto; padding: 2rem;
- 
---- SIDEBAR (src/app/layout/sidebar/) ---
- 
-sidebar.component.ts:
-  Injected: AuthStore, Router
-  Properties: isCollapsed = false (toggle on narrow screens)
-  
-  Nav items (defined as array, not hardcoded in template):
-    [ { label: 'Dashboard', icon: 'heroOutlineHome', route: '/dashboard' },
-      { label: 'Workspaces', icon: 'heroOutlineRectangleStack', route: '/workspaces' },
-      { label: 'My Tasks', icon: 'heroOutlineClipboardDocumentList', route: '/tasks/me' },
-      { label: 'Patterns', icon: 'heroOutlinePuzzlePiece', route: '/patterns' } ]
- 
-  Template:
-    <aside class="sidebar" [class.collapsed]="isCollapsed">
-      <div class="logo">TS <!-- TeamSync --></div>
-      <nav>
-        <a *ngFor="let item of navItems" [routerLink]="item.route" routerLinkActive="active">
-          <ng-icon [name]="item.icon"></ng-icon>
-          <span *ngIf="!isCollapsed">{{ item.label }}</span>
-        </a>
-      </nav>
-      <div class="sidebar-footer">
-        <app-avatar [user]="(user$ | async)!"></app-avatar>
-        <div *ngIf="!isCollapsed" class="user-info">
-          <span class="username">{{ (user$ | async)?.username }}</span>
-          <app-badge [text]="(user$ | async)?.role"></app-badge>
-        </div>
-      </div>
-    </aside>
- 
-  SCSS:
-    Width: 240px (full) or 64px (collapsed)
-    Transition: width 0.2s ease
-    Active link: background accent/10, accent color text, left border 3px accent
- 
---- NAVBAR (src/app/layout/navbar/) ---
- 
-navbar.component.ts:
-  Injected: NotificationStore, AuthStore, Router
-  Properties: isNotifOpen = false, isUserMenuOpen = false
-  
-  Template:
-    <nav class="navbar">
-      <div class="navbar-left">
-        <span class="page-title"><!-- dynamic based on route --></span>
-      </div>
-      <div class="navbar-right">
-        <!-- Notification bell -->
-        <div class="notif-trigger" (click)="isNotifOpen = !isNotifOpen" appClickOutside (clickOutside)="isNotifOpen = false">
-          <ng-icon name="heroOutlineBell"></ng-icon>
-          <span class="badge" *ngIf="(unreadCount$ | async)! > 0">{{ unreadCount$ | async }}</span>
-          <!-- Dropdown -->
-          <div class="notif-dropdown" *ngIf="isNotifOpen">
-            <div class="notif-header">
-              Notifications
-              <button (click)="markAllRead()">Mark all read</button>
-            </div>
-            <div *ngFor="let n of (notifications$ | async)" class="notif-item" [class.unread]="!n.readStatus" (click)="markRead(n.id)">
-              <span>{{ n.message }}</span>
-              <span class="time">{{ n.createdAt | relativeTime }}</span>
-            </div>
-            <div *ngIf="!(notifications$ | async)?.length" class="notif-empty">You're all caught up 🎉</div>
-          </div>
-        </div>
-        <!-- User menu -->
-        <div class="user-menu" appClickOutside (clickOutside)="isUserMenuOpen = false">
-          <app-avatar [user]="(user$ | async)!" (click)="isUserMenuOpen = !isUserMenuOpen"></app-avatar>
-          <div class="user-dropdown" *ngIf="isUserMenuOpen">
-            <button routerLink="/profile">Profile</button>
-            <button (click)="logout()" class="danger">Logout</button>
-          </div>
-        </div>
-      </div>
-    </nav>
- 
-  logout(): calls AuthStore.clearUser(), TokenService.removeToken(), navigate to /login
- 
-Goal: shell renders correctly. Sidebar navigation highlights active route.
-Verify: logout button clears token and redirects to /login.
+The landing page needs real-sounding (but public) stats.
+Add to backend:
+
+NEW endpoint: GET /public/stats
+  Returns: { activeTeams: 25000, uptime: 99.9, userRating: 4.9 }
+  This is a hardcoded response — no DB query needed.
+  No auth required. Add to SecurityConfig permit list.
+
+NEW endpoint: GET /public/health  
+  Returns: { status: "healthy", version: "1.0.0" }
+  Already standard Spring Boot practice.
+
+Controller: PublicController.java in presentation/controller/
+No service needed — return static data directly.
+
+Verify: curl http://localhost:8080/public/stats returns JSON without token.
 ```
- 
+
+### Task R2.2 — Landing Page (Public Homepage) ☐
+```
+Reference: Screenshot 1 — the full marketing landing page.
+This is a STANDALONE route at / (before login).
+Route: /home or / → redirects to /dashboard if authenticated, else shows landing.
+No sidebar. No app navbar. Has its own marketing nav.
+
+FRONTEND: Create src/app/features/landing/landing.component.ts
+
+This page has 8 sections. Build them all in one task. Use pure Angular + SCSS, no libraries.
+
+--- SECTION 1: MARKETING NAV ---
+Position: fixed top, full width
+Background: rgba(12,12,14,0.8) + backdrop-filter: blur(20px)
+Border-bottom: 1px solid var(--border-subtle)
+Height: 56px, padding: 0 80px
+Layout: flex, space-between
+
+Left: TeamSync logo (◈ icon + "TeamSync" text, 15px 600)
+Center: nav links — Product, Features, Solutions, Resources, Pricing
+  Font-size: 13px, color text-secondary
+  Hover: color text-primary
+  Gap: 32px between links
+Right:
+  "Log in" — ghost button, 13px, text-secondary → text-primary on hover
+  "Start free trial →" — primary button, bg accent, color #0C0C0E, border-radius radius-md, font-weight 500
+
+--- SECTION 2: HERO ---
+Min-height: 100vh
+Background: var(--bg-base)
+Padding: 120px 80px 80px
+Two columns (50/50 split):
+
+LEFT COLUMN:
+  Label: "✦ AI-POWERED PROJECT MANAGEMENT" — font-size 11px, letter-spacing 0.1em, color text-secondary, uppercase
+  Headline (3 lines, large):
+    "Collaborate." — font-size 64px, font-weight 700, color text-primary
+    "Track."       — same
+    "Deliver."     — same
+  Each word on its own line. Bold and impactful.
+  Body text: "TeamSync brings your teams, tasks, and tools together in one intelligent workspace—so you can ship exceptional work, every time."
+    Font-size: 15px, color text-secondary, max-width: 400px, line-height: 1.6, margin-top: 24px
+  CTA row (margin-top: 36px):
+    "Start free trial →" — primary button (accent bg, black text), height 44px, padding 0 24px
+    "Book a demo" — secondary button, height 44px, padding 0 24px, border border-default
+    Gap: 12px between buttons
+  Social proof (margin-top: 32px):
+    5 overlapping avatar circles (32px, colored with initials) + "Trusted by 25,000+ teams worldwide"
+    Font-size: 13px, color text-secondary
+
+RIGHT COLUMN:
+  App screenshot mockup — a realistic-looking browser/app window mockup
+  Use a div styled as an app window:
+    Background: var(--bg-surface)
+    Border: 1px solid var(--border-default)
+    Border-radius: 12px
+    Box-shadow: 0 32px 64px rgba(0,0,0,0.6)
+    Padding: 0
+    Overflow: hidden
+  Inside, render a simplified version of the dashboard:
+    Top bar: dark bar with 3 dots (red/yellow/green circles) on left
+    Content: simplified kanban with colored columns
+    Must look like a real app, not a placeholder
+  Subtle warm glow behind: radial-gradient amber at top-right
+
+--- SECTION 3: TRUSTED BY ---
+Background: var(--bg-base)
+Padding: 48px 80px
+Label: "TRUSTED BY INNOVATIVE TEAMS" — 11px, text-tertiary, letter-spacing 0.1em, uppercase, text-center
+Company logos row (centered, space-evenly):
+  Linear, Vercel, Framer, Raycast, Notion, GitHub
+  Each: icon/logo mark + name, font-size 14px, color text-tertiary
+  Filter: grayscale(1) opacity(0.5), hover: grayscale(0) opacity(1), transition 0.2s
+
+--- SECTION 4: FEATURES GRID ---
+Padding: 80px
+Left column (30%): "FEATURES" label + "Everything your team needs to move faster" (h2, 32px, 700) + body text + "Explore all features →" link
+Right column (70%): 2x3 grid of feature cards (or 3+3):
+  Feature cards: bg var(--bg-surface), border var(--border-subtle), rounded-lg, p-5
+  Each: icon (20px, accent colored) + title (14px, 600) + description (13px, text-secondary)
+  Features to show (match backend capabilities):
+    - Task Management (checkbox icon)
+    - Workspace Collaboration (users icon)
+    - AI Workflow Automation (sparkles icon — placeholder, no AI backend needed)
+    - Analytics & Reports (chart icon)
+    - Smart Notifications (bell icon)
+    - Smart Scheduling (calendar icon)
+  Hover: border-color var(--border-default), transform: translateY(-2px), transition 0.2s
+
+--- SECTION 5: ANALYTICS SHOWCASE ---
+Padding: 80px
+Two columns:
+LEFT: "ANALYTICS" label + "Data that drives better decisions" (h2) + body + "View all reports →" link
+RIGHT: Analytics mockup card (bg var(--bg-surface), border, rounded-xl, p-5):
+  4 mini stat cards in a row: Project health 92%, Completion rate 68%, Team workload "Balanced", Velocity 24.5
+  Each: small label + big number + tiny sparkline (use SVG paths — simple wave shapes)
+  These are STATIC — no API call for this section
+
+--- SECTION 6: COLLABORATION SHOWCASE ---
+Reverse two-column layout:
+LEFT: Chat/collaboration mockup (conversation threads, file sharing, team activity)
+  Build as a styled div with hardcoded content — just visual
+RIGHT: "COLLABORATION" label + "Work together, anywhere" (h2) + body + "Learn more →"
+
+--- SECTION 7: KANBAN SHOWCASE ---
+Two columns:
+LEFT: "KANBAN BOARD" label + "Visualize work. Deliver results." (h2) + body + "View full board →"
+RIGHT: Mini Kanban board mockup — 4 columns (To Do, In Progress, Review, Done) with card items
+  Styled divs, NO real data, pure visual representation
+
+--- SECTION 8: TESTIMONIALS ---
+Padding: 80px
+Heading: "Loved by teams building the future" (h2, left-aligned)
+3 testimonial cards side-by-side:
+  bg var(--bg-surface), border var(--border-subtle), rounded-xl, p-6
+  Quote text (14px, text-secondary, line-height 1.7)
+  Author: avatar circle + name (font-medium) + title (text-tertiary, 12px)
+
+Stats bar below testimonials:
+  bg var(--bg-elevated), border, rounded-xl, p-6
+  "25K+ Active teams" | "99.9% Uptime" | "4.9/5 User rating" — separated by vertical dividers
+  Then company logos row (same as section 3)
+
+--- SECTION 9: CTA FOOTER ---
+Padding: 80px
+Left: "READY TO GET STARTED?" label + "Bring your team together. Ship exceptional work." (h2, large)
+Right: Email input + "Start free trial →" button (full width of right column)
+  Input: height 48px, placeholder "Enter your work email", bg bg-elevated, border, rounded-md
+  Button: height 48px, bg accent, color black, font-weight 600
+  Below: "No credit card required • Free forever plan available"
+
+--- SECTION 10: FOOTER ---
+Background: var(--bg-surface), border-top border-subtle
+Padding: 48px 80px 32px
+5 columns:
+  TeamSync (logo + description + social icons)
+  Product (Features, Pricing, Enterprise, Security)
+  Resources (Documentation, Guides, Templates, API)
+  Company (About, Blog, Careers, Contact)
+  Legal (Privacy, Terms, Cookies)
+  "Stay in the loop" (email newsletter subscribe)
+Bottom bar: "© 2024 TeamSync. All rights reserved." + "Made with ♥ by TeamSync"
+
+Routing:
+  Update AppRoutes: "/" → redirect to "/home" if not authenticated, else "/dashboard"
+  Add "/home" route → LandingComponent (no auth guard)
+
+Verify: landing page renders fully at /home. All 10 sections present.
+Verify: nav "Log in" navigates to /login. "Start free trial" navigates to /register.
+Verify: page is responsive — mobile nav collapses to hamburger.
+Verify: ng build --configuration=production has zero warnings.
+```
+
 ---
- 
-## PHASE 10 — Auth Pages
- 
-### Task 10.1 — Login Page ✅
+
+## PHASE R3 — Dashboard Redesign
+
+### Task R3.1 — Backend: Dashboard Stats Endpoint ☐
 ```
-src/app/features/auth/login/
- 
-Files:
-  login.component.ts
-  login.component.html
-  login.component.scss
- 
-login.component.ts:
-  Standalone. Imports: ReactiveFormsModule, RouterLink, ButtonComponent, InputComponent, SpinnerComponent.
-  Injected: AuthService, AuthStore, TokenService, Router, ToastrService.
- 
-  Form (FormGroup via FormBuilder):
-    email:    [required, email]
-    password: [required, minLength(6)]
- 
-  Properties:
-    form: FormGroup
-    isLoading = false
-    showPassword = false
- 
-  onSubmit():
-    if form invalid → markAllAsTouched(), return
-    isLoading = true
-    AuthService.login(form.value).pipe(
-      switchMap(res => {
-        TokenService.setToken(res.token);
-        return AuthService.getMe();
-      }),
-      finalize(() => isLoading = false)
-    ).subscribe({
-      next: user => { AuthStore.setUser(user); Router.navigate(['/dashboard']); },
-      error: () => {}   // error interceptor shows toast
-    });
- 
-login.component.html:
-  Full screen: display grid, two columns on desktop (hidden on mobile for left col).
- 
-  Left column (decorative, hidden <768px):
-    Background gradient using accent color
-    TeamSync logo large
-    Tagline: "Collaborate. Track. Deliver."
-    Decorative grid of dots (pure CSS)
- 
-  Right column (the form):
-    Centered card (max-width 420px)
-    <h1>Welcome back</h1>
-    <p>Sign in to your account</p>
-    <form [formGroup]="form" (ngSubmit)="onSubmit()">
-      <app-input label="Email" type="email" formControlName="email" [error]="emailError"></app-input>
-      <app-input label="Password" [type]="showPassword ? 'text' : 'password'" formControlName="password" [error]="passwordError">
-        <!-- suffix slot: show/hide toggle icon -->
-      </app-input>
-      <app-button type="submit" [loading]="isLoading" [disabled]="isLoading">Sign In</app-button>
-    </form>
-    <p>Don't have an account? <a routerLink="/register">Register</a></p>
- 
-Goal: login form works. Correct credentials → redirect to /dashboard. Wrong → error toast.
-Verify: empty submission shows inline validation errors. Loading spinner appears during API call.
+The dashboard needs pre-aggregated stats the current backend doesn't provide.
+Add these endpoints to backend:
+
+NEW: GET /dashboard/stats
+  Response: {
+    activeTasks: number,         // tasks assigned to me with status IN_PROGRESS
+    completionRate: number,      // % of my tasks that are DONE
+    teamVelocity: number,        // total tasks completed this week across all my projects
+    overdueItems: number,        // tasks past dueDate and not DONE
+    trendActiveTasks: number,    // % change vs last week (mock: return random -20 to +20)
+    trendCompletion: number,
+    trendVelocity: number,
+    trendOverdue: number
+  }
+  Auth: required. Computed for current authenticated user.
+
+NEW: GET /dashboard/upcoming-deadlines
+  Response: List of tasks due in next 7 days, assigned to current user, not DONE
+  Ordered by dueDate ASC. Limit 5.
+  Each task includes: id, title, dueDate, priority, project.title
+
+NEW: GET /dashboard/projects-overview
+  Response: List of projects (current user is member of), each with:
+  { id, title, progress, status, taskCount }
+  Limit 5, ordered by updatedAt DESC
+
+Create DashboardController.java and DashboardService.java.
+Add to SecurityConfig: require auth for /dashboard/**.
+
+Verify: all 3 endpoints return correct data with a valid JWT token.
 ```
- 
-### Task 10.2 — Register Page ✅
+
+### Task R3.2 — Dashboard Page Redesign ☐
 ```
-src/app/features/auth/register/
- 
-register.component.ts:
-  Standalone. Same structure as login.
-  Injected: AuthService, TokenService, AuthStore, Router, ToastrService.
- 
-  Form fields:
-    username: [required, minLength(3), maxLength(30)]
-    email:    [required, email]
-    password: [required, minLength(6)]
-    role:     [required] — default 'TEAM_MEMBER'
- 
-  onSubmit():
-    AuthService.register(form.value).pipe(
-      switchMap(() => AuthService.login({ email, password })),
-      switchMap(res => { TokenService.setToken(res.token); return AuthService.getMe(); }),
-      finalize(() => isLoading = false)
-    ).subscribe({
-      next: user => { AuthStore.setUser(user); Router.navigate(['/dashboard']); }
-    });
- 
-register.component.html:
-  Same two-column layout as login.
-  Right column form:
-    <h1>Create account</h1>
-    Username input
-    Email input
-    Password input (with show/hide)
-    Role selector (styled <select>):
-      <option value="TEAM_MEMBER">Team Member</option>
-      <option value="PROJECT_MANAGER">Project Manager</option>
-    Submit button
-    "Already have an account? Sign in" link
- 
-Goal: registration creates account and auto-logs in. Redirects to /dashboard.
-Verify: duplicate email shows error toast from backend.
-```
- 
----
- 
-## PHASE 11 — Dashboard
- 
-### Task 11.1 — Dashboard Page ✅
-```
-src/app/features/dashboard/
- 
-Files:
-  dashboard.component.ts
-  dashboard.component.html
-  dashboard.component.scss
-  stats-card/stats-card.component.ts  (nested component for stat cards)
-  workspace-card/workspace-card.component.ts
- 
-dashboard.component.ts:
-  Standalone. Injected: AuthStore, WorkspaceService, TaskService, ActivityService (via GET /users/me/activity).
+Reference: Screenshot 2 — study every pixel of this dashboard.
+
+FRONTEND: Complete rewrite of src/app/features/dashboard/
+
+--- EXACT LAYOUT FROM SCREENSHOT 2 ---
+
+The dashboard has NO page title header — it starts immediately with the greeting.
+
+TOP GREETING AREA (full width, padding 32px 32px 0):
+  Left side (flex: 1):
+    Icon: ☀ (sun emoji or SVG, 28px, warm yellow)
+    "Good morning, {username}." — font-size 28px, font-weight 600, color text-primary
+    Subtext: "You have {activeProjects} active projects and {activeTasks} tasks in progress."
+    Subtext: "Let's make today productive."
+    Font-size: 14px, color text-secondary, margin-top: 4px
   
-  On init:
-    - Load workspaces: WorkspaceService.getAll()
-    - Load my tasks: TaskService.getByProject() filtered by assignee = me (or dedicated endpoint)
-    - Load activity: GET /users/me/activity
+  Right side: "AI Insight" card
+    Background: var(--bg-surface), border: 1px solid var(--border-subtle), border-radius: var(--radius-lg)
+    Padding: 16px 20px, max-width: 280px
+    Top: "⚡ AI Insight" — 12px, font-weight 500, color accent
+    Body: "You're on track to complete 91% of your tasks this week."
+    Font-size: 13px, color text-secondary, line-height: 1.5
+    Link: "View details →" — 12px, color accent
   
-  Computed properties:
-    activeTaskCount: tasks with status IN_PROGRESS
-    dueTodayCount: tasks where dueDate === today
-    overdueCount: tasks where dueDate < today and status !== DONE
+  Data for greeting: call GET /dashboard/stats on init.
+
+STAT CARDS ROW (4 cards, equal width, gap 12px, padding 24px 32px):
+  Each card: @mixin card, padding: 20px, min-height: 120px
+
+  Card 1 — Active Tasks:
+    Label: "Active Tasks" — font-size 12px, color text-secondary, font-weight 400
+    Number: activeTasks — font-size 36px, font-weight 700, color text-primary
+    Trend: "↑ {trendActiveTasks}% from last week" — font-size 12px, color success (if positive)
+    Sparkline: canvas/SVG wave line, 100% width, 48px tall, color success, no axes
+
+  Card 2 — Completion Rate:
+    Number: "{completionRate}%"
+    Trend: "↑ {trend}% from last week"
+    Visual: circular progress ring (SVG, 64x64, stroke-width 6, accent color, centered)
+    NOT a sparkline — a donut ring showing the percentage
+
+  Card 3 — Team Velocity:
+    Number: "{teamVelocity}" (tasks per week)
+    Trend: "↑ {trend}% from last week"
+    Sparkline: bar chart style (8 bars, alternating heights), color accent
+
+  Card 4 — Overdue Items:
+    Number: "{overdueItems}" — color danger if > 0, else text-primary
+    Trend: "↓ {trend} from last week" — color success if improving
+    Sparkline: jagged wave, color danger
+
+  Sparklines: use SVG paths. Generate random-but-plausible data for the visual.
+  Width: 100%, height: 48px, no axes, no labels, smooth curved paths.
+
+PROJECT BOARD SECTION (padding 0 32px):
+  Header row:
+    "Project Board" — font-size 16px, font-weight 600
+    Dropdown: "Website Redesign ▾" — shows current project selector
+      Clicking opens a list of user's projects to switch the kanban view
+    Right: "Filter" button + "Customize" button + "..." more button
+    All right buttons: ghost style, 12-13px, icons + text
   
-  Methods:
-    openCreateWorkspaceModal()
-    onWorkspaceCreated(workspace: Workspace): prepend to list
- 
-dashboard.component.html:
-  Wrapped in PageWrapper (via router-outlet, already handled).
- 
-  Section 1 — Greeting header:
-    <h1>Good {{ timeOfDay }}, {{ user.username }}</h1>
-    <p>{{ today | date:'EEEE, MMMM d' }}</p>
- 
-  Section 2 — Stats row:
-    <div class="stats-grid">  (4 columns)
-      <app-stats-card icon="heroOutlineClipboardDocumentList" label="Active Tasks"   [value]="activeTaskCount" color="accent"></app-stats-card>
-      <app-stats-card icon="heroOutlineRectangleStack"        label="My Workspaces" [value]="workspaces.length" color="success"></app-stats-card>
-      <app-stats-card icon="heroOutlineClock"                 label="Due Today"     [value]="dueTodayCount" color="warning"></app-stats-card>
-      <app-stats-card icon="heroOutlineExclamationCircle"     label="Overdue"       [value]="overdueCount" color="danger"></app-stats-card>
-    </div>
- 
-  Section 3 — Workspaces row:
-    <h2>My Workspaces</h2>
-    <div class="workspace-row">  (horizontal scroll)
-      <app-workspace-card *ngFor="let ws of workspaces" [workspace]="ws" (click)="navigate(ws.id)">
-      </app-workspace-card>
-      <div class="new-workspace-card" (click)="openCreateWorkspaceModal()">
-        <ng-icon name="heroOutlinePlus"></ng-icon>
-        <span>New Workspace</span>
-      </div>
-    </div>
- 
-  Section 4 — Activity feed (right side, if 2-col layout):
-    <h2>Recent Activity</h2>
-    <div class="activity-list">
-      <div *ngFor="let log of activity" class="activity-item">
-        <app-avatar [user]="log.user" size="sm"></app-avatar>
-        <span>{{ log.action }}</span>
-        <span class="time">{{ log.createdAt | relativeTime }}</span>
-      </div>
-    </div>
- 
-  Create workspace modal (inline):
-    <app-modal [isOpen]="isCreateModalOpen" title="New Workspace" (closed)="isCreateModalOpen = false">
-      <form [formGroup]="workspaceForm" (ngSubmit)="createWorkspace()">
-        <app-input label="Name" formControlName="name"></app-input>
-        <app-input label="Description" formControlName="description"></app-input>
-        <app-button type="submit" [loading]="isCreating">Create</app-button>
-      </form>
-    </app-modal>
- 
-  Loading state: show skeleton cards while data loads (use *ngIf="!isLoading" else skeleton template)
-  Empty state for workspaces: <app-empty-state> with "Create your first workspace" CTA
- 
-Goal: dashboard shows real data. Stat cards reflect actual task counts.
-Verify: creating a workspace from the modal adds it to the list without page reload.
-```
- 
----
- 
-## PHASE 12 — Workspace + Project Pages
- 
-### Task 12.1 — Workspace List Page ✅
-```
-src/app/features/workspace/workspace-list/
- 
-workspace-list.component.ts:
-  Standalone. Injected: WorkspaceService, ToastrService.
-  On init: load all workspaces.
-  Method: openCreate(), onCreated(ws): add to list.
- 
-workspace-list.component.html:
-  Page header: <h1>Workspaces</h1> + <app-button (click)="openCreate()">New Workspace</app-button>
-  
-  Grid (3 cols lg, 2 cols md, 1 col sm):
-    <div class="workspace-grid">
-      <div class="workspace-card" *ngFor="let ws of workspaces" (click)="navigate(ws.id)">
-        <div class="ws-header">
-          <h3>{{ ws.name }}</h3>
-          <app-badge [text]="ws.members.length + ' members'" variant="info"></app-badge>
-        </div>
-        <p class="ws-description">{{ ws.description | truncate:80 }}</p>
-        <div class="ws-footer">
-          <app-avatar [user]="ws.owner" size="sm"></app-avatar>
-          <span class="owner-name">{{ ws.owner.username }}</span>
-          <app-button variant="ghost" size="sm">Open →</app-button>
-        </div>
-      </div>
-    </div>
- 
-  Empty state: <app-empty-state> when no workspaces
-  Loading state: 3 skeleton cards
- 
-Goal: workspace list loads and displays correctly.
-```
- 
-### Task 12.2 — Workspace Detail Page ✅
-```
-src/app/features/workspace/workspace-detail/
- 
-workspace-detail.component.ts:
-  Standalone. Injected: WorkspaceService, ProjectService, ActivatedRoute, ToastrService.
-  Loads: workspace by id (from route params), projects by workspace id.
-  Methods:
-    openAddMember(), onMemberAdded()
-    openCreateProject(), onProjectCreated(project)
-    removeMember(userId)
- 
-workspace-detail.component.html:
-  Top section:
-    <div class="ws-hero">
-      <div>
-        <h1>{{ workspace.name }}</h1>
-        <p>{{ workspace.description }}</p>
-      </div>
-      <div class="ws-actions">
-        <app-button variant="secondary" (click)="openAddMember()">Add Member</app-button>
-        <app-button (click)="openCreateProject()">New Project</app-button>
-      </div>
-    </div>
- 
-  Members strip:
-    <div class="members-strip">
-      <app-avatar *ngFor="let m of workspace.members | slice:0:6" [user]="m" size="sm" [title]="m.username"></app-avatar>
-      <span *ngIf="workspace.members.length > 6" class="more-members">+{{ workspace.members.length - 6 }}</span>
-    </div>
- 
-  Projects grid:
-    <h2>Projects</h2>
-    <div class="projects-grid">
-      <app-project-card *ngFor="let p of projects" [project]="p" (click)="navigate(p.id)">
-      </app-project-card>
-    </div>
-    <app-empty-state *ngIf="!projects.length" title="No projects yet" description="Create the first project for this workspace" actionLabel="New Project" (action)="openCreateProject()">
-    </app-empty-state>
- 
-  Add Member Modal:
-    Email input + submit
- 
-  Create Project Modal:
-    Fields: title, description, deadline (date input), manager (select from workspace.members)
- 
-src/app/features/project/project-card/project-card.component.ts (shared project card):
-  Input: project: Project
-  Output: clicked: EventEmitter
-  Shows: title, status badge, deadline (red if past), ProgressBar, manager avatar+name
-  Status badge colors:
-    PLANNING → muted, ACTIVE → accent, ON_HOLD → warning, COMPLETED → success, ARCHIVED → muted
- 
-src/app/shared/components/progress-bar/progress-bar.component.ts:
-  Input: value: number (0-100)
-  Color: green if >70, yellow if 40-70, red if <40
-  Animated width on mount using Angular animations
- 
-Goal: workspace detail shows projects and members. Can add members and create projects.
-Verify: adding member with non-existent email shows error toast.
-```
- 
-### Task 12.3 — Project Detail Page ✅
-```
-src/app/features/project/project-detail/
- 
-project-detail.component.ts:
-  Standalone. Injected: ProjectService, AnalyticsService, ActivatedRoute, Router.
-  On init: load project by id.
-  Properties:
-    activeTab: 'board' | 'list' | 'analytics' | 'settings' = 'board'
-    isEditingTitle = false
- 
-  Methods:
-    onTitleBlur(newTitle): call ProjectService.update() if changed
-    onTabChange(tab): set activeTab
-    archiveProject(): call ProjectService.archive(), navigate to workspace
- 
-project-detail.component.html:
- 
-  <div class="project-header">
-    <!-- Editable title -->
-    <h1 *ngIf="!isEditingTitle" (click)="isEditingTitle = true">{{ project.title }}</h1>
-    <input *ngIf="isEditingTitle" [value]="project.title" (blur)="onTitleBlur($event.target.value)" autofocus>
+  KANBAN (embedded directly in dashboard — NOT a separate page):
+    4 visible columns: To Do, In Progress, Review, Done
+    Each column header: status name + count badge + "+" add task button
+    Column: bg transparent, no border, width ~220px each
+    Task cards (see Task R3.3 for detailed card design)
+    Max height 400px per column, overflow-y: auto (scrollable column)
+    NO drag-drop on dashboard kanban — click to open task detail only
     
-    <div class="project-meta">
-      <app-badge [text]="project.status" [variant]="statusVariant"></app-badge>
-      <span class="deadline" [class.overdue]="isOverdue">
-        {{ isOverdue ? 'Overdue' : daysLeft + ' days left' }}
-      </span>
-    </div>
+    Data: call GET /projects/{selectedProjectId}/tasks
+    When user changes project dropdown → reload tasks
+
+ANALYTICS OVERVIEW SECTION (padding 0 32px 24px):
+  Header: "Analytics Overview" + period dropdown "This week ▾"
+  4 analytics cards in a row:
+    Card 1 — Progress Overview:
+      Label, "68%" large number, trend
+      Line chart SVG (same width as card, 80px tall, green line, subtle grid)
+      X-axis labels: M T W T F S S
+    Card 2 — Tasks by Priority:
+      Donut chart (SVG, 100px, multicolor segments: High=orange, Medium=blue, Low=green)
+      Legend: High 8 / Medium 12 / Low 8
+      Center: "28 Total"
+    Card 3 — Team Workload:
+      "Balanced" or "Overloaded" in large text
+      Team member avatars (4, overlapping)
+      "No issues detected" in text-secondary
+    Card 4 — Time Tracked (display from activityLog count):
+      Big number "128h" (computed from activity logs — count * estimated hours, or just total tasks * 1h)
+      Trend sparkline
+
+BOTTOM TWO-COLUMN SECTION (gap 12px, padding 0 32px 32px):
+  LEFT COLUMN (flex: 1):
+    Recent Activity:
+      Header "Recent Activity" + "View all activity →" link (accent color)
+      List of 5 activity entries from GET /projects/{id}/activity or /users/me/activity:
+        Each: avatar circle (28px) + "[Username] {action}" + relative time on right
+        Username: font-weight 500, rest: font-weight 400, color text-secondary
+        Hover: bg bg-elevated, rounded-md
+      "View all activity →" link at bottom
+
+    Upcoming Deadlines:
+      Header "Upcoming Deadlines" + "View calendar →" link
+      List from GET /dashboard/upcoming-deadlines:
+        Each: calendar icon + task title (flex 1) + due date + priority dot
+        Overdue: title in danger color
+
+  RIGHT COLUMN (flex: 0 0 380px):
+    AI Assistant card:
+      Header: "⚡ AI Assistant" (accent color)
+      Subtext: "Here are some suggestions to boost your productivity"
+      3 insight rows (hardcoded, styled):
+        Red dot + "2 tasks are at risk of being overdue" + "Review now →" link
+        Yellow dot + "You can complete 5 more tasks this week" + "View tasks →"
+        Green dot + "Team workload is perfectly balanced" + "Great job! →"
+      Each row: icon circle (28px) + text (flex 1) + link
+
+    Team Members card:
+      Header: "Team Members" + "View all →" link
+      List of 4 members from workspace.members (first 4):
+        Avatar + username + role + "● Working on {task title}" (green dot)
+        Task title from their current IN_PROGRESS task
+
+    Projects Overview card:
+      Header: "Projects Overview" + "View all projects →"
+      List from GET /dashboard/projects-overview:
+        Each: project icon + project title + progress bar (right-aligned %)
+        Progress bar: 8px tall, colored by health (green/yellow/red)
+
+Verify: all sections render with real data from the new backend endpoints.
+Verify: project board dropdown switches the kanban view.
+Verify: sparklines render (even if just styled SVG placeholders with smooth curves).
+Verify: screenshot 2 match — layout, typography, spacing all correct.
+```
+
+### Task R3.3 — Task Card Redesign ☐
+```
+Reference: Screenshot 2 (kanban section) and screenshot 4 (board behind the drawer).
+
+The task card is used in kanban columns everywhere. Redesign it completely.
+
+BACKEND: No changes needed.
+
+FRONTEND: Rewrite src/app/features/task/task-card/task-card.component
+
+Exact card design from screenshot 2:
+  Background: var(--bg-elevated)
+  Border: 1px solid var(--border-subtle)
+  Border-radius: var(--radius-lg)
+  Padding: 14px 16px
+  Margin-bottom: 8px
+  Cursor: pointer
+  Transition: background 0.15s, border-color 0.15s
+
+  Hover state:
+    Background: #222228 (slightly lighter than bg-elevated)
+    Border-color: var(--border-default)
+
+  Selected state (when open in drawer):
+    Border-left: 3px solid var(--accent)
+    Background: rgba(212,168,83,0.05)
+
+  CARD INTERNAL LAYOUT:
+
+  Row 1 (space-between):
+    Left: Task title
+      Font-size: 13px, font-weight: 500, color: text-primary
+      Max 2 lines, then ellipsis
+    Right: (empty on most cards, priority dot on some)
+
+  Row 2 (priority indicator):
+    Small colored dot (6px circle) + priority text
+    LOW:      var(--text-tertiary) dot + text
+    MEDIUM:   #60A5FA (blue) dot + text
+    HIGH:     var(--warning) dot + text
+    CRITICAL: var(--danger) dot + text
+    Font-size: 12px, color text-secondary
+
+  Row 3 (bottom row, space-between):
+    Left: overlapping avatar stack (24px circles, -6px overlap)
+      Shows assignee avatar. If unassigned: dashed circle with "+" sign
+    Center: date — "May 24" format, font-size 11px, color text-tertiary
+      If overdue: color danger
+    Right: comment icon + count — "💬 2", font-size 11px, color text-tertiary
+
+  DONE column tasks (from screenshot 2):
+    Show a green checkmark circle before the title
+    Title has text-decoration: line-through, color text-tertiary
+    Overall card: slightly dimmed (opacity 0.7)
+
+  Priority dot colors:
+    Low:      rgba(255,255,255,0.2)
+    Medium:   #60A5FA
+    High:     #F59E0B
+    Critical: #EF4444
+
+  "Add task" button at bottom of each column:
+    Full width, dashed border, bg transparent
+    "＋ Add task" text, color text-tertiary, font-size 13px
+    Hover: bg bg-elevated, color text-secondary
+    Border: 1px dashed var(--border-default)
+    Border-radius: var(--radius-md)
+    Height: 36px
+
+Column header redesign:
+  Status name: font-size 13px, font-weight 500, color text-secondary
+  Count badge: bg bg-elevated, border border-subtle, font-size 11px, padding 2px 8px, border-radius radius-full
+  "+" button: 24px circle, bg bg-elevated, hover bg bg-overlay, icon text-secondary
+
+Column container:
+  Width: ~220px, flex: 0 0 220px
+  Background: transparent (NO column background — cards float on the main bg)
+  Padding: 0
+
+Verify: cards look exactly like screenshot 2 kanban section.
+Verify: DONE tasks have strikethrough and checkmark.
+Verify: priority dots have correct colors.
+```
+
+---
+
+## PHASE R4 — Workspace Detail Redesign
+
+### Task R4.1 — Backend: Project Health + Workspace Activity ☐
+```
+The workspace detail page needs endpoints the current backend partially has but needs to enhance.
+
+ENHANCE: GET /workspaces/{id}/projects — add health field to each project in response
+  Current response only has: id, title, status, deadline, progress, manager
+  Add to ProjectResponseDTO: health (String: "ON_TRACK" | "AT_RISK" | "DELAYED")
+  Compute: ON_TRACK if progress >= 70% and no overdue tasks
+            AT_RISK if progress >= 40% or has 1-2 overdue tasks
+            DELAYED if progress < 40% or has 3+ overdue tasks
+
+ADD "insight" field to project response:
+  insight: String — hardcoded strings based on health:
+    ON_TRACK: "Components are ahead of schedule. Consider starting documentation early."
+    AT_RISK:  "User testing results suggest reviewing the onboarding flow."
+    DELAYED:  "Significant delays detected. Schedule a team sync immediately."
+  (This mimics the "AI Insight" shown in screenshot 3 — can be rule-based)
+
+ENHANCE: GET /workspaces/{id}/activity — already exists, ensure it returns:
+  user object (not just userId), action string, entityType, entityId, createdAt
+  Grouped by date (TODAY / YESTERDAY / earlier) in response or sort by createdAt DESC
+
+Verify: GET /workspaces/{id}/projects returns health and insight fields.
+```
+
+### Task R4.2 — Workspace Detail Page Redesign ☐
+```
+Reference: Screenshot 3 — the "Product Design Workspace" page.
+
+FRONTEND: Complete rewrite of src/app/features/workspace/workspace-detail/
+
+--- EXACT LAYOUT FROM SCREENSHOT 3 ---
+
+The workspace detail page has a TWO-PANEL layout:
+  Left panel: flex: 1 (main content)
+  Right panel: flex: 0 0 340px, border-left: 1px solid var(--border-subtle) (activity feed)
+
+This is DIFFERENT from the previous design — the activity feed is always visible on the right.
+
+LEFT PANEL:
+
+Hero section (padding 32px 32px 0):
+  Apply @mixin warm-glow-bg to this section.
+  Breadcrumb: "✦ WORKSPACE" — 11px, text-tertiary, letter-spacing 0.08em, uppercase
+  
+  Title: workspace.name — font-size 40px, font-weight 700, color text-primary, margin-top 12px
+  Description: workspace.description — font-size 15px, color text-secondary, max-width 600px, line-height 1.6
+
+  Members + actions row (margin-top 24px):
+    Left: overlapping avatar circles (36px, -10px overlap) for members
+      After avatars: "+" circle button (bg bg-elevated, border dashed border-default)
+      Count text: "12 members" (font-size 13px, color text-secondary)
+      Green dot + "5 active" (color success, font-size 13px)
+    Right: two buttons:
+      "👤 Invite members" — secondary button, height 36px
+      "⚙ Workspace settings" — secondary button, height 36px
+      Gap: 8px
+
+Projects section (padding 32px):
+  Header row:
+    "Projects" — font-size 16px, font-weight 600
+    View toggle: grid icon (active) / list icon — 28px buttons, bg bg-elevated on active
+    "Filter" button (ghost, icon + text)
+    "All projects ▾" dropdown
+    "Sort: Recent ▾" dropdown
+  
+  Project list (NOT a card grid — it's a list of wide rows like screenshot 3):
+    Each project row: min-height 120px, bg var(--bg-surface), border var(--border-subtle), rounded-xl, margin-bottom 12px
+    Layout: image thumbnail (120x120, rounded-lg, left) + content area (flex: 1)
+
+    Image thumbnail: 
+      bg var(--bg-elevated), border-radius var(--radius-lg)
+      Show a gradient placeholder with abstract shapes (use CSS gradients — different per project)
+      First project: radial-gradient(circle at 70% 30%, #3D2B0A, #1A1200) — warm dark amber
+      Second: radial-gradient(circle at 30% 70%, #0A1A2B, #000D1A) — cool dark blue
+      Third: radial-gradient(circle at 50% 50%, #1A0A2B, #0D0014) — purple dark
+
+    Content area (padding 20px):
+      Top row:
+        Project title — font-size 17px, font-weight 600, color text-primary
+        Star/bookmark icon — text-tertiary, hover text-accent
+        "..." more menu — text-tertiary
+      Description — font-size 13px, color text-secondary, max 2 lines, margin-top 4px
+      Member avatars (24px, overlapping) — margin-top 12px
+      
+      Stats row (margin-top 12px, display: grid, 3 columns):
+        Column 1: "Progress" label (11px, text-tertiary) + "{progress}%" (14px, font-weight 600)
+                  Progress bar: 4px tall, width 120px, color based on health
+        Column 2: "Due date" label + "May 24, 2024" (14px, font-weight 600)
+        Column 3: "Health" label + colored dot + status text ("On track" / "At risk" / "Delayed")
+                  ON_TRACK: success color, AT_RISK: warning, DELAYED: danger
+      
+      AI Insight row (margin-top 12px):
+        "⚡ AI Insight" pill (font-size 11px, color accent, bg accent-dim, padding 2px 8px, rounded-full)
+        Insight text — font-size 12px, color text-secondary (from insight field in API response)
+        "→" arrow link on right
+
+RIGHT PANEL — Recent Activity:
+  Width: 340px
+  Padding: 32px 24px
+  Header: "Recent activity" — font-size 14px, font-weight 600 (left) + "All activity ▾" dropdown (right)
+  
+  Timeline grouped by date:
+    Date label: "Today" — font-size 11px, text-tertiary, font-weight 600, uppercase, letter-spacing 0.06em
+    Activity items (from GET /workspaces/{id}/activity):
+      Layout: time (left, 11px, text-tertiary, min-width 52px) + avatar (28px) + content (flex 1)
+      Time: "10:24 AM"
+      Content: "{username} {action}" — username is font-weight 500, rest is font-weight 400, 13px
+      If action contains a link target (entityType=TASK): project name shown in accent color with link
+      Quoted comment text (if action=COMMENT_ADDED): shown in blockquote style, border-left 2px accent-dim, padding-left 8px, text-secondary 12px
+      Message icon button on right (text-tertiary, 14px)
+    Gap between items: 20px
+    "Yesterday" date label, same pattern
+    "View all activity →" link at bottom (accent color)
+
+Verify: layout matches screenshot 3 exactly — two-panel, hero with warm glow, project list rows with thumbnails.
+Verify: "AI Insight" pill shows per project. Health badge shows correct color.
+Verify: activity feed on right shows real data grouped by date.
+```
+
+---
+
+## PHASE R5 — Task Board + Task Detail Drawer Redesign
+
+### Task R5.1 — Backend: Task Identifier + Subtasks ☐
+```
+The task detail drawer (screenshot 4) shows:
+  - Task identifier: "DES-120" (short ID format)
+  - Subtasks list with completion tracking
+  - Activity tab inside the drawer
+
+Add to backend:
+
+1. Task identifier field:
+   Add taskIdentifier (String) to Task entity.
+   Format: first 3 letters of project title (uppercase) + "-" + sequential number per project.
+   Generate on task creation in TaskService.createTask().
+   Example: project "Design System 2.0" → tasks get "DES-1", "DES-2", etc.
+   Add taskIdentifier to TaskResponseDTO.
+
+2. Subtasks:
+   Add subtasks support to Task entity:
+   - Add Subtask entity: { id UUID, title String, completed boolean, task ManyToOne Task, assignee ManyToOne User nullable, dueDate LocalDate nullable, createdAt }
+   - SubtaskRepository
+   - SubtaskService: createSubtask(taskId, title), toggleSubtask(subtaskId), deleteSubtask(subtaskId)
+   - Add subtasks: List<SubtaskResponseDTO> to TaskResponseDTO
+   - SubtaskResponseDTO: { id, title, completed, assignee, dueDate }
+
+3. New endpoints:
+   POST   /tasks/{id}/subtasks          body: { title: string, assigneeId?, dueDate? }
+   PUT    /tasks/{id}/subtasks/{sid}/toggle    → toggles completed boolean
+   DELETE /tasks/{id}/subtasks/{sid}
+
+Verify: GET /tasks/{id} now returns taskIdentifier and subtasks array.
+Verify: POST /tasks/{id}/subtasks creates a subtask. Toggle works.
+```
+
+### Task R5.2 — Task Board Page Redesign ☐
+```
+Reference: Screenshot 4 — the board BEHIND the open drawer.
+
+FRONTEND: Redesign src/app/features/task/task-board/task-board.component
+
+--- EXACT LAYOUT FROM SCREENSHOT 4 ---
+
+The board when inside a project context:
+  Navbar (top): app navbar with breadcrumb showing "Product Design Workspace → Design:System 2.0 ▾"
+  Board area (below navbar): full width, full height, no sidebar (or sidebar visible on left)
+
+Board header (NOT shown in dashboard version):
+  NOT needed here — the project-detail component wraps this with tabs.
+  The board is the "Board" tab content.
+
+Column design (from screenshot 4):
+  "To do  12" — name + count (text-tertiary, font-size 13px)
+  "+" add task button (text-tertiary, 20px, absolute right of header)
+  Columns: horizontal flex, overflow-x: auto, padding: 16px 0, gap: 12px
+  Each column: width: 240px, flex: 0 0 240px
+  Column header: padding 0 0 12px, border-bottom: 1px solid var(--border-subtle)
+
+Task cards (detailed in R3.3 — ensure those changes are applied here too).
+
+Board scroll behavior:
+  The board scrolls horizontally if more columns than screen width.
+  Custom scrollbar at bottom.
+
+Drag and drop:
+  Keep the existing CDK drag-drop logic.
+  Visual: dragging card shows shadow-lg + slight rotation (transform: rotate(2deg)).
+  Drop zone: column shows dashed border when dragging over.
+
+Filter bar above board:
+  Position: above the board, inside the project-detail "board tab" area.
+  Search input: magnifier icon + "Search tasks..." — matches navbar search style
+  Priority pills: "All" | "High" | "Medium" | "Low" — pill buttons, accent-colored when active
+  Assignee filter: avatar dropdown
+
+Verify: board looks like the background of screenshot 4.
+Verify: drag and drop still works (test by dragging a card between columns).
+```
+
+### Task R5.3 — Task Detail Drawer Redesign ☐
+```
+Reference: Screenshot 4 — the right-side drawer overlay.
+
+FRONTEND: Complete rewrite of src/app/features/task/task-detail/task-detail.component
+
+--- EXACT DRAWER DESIGN FROM SCREENSHOT 4 ---
+
+The drawer is a right-side panel that slides over the board.
+Board BEHIND is still visible (dimmed) — not a modal overlay.
+
+Drawer dimensions:
+  Width: 680px (wider than before — screenshot shows ~55% of the screen)
+  Height: 100vh
+  Position: fixed, right: 0, top: 0
+  Background: var(--bg-surface)
+  Border-left: 1px solid var(--border-default)
+  Box-shadow: -8px 0 32px rgba(0,0,0,0.5)
+  Z-index: 100
+  Animation: slide in from right (translateX(100%) → translateX(0)), 200ms ease-out
+
+Backdrop (left of drawer):
+  Position: fixed, left: 0, top: 0, right: 680px, bottom: 0
+  Background: rgba(0,0,0,0.4)
+  Click closes drawer
+
+DRAWER HEADER (height 52px, padding 0 20px, border-bottom border-subtle):
+  Left: 3 icon buttons (screenshot 4 style):
+    [↗] expand to full page — ghost icon button, 32x32
+    [🔗] copy link — ghost icon button
+    [···] more options — ghost icon button
+  Right:
+    "⚡ Create" — small button, accent color text, icon
+    [✕] close button — ghost icon button
+
+DRAWER BODY (overflow-y: auto, padding 24px 28px):
+
+  BREADCRUMB (top of body):
+    "{taskIdentifier}" pill + "📄" icon + "• {projectName}"
+    taskIdentifier: font-family: 'Courier New', monospace, font-size 12px, color text-tertiary, bg bg-elevated, padding 2px 8px, rounded
+    projectName: font-size 13px, color text-secondary
+
+  TITLE (margin-top 16px):
+    Large h1, font-size 28px, font-weight 600, color text-primary
+    Editable: click shows cursor, blur saves. No input border visible until focused.
+    Pencil icon on hover (text-tertiary, 14px, appears inline after title)
+    Example: "Design system foundations"
+
+  DESCRIPTION (margin-top 8px):
+    Font-size 14px, color text-secondary, line-height 1.6
+    Editable textarea: click to edit, same style as title.
+
+  METADATA ROW (margin-top 24px, display: grid, 4 columns, border-top border-subtle, padding-top 20px):
+    From screenshot 4 exactly:
+    Column 1 — Priority:
+      Label: "Priority" (11px, text-tertiary, uppercase)
+      Value: colored dot + priority text in a pill selector
+      Clickable dropdown: LOW / MEDIUM / HIGH / CRITICAL
+    Column 2 — Status:
+      Label: "Status"
+      Value: colored dot + status text in a pill selector  
+      Clickable dropdown: all 5 statuses
+    Column 3 — Assignees:
+      Label: "Assignees"
+      Value: overlapping avatar circles (28px) + "+{n}" overflow
+      Click: opens member picker popup
+    Column 4 — Due date:
+      Label: "Due date"
+      Value: 📅 icon + "May 26, 2024" text
+      Click: date picker popup
+    Far right: refresh/sync icon button
+
+  SUBTASKS SECTION (margin-top 28px):
+    Header: "Subtasks" (font-size 14px, font-weight 500) + "{completed}/{total}" count + progress bar (right-aligned)
+    Progress bar: 120px wide, 4px tall, success color fill
+    Subtask list (from task.subtasks):
+      Each subtask row:
+        Checkbox (custom styled — green checkmark when done, circle outline when pending)
+        Title (font-size 13px, text-primary uncompleted, line-through text-tertiary completed)
+        Assignee avatar on right (24px)
+        Due date on far right (11px, text-tertiary)
+        Completed subtasks: strikethrough title styling
+      Hover: show delete button (×) on right
     
-    <app-button *ngIf="canArchive" variant="danger" size="sm" (click)="archiveProject()">Archive</app-button>
-  </div>
- 
-  <!-- Tab navigation -->
-  <div class="tab-nav">
-    <button *ngFor="let tab of tabs" [class.active]="activeTab === tab.key" (click)="onTabChange(tab.key)">
-      {{ tab.label }}
-    </button>
-  </div>
- 
-  <!-- Tab content -->
-  <div class="tab-content">
-    <app-task-board *ngIf="activeTab === 'board'" [projectId]="project.id"></app-task-board>
-    <app-task-list  *ngIf="activeTab === 'list'"  [projectId]="project.id"></app-task-list>
-    <app-project-analytics *ngIf="activeTab === 'analytics'" [projectId]="project.id"></app-project-analytics>
-    <app-project-settings  *ngIf="activeTab === 'settings'"  [project]="project" (updated)="onProjectUpdated($event)"></app-project-settings>
-  </div>
- 
-Create these as separate child components:
- 
-project-analytics.component.ts (in project/project-analytics/):
-  Input: projectId: string
-  On init: load stats, workload, health from AnalyticsService
-  Template:
-    Health badge (ON_TRACK=green / AT_RISK=yellow / DELAYED=red)
-    Task status breakdown: horizontal stacked bar (pure CSS flex)
-    Team workload: list of members with progress bar showing their task load
- 
-project-settings.component.ts (in project/project-settings/):
-  Input: project: Project
-  Output: updated: EventEmitter<Project>
-  Form: title, description, deadline, manager dropdown
-  Danger zone section: Archive button with confirmation
- 
-Goal: all 4 tabs render. Inline title editing saves to API.
-Verify: TEAM_MEMBER role does not see Archive button (use *ngIf checking user role).
+    "Add subtask" input at bottom (click to expand):
+      Shows: + icon + "Add a subtask..." placeholder text
+      Click: transforms into real input, press Enter to save, Escape to cancel
+
+  TABS (margin-top 28px):
+    Tab buttons: "Comments {count}" | "Activity" | "Files {count}" | "AI Assistant"
+    Active tab: text-primary, border-bottom 2px accent
+    Inactive: text-secondary, no border
+    Font-size: 13px
+    
+    Comments tab content:
+      Comment input (top — NOT bottom like before):
+        Avatar (28px, current user) + "Add a comment..." placeholder
+        Click: expands to textarea
+        Emoji and gif buttons inside input area
+      
+      Comments list below:
+        Each comment:
+          Avatar (32px) + username (font-weight 500, 13px) + "2 hours ago" (text-tertiary, 12px) + content (13px, text-secondary, line-height 1.6)
+          "Reply" button (text-tertiary, 12px) + emoji reaction buttons (😊 👍 small buttons)
+          Replies nested below with 32px left indent
+    
+    Activity tab content:
+      Timeline of all actions on this task from GET /projects/{id}/activity filtered by entityId
+    
+    Files tab: placeholder "No files attached" + "Upload file" button
+    
+    AI Assistant tab:
+      Title: "Design system recommendations" (14px, font-weight 500)
+      Subtext: "Based on similar projects and best practices in design systems."
+      List of 2-3 AI suggestions (hardcoded):
+        Green circuit icon + "Consider adding semantic color tokens for states (success, warning, error)."
+        Blue accessibility icon + "Add focus states for accessibility compliance."
+      "View full recommendations →" link (accent)
+
+RIGHT SIDEBAR OF DRAWER (shown in screenshot 4 — the AI Assistant panel on the right):
+  Wait — screenshot 4 shows the drawer is divided:
+  Left 2/3: main content (title, description, metadata, subtasks, tabs)
+  Right 1/3 (about 220px): AI Assistant panel
+  Border-left: 1px solid var(--border-subtle)
+  Padding: 20px
+  
+  AI Assistant panel:
+    Header: "⚡ AI Assistant" (accent color) + "BETA" badge (bg bg-elevated, font-size 10px, border border-subtle)
+    Title: "Design system recommendations"
+    Description: 13px, text-secondary
+    Suggestion items: icon circle (28px) + suggestion text (13px, text-secondary)
+    "View full recommendations →" link
+
+Verify: drawer matches screenshot 4 exactly.
+Verify: taskIdentifier shows correctly (e.g., "DES-120").
+Verify: subtasks list renders with checkboxes, completion state shown correctly.
+Verify: all 4 tabs switch content without reloading the drawer.
+Verify: adding a subtask works (calls POST /tasks/{id}/subtasks).
+Verify: toggling a subtask updates the progress bar.
 ```
- 
+
 ---
- 
-## PHASE 13 — Task Board (Core UI)
- 
-### Task 13.1 — Kanban Task Board ✅
+
+## PHASE R6 — Analytics Page Redesign
+
+### Task R6.1 — Backend: Enhanced Analytics Endpoints ☐
 ```
-src/app/features/task/task-board/
- 
-task-board.component.ts:
-  Standalone. Input: projectId: string.
-  Injected: TaskService, ToastrService, AuthStore.
-  
-  Properties:
-    columns: { status: TaskStatus; label: string; tasks: Task[] }[] = [
-      { status: 'TODO',        label: 'To Do',      tasks: [] },
-      { status: 'IN_PROGRESS', label: 'In Progress', tasks: [] },
-      { status: 'BLOCKED',     label: 'Blocked',     tasks: [] },
-      { status: 'IN_REVIEW',   label: 'In Review',   tasks: [] },
-      { status: 'DONE',        label: 'Done',        tasks: [] },
-    ]
-    filters: { priority: string; keyword: string; assigneeId: string } = {}
-    isCreateModalOpen = false
-    selectedColumnStatus: TaskStatus = 'TODO'
-    isLoading = true
- 
-  On init: loadTasks()
-  
-  loadTasks():
-    TaskService.getByProject(this.projectId, this.filters).subscribe(tasks => {
-      this.columns.forEach(col => col.tasks = tasks.filter(t => t.status === col.status));
-      this.isLoading = false;
-    });
- 
-  onDrop(event: CdkDragDrop<Task[]>):
-    if same container → moveItemInArray (reorder only, no API call)
-    if different container:
-      const task = event.previousContainer.data[event.previousIndex];
-      const newStatus = ... // derive from container id
-      optimistic update: move task in UI immediately
-      TaskService.changeStatus(task.id, { status: newStatus }).subscribe({
-        error: () => { revert move; ToastrService.error('Invalid status transition'); this.loadTasks(); }
-      });
- 
-  openCreate(status: TaskStatus): selectedColumnStatus = status; isCreateModalOpen = true;
-  
-  onTaskCreated(task: Task): add to correct column without reload.
-  
-  onFiltersChange(): reload tasks with new filters.
- 
-task-board.component.html:
-  Filter bar:
-    <div class="filter-bar">
-      <input placeholder="Search tasks..." (input)="onKeywordChange($event)">  <!-- debounced 300ms -->
-      <select (change)="onPriorityChange($event)">
-        <option value="">All priorities</option>
-        <option *ngFor="let p of priorities" [value]="p">{{ p }}</option>
-      </select>
-      <button *ngIf="hasFilters" (click)="clearFilters()">Clear</button>
-    </div>
- 
-  Board (horizontal scroll):
-    <div class="board" cdkDropListGroup>
-      <div *ngFor="let col of columns" class="column">
-        <div class="column-header">
-          <span class="status-dot" [class]="col.status | lowercase"></span>
-          <span class="column-title">{{ col.label }}</span>
-          <span class="task-count">{{ col.tasks.length }}</span>
-          <button class="add-btn" (click)="openCreate(col.status)">+</button>
-        </div>
-        <div class="column-body"
-             cdkDropList
-             [id]="col.status"
-             [cdkDropListData]="col.tasks"
-             (cdkDropListDropped)="onDrop($event)">
-          <app-task-card
-            *ngFor="let task of col.tasks"
-            [task]="task"
-            cdkDrag
-            [cdkDragData]="task"
-            (cardClick)="openTaskDetail(task.id)"
-            (deleted)="onTaskDeleted(task)">
-          </app-task-card>
-          <app-empty-state *ngIf="!col.tasks.length" title="" description="No tasks" [minimal]="true">
-          </app-empty-state>
-        </div>
-      </div>
-    </div>
- 
-  Import @angular/cdk/drag-drop: DragDropModule
-  Add to angular.json if not already: @angular/cdk
- 
-  Create Task Modal (inline in template):
-    <app-modal [isOpen]="isCreateModalOpen" title="New Task" (closed)="isCreateModalOpen = false">
-      <form [formGroup]="createForm" (ngSubmit)="createTask()">
-        <app-input label="Title" formControlName="title"></app-input>
-        <app-input label="Description" formControlName="description"></app-input>
-        <select formControlName="priority">CRITICAL/HIGH/MEDIUM/LOW</select>
-        <input type="date" formControlName="dueDate">
-        <select formControlName="assigneeId"><!-- project members --></select>
-        <app-button type="submit" [loading]="isCreating">Create Task</app-button>
-      </form>
-    </app-modal>
- 
-task-card.component.ts (src/app/features/task/task-card/):
-  Standalone.
-  Inputs: task: Task
-  Outputs: cardClick: EventEmitter<void>, deleted: EventEmitter<void>
-  
-  Template:
-    <div class="task-card" (click)="cardClick.emit()">
-      <div class="card-header">
-        <app-badge [text]="task.priority" [variant]="priorityVariant"></app-badge>
-        <div class="card-actions" (click)="$event.stopPropagation()">
-          <button class="icon-btn" (click)="confirmDelete()">🗑</button>
-        </div>
-      </div>
-      <h4 class="card-title">{{ task.title | truncate:60 }}</h4>
-      <div class="card-footer">
-        <span class="due-date" [class.overdue]="isOverdue" *ngIf="task.dueDate">
-          {{ task.dueDate | date:'MMM d' }}
-        </span>
-        <app-avatar *ngIf="task.assignee" [user]="task.assignee" size="sm"></app-avatar>
-      </div>
-    </div>
- 
-  Priority variant map:
-    LOW → 'muted', MEDIUM → 'info', HIGH → 'warning', CRITICAL → 'danger'
- 
-Goal: Kanban board renders. Drag and drop between columns works. Invalid transitions revert.
-Verify: drag DONE → IN_PROGRESS fails with toast "Invalid status transition".
+The analytics page (screenshot 5) needs more data than the current backend provides.
+
+ENHANCE: GET /analytics/projects/{id}/stats — add:
+  completionRate: number (percent)
+  teamVelocity: number (tasks completed per sprint/week)
+  workloadBalance: string ("Balanced" | "Overloaded" | "Underutilized")
+  projectsHealth: number (percent of projects ON_TRACK)
+  sprintVelocityHistory: List<{sprint: string, value: number}> — last 5 sprints mock data
+  workloadDistribution: List<{category: string, count: number, percent: number}>
+    (group tasks by project and compute percentages)
+
+NEW: GET /analytics/team/performance
+  Auth required. Returns workspace-level analytics for current user's workspaces.
+  Response: {
+    completionRate: number,
+    trendCompletion: number,
+    teamVelocity: number,
+    trendVelocity: number,
+    workloadBalance: string,
+    projectsHealth: number,
+    trendHealth: number,
+    teamProductivity: { tasksCompleted: number, trend: number },
+    focusTime: { hours: number, trend: number },
+    cycleTime: { days: number, trend: number },
+    onTimeDelivery: { percent: number, trend: number }
+  }
+
+NEW: GET /analytics/insights
+  Returns list of AI insight cards (hardcoded rule-based):
+  [
+    { type: "warning", title: "Burnout Risk Detected", description: "3 team members show signs of burnout risk...", action: "View affected members", actionUrl: "/workspaces/{id}/members" },
+    { type: "success", title: "Sprint Recommendation", description: "Based on your velocity trend...", action: "Adjust sprint scope" },
+    { type: "info", title: "Team Performance", description: "Your team's productivity is peaking on Tuesdays...", action: "View detailed analysis" }
+  ]
+  Compute "burnout risk" as: members with > 5 BLOCKED or overdue tasks.
+
+Create AnalyticsController additions. Update existing AnalyticsService.
+
+Verify: GET /analytics/team/performance returns all fields.
+Verify: GET /analytics/insights returns at least 1 insight based on real task data.
 ```
- 
-### Task 13.2 — Task Detail Drawer ✅
+
+### Task R6.2 — Analytics Page Redesign ☐
 ```
-src/app/features/task/task-detail/
- 
-task-detail.component.ts:
-  Standalone.
-  Input: taskId: string
-  Output: closed: EventEmitter<void>
-  Injected: TaskService, CommentService, AuthStore, ToastrService.
- 
-  On init: load task by id, load comments.
- 
-  Properties:
-    task: Task
-    comments: Comment[]
-    isEditingTitle = false
-    isEditingDescription = false
-    newCommentText = ''
-    replyingToId: string | null = null
-    replyText = ''
-    isLoading = true
- 
-  Methods:
-    onTitleBlur(val): if changed → TaskService.update()
-    onDescBlur(val): if changed → TaskService.update()
-    onStatusChange(status): TaskService.changeStatus() → update local task
-    onAssigneeChange(userId): TaskService.assign()
-    onPriorityChange(priority): TaskService.update()
-    onDueDateChange(date): TaskService.update()
-    submitComment(): CommentService.add() → prepend to comments list
-    submitReply(commentId): CommentService.reply() → append to comment.replies
-    deleteComment(commentId): CommentService.delete() → remove from list
-    undoLastAction(): TaskService.undo() → reload task
-    deleteTask(): TaskService.delete() → emit closed
- 
-task-detail.component.html:
-  Drawer: fixed right panel, width 600px, full height, bg-surface, shadow-lg, slide-in animation.
-  Backdrop: fixed inset-0, click closes drawer.
+Reference: Screenshot 5 — "Team Performance Insights" page.
+
+FRONTEND: Complete rewrite of src/app/features/analytics/
+
+This page uses a LEFT SIDEBAR (analytics sub-nav) + MAIN CONTENT + RIGHT PANEL layout.
+Different from other pages — it has its own sub-navigation.
+
+--- LAYOUT ---
+Left sub-sidebar (180px):
+  Title: "Analytics" + "Beta" badge (bg accent-dim, color accent, font-size 10px)
+  Nav items:
+    Overview (active state — bg bg-elevated)
+    Team Performance
+    Projects
+    Sprint Analytics
+    Workload
+    Flow Metrics
+    Reports
+  Font-size: 13px, text-secondary inactive, text-primary active
+  Padding: 16px 12px per item
+
+Main content area (flex: 1):
+  Padding: 32px
+
+Right AI panel (300px):
+  Border-left: 1px solid var(--border-subtle)
+  Padding: 24px
+
+--- MAIN CONTENT ---
+
+PAGE HEADER:
+  "Team Performance Insights" — font-size 28px, font-weight 600
+  Subtext: "AI-powered analytics for modern collaborative teams." — 14px, text-secondary
   
-  Drawer structure:
-    <div class="drawer-header">
-      <button (click)="closed.emit()">✕</button>
-      <div class="drawer-actions">
-        <app-button variant="ghost" size="sm" (click)="undoLastAction()">Undo</app-button>
-        <app-button variant="danger" size="sm" (click)="deleteTask()" *ngIf="canDelete">Delete</app-button>
-      </div>
-    </div>
- 
-    <div class="drawer-body"> (two columns: main + sidebar)
- 
-      <!-- Main column -->
-      <div class="drawer-main">
-        <!-- Editable title -->
-        <h2 *ngIf="!isEditingTitle" (click)="isEditingTitle = true" class="task-title">{{ task.title }}</h2>
-        <input *ngIf="isEditingTitle" [value]="task.title" (blur)="onTitleBlur($event.target.value)" autofocus>
- 
-        <!-- Editable description -->
-        <p *ngIf="!isEditingDescription" (click)="isEditingDescription = true" class="task-desc">
-          {{ task.description || 'Add description...' }}
-        </p>
-        <textarea *ngIf="isEditingDescription" [value]="task.description" (blur)="onDescBlur($event.target.value)" autofocus></textarea>
- 
-        <!-- Dependencies -->
-        <div class="dependencies-section" *ngIf="task.dependencies.length">
-          <h4>Blocked by</h4>
-          <div *ngFor="let dep of task.dependencies" class="dep-item">
-            <app-badge [text]="dep.status" [variant]="statusVariant(dep.status)"></app-badge>
-            <span>{{ dep.title }}</span>
-          </div>
-        </div>
- 
-        <!-- Comments -->
-        <div class="comments-section">
-          <h4>Comments ({{ comments.length }})</h4>
-          <div *ngFor="let comment of comments" class="comment">
-            <app-avatar [user]="comment.author" size="sm"></app-avatar>
-            <div class="comment-body">
-              <div class="comment-header">
-                <strong>{{ comment.author.username }}</strong>
-                <span class="time">{{ comment.createdAt | relativeTime }}</span>
-                <button *ngIf="canDeleteComment(comment)" (click)="deleteComment(comment.id)">✕</button>
-              </div>
-              <p>{{ comment.content }}</p>
-              <button (click)="replyingToId = comment.id">Reply</button>
-              <!-- Reply form -->
-              <div *ngIf="replyingToId === comment.id" class="reply-form">
-                <textarea [(ngModel)]="replyText" placeholder="Write a reply..."></textarea>
-                <app-button size="sm" (click)="submitReply(comment.id)">Send</app-button>
-              </div>
-              <!-- Nested replies -->
-              <div *ngFor="let reply of comment.replies" class="reply">
-                <app-avatar [user]="reply.author" size="sm"></app-avatar>
-                <div class="reply-body">
-                  <strong>{{ reply.author.username }}</strong>
-                  <p>{{ reply.content }}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-          <!-- New comment -->
-          <div class="new-comment">
-            <app-avatar [user]="currentUser!" size="sm"></app-avatar>
-            <textarea [(ngModel)]="newCommentText" placeholder="Add a comment..."></textarea>
-            <app-button size="sm" (click)="submitComment()" [disabled]="!newCommentText.trim()">Comment</app-button>
-          </div>
-          <app-empty-state *ngIf="!comments.length" title="No comments" description="Start the conversation" [minimal]="true">
-          </app-empty-state>
-        </div>
-      </div>
- 
-      <!-- Sidebar column (task metadata) -->
-      <div class="drawer-sidebar">
-        <div class="meta-field">
-          <label>Status</label>
-          <select [ngModel]="task.status" (ngModelChange)="onStatusChange($event)">
-            <option *ngFor="let s of statuses" [value]="s">{{ s }}</option>
-          </select>
-        </div>
-        <div class="meta-field">
-          <label>Priority</label>
-          <select [ngModel]="task.priority" (ngModelChange)="onPriorityChange($event)">
-            <option *ngFor="let p of priorities" [value]="p">{{ p }}</option>
-          </select>
-        </div>
-        <div class="meta-field">
-          <label>Assignee</label>
-          <select [ngModel]="task.assignee?.id" (ngModelChange)="onAssigneeChange($event)">
-            <option value="">Unassigned</option>
-            <option *ngFor="let m of projectMembers" [value]="m.id">{{ m.username }}</option>
-          </select>
-        </div>
-        <div class="meta-field">
-          <label>Due Date</label>
-          <input type="date" [ngModel]="task.dueDate" (ngModelChange)="onDueDateChange($event)">
-        </div>
-        <div class="meta-field">
-          <label>Created</label>
-          <span>{{ task.createdAt | date:'MMM d, y' }}</span>
-        </div>
-      </div>
-    </div>
- 
-  Slide-in animation using Angular animations:
-    trigger('slideIn', [
-      transition(':enter', [ style({ transform: 'translateX(100%)' }), animate('200ms ease-out', style({ transform: 'translateX(0)' })) ]),
-      transition(':leave', [ animate('200ms ease-in', style({ transform: 'translateX(100%)' })) ])
-    ])
- 
-Goal: drawer opens on card click, all fields editable inline, comments post correctly.
-Verify: undo button reverts last status change. Deleting a task closes the drawer.
+  Right side (header row):
+    Date range picker: "May 12 – Jun 12, 2024" with calendar icon + "▾" — bg bg-elevated, border, rounded-md, height 36px
+    "⬆ Share" button — secondary
+    "⬇ Filter" button — secondary with filter icon
+
+TOP STATS ROW (4 cards, gap 12px):
+  Call GET /analytics/team/performance.
+  
+  Card 1 — Completion Rate:
+    Label: "Completion Rate" (12px, text-secondary)
+    Value: "{completionRate}%" (36px, font-weight 700)
+    Trend: "↑ {trend}% from last period" (12px, success)
+    Sparkline: smooth green line, 100% width, 48px tall
+  
+  Card 2 — Team Velocity:
+    Label: "Team Velocity"
+    Value: "{teamVelocity}"
+    Trend: "↑ {trend}%..."
+    Visual: bar chart sparkline (8 bars, accent color)
+  
+  Card 3 — Workload Balance:
+    Label: "Workload Balance"
+    Value: "{workloadBalance}" (large, font-size 24px)
+    Subtext: "All teams are optimal" (success color) or appropriate message
+    Visual: donut ring (SVG, 80px) — balanced = full green circle
+  
+  Card 4 — Projects Health:
+    Label: "Projects Health"
+    Value: "{projectsHealth}%"
+    Trend: "↑ {trend}%..."
+    Sparkline: green line
+
+MIDDLE CHARTS ROW (two equal cards, gap 12px):
+  LEFT — Sprint Velocity chart:
+    Header: "Sprint Velocity" + "Last 5 sprints ▾" dropdown
+    Chart: Line chart using Chart.js (ng2-charts)
+      X-axis: sprint dates (May 12, May 19, May 26, Jun 2, Jun 9)
+      Y-axis: 0 to 40, gridlines (very subtle: rgba(255,255,255,0.04))
+      Line: color accent (#D4A853), strokeWidth: 2, filled area: accent-dim gradient below line
+      Data points: circles on the line
+      Chart height: 200px
+      NO chart border. Chart background: transparent.
+      X/Y axis labels: 11px, text-tertiary
+
+  RIGHT — Workload Distribution chart:
+    Header: "Workload Distribution"
+    Chart: Donut chart (Chart.js)
+      Center label: "{totalTasks} Tasks" in large text
+      Segments: 5 colors for different projects/categories
+      Legend below: colored dot + label + percentage
+      Chart size: 180x180px, centered
+
+BOTTOM STATS ROW (4 smaller cards, gap 12px):
+  Same width as top stats row.
+  Each: same card style but shows a secondary metric with sparkline.
+
+  Card 1 — Team Productivity:
+    "Team Productivity" + "This week ▾"
+    "Tasks completed" label + "{tasksCompleted}" (28px, font-weight 700)
+    Trend, sparkline (amber line)
+
+  Card 2 — Focus Time:
+    "Focus Time" + "This week ▾"  
+    "Deep work hours" label + "{focusTime}h" (28px)
+    Trend, sparkline
+
+  Card 3 — Cycle Time:
+    "Cycle Time" + "This week ▾"
+    "Average cycle time" label + "{cycleTime} days" (28px)
+    Trend, sparkline (shows red/amber if increasing)
+
+  Card 4 — On-Time Delivery:
+    "On-Time Delivery" + "This week ▾"
+    "On-time completion" label + "{onTimeDelivery}%" (28px)
+    Trend, sparkline (green)
+
+  For sparklines in this section: use Chart.js micro line charts (60px tall, no axes, no labels).
+
+--- RIGHT PANEL: AI INSIGHTS ---
+
+Header: "⚡ AI Insights" (font-size 15px, font-weight 600, accent icon) — "Smart insights to help your team perform better."
+
+Insight cards (from GET /analytics/insights):
+  Each card: bg bg-elevated, border border-subtle, rounded-lg, padding 16px, margin-bottom 12px
+  
+  Header row:
+    Icon circle (32px): warning=red, success=green, info=blue gradient
+    Title (font-size 14px, font-weight 600)
+  
+  Description (font-size 13px, text-secondary, line-height 1.5, margin-top 6px)
+  
+  Action button: text + "→" (font-size 12px, color accent)
+    Inline button, no border, just link-like
+  
+  Example cards (from screenshot 5):
+    🔴 "Burnout Risk Detected" — warning icon, description, "View affected members →"
+    🟢 "Sprint Recommendation" — success icon, description, "Adjust sprint scope →"
+    📊 "Team Performance" — info icon, description, "View detailed analysis →"
+
+AI Assistant input at bottom:
+  Header: "⚡ AI Assistant  Beta"
+  Subtext: "Ask anything about your team's performance..."
+  Input: full width, bg bg-elevated, border border-subtle, rounded-md, 36px height
+  Placeholder: "Ask a question..."
+  Right: send icon button
+  Quick action pills below: "Why is velocity declining?" | "Show workload balance"
+  Pills: bg bg-elevated, border border-subtle, 11px, text-secondary, rounded-full, clickable (puts text in input)
+  On send: just show "Coming soon" toast — no backend AI needed.
+
+Sub-navigation routing:
+  The sub-sidebar links change the content area:
+  Overview → shows the full layout above
+  Team Performance → show GET /analytics/team/performance in more detail
+  Projects → show GET /analytics/projects/{id}/stats for each project (project selector dropdown)
+  Workload → show GET /analytics/projects/{id}/team-workload as a table/chart
+  Reports → show GET /reports/projects/{id}?format=json|csv|pdf download buttons
+
+Verify: screenshot 5 match — charts render, AI Insights panel shows real data.
+Verify: Sprint Velocity chart renders as line chart with Chart.js.
+Verify: Workload Distribution donut chart renders with segments.
+Verify: sub-navigation switches content without page reload.
 ```
- 
+
 ---
- 
-## PHASE 14 — Notifications + Patterns Page
- 
-### Task 14.1 — Notifications ✅
+
+## PHASE R7 — Auth Pages Redesign
+
+### Task R7.1 — Auth Pages Redesign ☐
 ```
-Notifications are already partially wired via NotificationStore and Navbar.
-Complete them here.
- 
-notification.store.ts (finalize):
-  @Injectable({ providedIn: 'root' })
-  private notificationsSubject = new BehaviorSubject<Notification[]>([]);
-  notifications$ = this.notificationsSubject.asObservable();
-  unreadCount$ = this.notifications$.pipe(map(n => n.filter(x => !x.readStatus).length));
-  private pollingInterval: any;
- 
-  load():
-    this.notificationService.getAll().subscribe(n => this.notificationsSubject.next(n));
- 
-  markRead(id: string):
-    this.notificationService.markRead(id).subscribe(() => {
-      const updated = this.notificationsSubject.value.map(n =>
-        n.id === id ? { ...n, readStatus: true } : n
-      );
-      this.notificationsSubject.next(updated);
-    });
- 
-  markAllRead():
-    unread notifications → call markRead for each → update local state
- 
-  startPolling():
-    this.load();
-    this.pollingInterval = setInterval(() => this.load(), 30000);
- 
-  stopPolling():
-    clearInterval(this.pollingInterval);
- 
-In page-wrapper.component.ts:
-  On init: inject NotificationStore, call startPolling()
-  On destroy: call stopPolling()
- 
-In navbar.component.ts (already uses store):
-  Connect notifications$ and unreadCount$ — already done from Task 9.1.
-  Ensure markRead and markAllRead methods call the store.
- 
-Goal: bell badge updates every 30 seconds. Marking read updates badge immediately.
-Verify: create a task → status change → within 30s, bell shows unread badge.
-```
- 
-### Task 14.2 — Patterns Page ✅
-```
-src/app/features/patterns/
- 
-patterns.component.ts:
-  Standalone. NO layout wrapper (standalone page, public).
-  Injected: PatternsService.
-  On init: load all patterns.
-  Properties:
-    patterns: Pattern[] = []
-    filteredPatterns: Pattern[] = []
-    activeCategory: 'ALL' | 'Creational' | 'Structural' | 'Behavioral' = 'ALL'
-    isLoading = true
- 
-  onCategoryChange(cat): filteredPatterns = filter by category or show all.
- 
-patterns.component.html:
-  Standalone page (no sidebar, no navbar — it has its own header).
+The login and register pages need to match the design language of the rest of the app.
+They are currently generic. Make them premium.
+
+BACKEND: No changes needed.
+
+FRONTEND: Rewrite both auth pages.
+
+--- LOGIN PAGE ---
+
+Full screen layout (100vw, 100vh, bg var(--bg-base)):
+  Display: grid, grid-template-columns: 1fr 1fr (desktop), 1fr (mobile)
+
+LEFT PANEL (hidden on mobile):
+  Background: linear-gradient(135deg, #0C0C0E 0%, #1A1200 50%, #0C0C0E 100%)
+  Plus warm radial glow: radial-gradient(ellipse 70% 50% at 60% 40%, rgba(180,130,60,0.25) 0%, transparent 70%)
+  Padding: 60px
+  Display: flex, flex-direction: column, justify-content: space-between
+
+  TOP:
+    Logo: ◈ icon (28px, text-accent) + "TeamSync" (18px, font-weight 600, text-primary)
   
-  <div class="patterns-page">
-    <header class="patterns-header">
-      <div class="logo">TeamSync</div>
-      <div class="header-content">
-        <h1>Design Patterns</h1>
-        <p>14 GoF Design Patterns implemented across 3 categories</p>
-      </div>
-      <a routerLink="/dashboard" class="back-link">← Back to App</a>
-    </header>
- 
-    <div class="category-tabs">
-      <button *ngFor="let cat of categories" [class.active]="activeCategory === cat" (click)="onCategoryChange(cat)">
-        {{ cat }}
-      </button>
-    </div>
- 
-    <div class="patterns-grid">
-      <div *ngFor="let p of filteredPatterns" class="pattern-card">
-        <div class="pattern-card-header">
-          <app-badge [text]="p.category" [variant]="categoryVariant(p.category)"></app-badge>
-          <span class="pattern-number">#{{ p.id }}</span>
-        </div>
-        <h3 class="pattern-name">{{ p.name }}</h3>
-        <p class="pattern-purpose">{{ p.purpose }}</p>
-        <div class="pattern-package">{{ p.package }}</div>
-        <div class="pattern-classes">
-          <span *ngFor="let cls of p.keyClasses" class="class-chip">{{ cls }}</span>
-        </div>
-      </div>
-    </div>
- 
-    <footer class="patterns-footer">
-      <a href="http://localhost:8080/swagger-ui.html" target="_blank">View API Docs →</a>
-    </footer>
-  </div>
- 
-  Category badge variants:
-    Creational → 'info' (purple tint)
-    Structural → 'accent' (indigo)
-    Behavioral → 'success' (green)
- 
-  SCSS: patterns grid = 3 cols lg, 2 cols md, 1 col sm. Cards have hover effect (translateY -4px + shadow).
- 
-Goal: /patterns loads without auth. All 14 patterns display. Category filter works.
-Verify: page is presentable enough to show during academic defense.
+  MIDDLE:
+    Large quote: "The best project management tool we've ever used. Intuitive, powerful, and packed with intelligence."
+    Font-size: 24px, font-weight: 400, color text-primary, line-height: 1.5, max-width 480px
+    Author: avatar circle + "Sarah Chen, CEO at TechFlow" — font-size 13px, text-secondary, margin-top 24px
+  
+  BOTTOM:
+    Stats row: "25K+ Teams" | "99.9% Uptime" | "4.9/5 Rating" — separated by · dots, font-size 13px, text-secondary
+
+RIGHT PANEL (the form):
+  Background: var(--bg-base)
+  Display: flex, flex-direction: column, justify-content: center, align-items: center
+  Padding: 60px 80px
+  
+  Form container (max-width: 380px, width: 100%):
+    "Welcome back" — font-size 24px, font-weight 600, color text-primary
+    "Sign in to your TeamSync account" — font-size 14px, color text-secondary, margin-top 6px
+    
+    Form fields (margin-top 32px, display flex flex-col gap 16px):
+      Email: label + input (--radius-md, height 40px, bg bg-elevated, border border-subtle)
+      Password: label + input + show/hide toggle icon inside input on right
+      
+      "Forgot password?" link — right-aligned, font-size 12px, color accent
+      
+      Submit button: full width, height 40px, bg accent, color #0C0C0E, font-weight 600, rounded-md
+      "Sign in" text
+    
+    Divider: "or continue with" — horizontal rule + text (text-tertiary, 12px)
+    
+    "Don't have an account? Create one →" — font-size 13px, text-secondary, center
+      "Create one →" is accent color link
+
+--- REGISTER PAGE ---
+Same two-panel layout.
+Left panel same style (different quote if desired).
+Right panel:
+  "Create your account" heading
+  Form: Username, Email, Password, Role selector
+  Submit: "Create account →"
+  Link: "Already have an account? Sign in"
+
+Verify: login page looks premium. Dark, moody left panel. Clean right panel form.
+Verify: form validation works — inline error messages below fields.
+Verify: successful login → redirects to /dashboard.
 ```
- 
+
 ---
- 
-## PHASE 15 — Tests
- 
-### Task 15.1 — Unit Tests: Services ✅
+
+## PHASE R8 — Final Quality Pass
+
+### Task R8.1 — Global Micro-interactions + Animations ☐
 ```
-Use Angular's default testing setup: Jasmine + Karma (already included in ng new).
-Test files go next to the files they test: auth.service.spec.ts, etc.
- 
-auth.service.spec.ts:
-  TestBed with HttpClientTestingModule.
-  Test: login() sends POST to /auth/login with correct body.
-  Test: register() sends POST to /auth/register.
-  Test: getMe() sends GET to /users/me.
-  Use HttpTestingController to verify requests and flush mock responses.
- 
-task.service.spec.ts:
-  Test: getByProject() sends GET /projects/{id}/tasks.
-  Test: changeStatus() sends PUT /tasks/{id}/status with body.
-  Test: undo() sends POST /tasks/undo.
-  Test: getByProject() with filters appends correct query params.
- 
-workspace.service.spec.ts:
-  Test: getAll() sends GET /workspaces.
-  Test: addMember() sends POST with { email } body.
-  Test: removeMember() sends DELETE to correct URL.
- 
-auth.store.spec.ts:
-  Test: setUser() updates user$ observable.
-  Test: clearUser() sets user$ to null.
-  Test: isAuthenticated$ emits true when user is set, false when null.
- 
-token.service.spec.ts:
-  Test: setToken() saves to localStorage.
-  Test: getToken() retrieves from localStorage.
-  Test: removeToken() removes from localStorage.
-  Test: hasToken() returns false when empty.
-  Mock localStorage with jasmine.createSpyObj or spyOn.
- 
-relative-time.pipe.spec.ts:
-  Test: "just now" for dates < 1 minute ago.
-  Test: "Xm ago" for dates < 1 hour ago.
-  Test: "Xh ago" for dates < 24 hours ago.
-  Test: "Xd ago" for dates < 7 days ago.
- 
-Run: ng test --no-watch --code-coverage
-Goal: all tests pass. Coverage > 70% for services.
+These small details are what separate a premium app from a generic one.
+Apply globally across ALL pages.
+
+ANGULAR ANIMATIONS (src/app/app.animations.ts):
+  Create reusable animation definitions:
+
+  fadeIn: opacity 0→1, duration 200ms, ease-out
+  slideInRight: translateX(100%)→(0), duration 200ms, ease-out (drawer)
+  slideInUp: translateY(16px)→(0) + opacity 0→1, duration 200ms, ease-out (modals, cards on load)
+  scaleIn: scale(0.95)→(1) + opacity 0→1, duration 150ms, ease-out (dropdowns)
+
+Apply animations:
+  Page transitions: route changes → fadeIn on the page content
+  Dashboard stat cards: slideInUp with stagger (each card 50ms delay after previous)
+  Drawer: slideInRight
+  Dropdowns/modals: scaleIn
+  Toast notifications: slideInRight from top-right
+
+HOVER STATES (go through every interactive element):
+  Cards: transition: background 0.15s, border-color 0.15s, transform 0.15s
+  Buttons: transition: background 0.15s, box-shadow 0.15s, transform 0.1s
+    Primary button hover: transform: translateY(-1px), shadow-glow
+  Task cards: transition: background 0.15s, border-color 0.15s
+  Nav items: transition: background 0.1s, color 0.1s
+  Project rows: transition: background 0.15s
+  Links: transition: color 0.15s
+
+LOADING SKELETON REDESIGN:
+  Previous skeletons used gray blocks — replace with the correct dark theme:
+  Skeleton base: var(--bg-elevated)
+  Shimmer animation: linear-gradient(90deg, transparent, rgba(255,255,255,0.04), transparent) moving left-to-right
+  Apply to: stat cards, project rows, task cards, activity items
+
+CURSOR:
+  All interactive elements: cursor: pointer
+  Disabled elements: cursor: not-allowed, opacity: 0.5
+  Text editing areas: cursor: text
+
+FOCUS STATES:
+  All focusable elements: outline: none (remove browser default)
+  Instead: box-shadow: 0 0 0 2px var(--accent-dim), 0 0 0 1px var(--accent)
+  This gives a clean amber glow on focus
+
+SCROLLBARS (enhance from R1.1):
+  Thin, styled, matches the dark theme.
+
+NUMBER ANIMATIONS:
+  When stat numbers load (dashboard cards, analytics):
+  Animate from 0 to the real value over 800ms using requestAnimationFrame.
+  Easing: ease-out (fast at start, slows at end).
+  This makes the numbers feel alive when the page loads.
+
+Verify: all animations are smooth (60fps). No jank.
+Verify: hover states on every card, button, and nav item work correctly.
+Verify: skeleton loading appears correctly before data loads.
+Verify: number animation plays on dashboard stat cards on page load.
 ```
- 
-### Task 15.2 — Unit Tests: Components ✅
+
+### Task R8.2 — Cross-browser + Performance + Final Build ☐
 ```
-login.component.spec.ts:
-  TestBed with ReactiveFormsModule, RouterTestingModule, HttpClientTestingModule.
-  Mock AuthService, AuthStore, TokenService, Router, ToastrService.
+Final quality check and production preparation.
+
+BACKEND:
+  Add CORS configuration to allow the production frontend URL (update when known).
+  Ensure all new endpoints from the redesign tasks are covered:
+    GET /public/stats ✓
+    GET /dashboard/stats ✓
+    GET /dashboard/upcoming-deadlines ✓
+    GET /dashboard/projects-overview ✓
+    POST /tasks/{id}/subtasks ✓
+    PUT /tasks/{id}/subtasks/{sid}/toggle ✓
+    DELETE /tasks/{id}/subtasks/{sid} ✓
+    GET /analytics/team/performance ✓
+    GET /analytics/insights ✓
+  Run all existing tests: mvn test — must pass.
+
+FRONTEND:
+
+Performance:
+  Lazy load all feature routes (already done in routing — verify).
+  Images: all placeholder gradient backgrounds use CSS, no actual images to load.
+  Chart.js: import only needed components (tree-shakeable imports):
+    import { Chart, LineController, LineElement, ... } from 'chart.js'
+    Chart.register(LineController, ...)
+    Do NOT import entire Chart.js bundle.
   
-  Test: form is invalid when empty → onSubmit() does not call AuthService.login.
-  Test: form is invalid with bad email format.
-  Test: onSubmit() calls AuthService.login() with form values when valid.
-  Test: on successful login → TokenService.setToken called → Router.navigate called with ['/dashboard'].
-  Test: isLoading set to true during submission, false after.
- 
-task-card.component.spec.ts:
-  Test: renders task title.
-  Test: shows 'overdue' class when dueDate is in the past.
-  Test: cardClick EventEmitter emits on card click.
-  Test: priority badge displays correct text.
- 
-status-badge.component.spec.ts:
-  Test: each status maps to correct CSS class.
- 
-task-board.component.spec.ts:
-  Mock TaskService returning Observable<Task[]>.
-  Test: loadTasks() distributes tasks into correct columns by status.
-  Test: onDrop() within same column calls moveItemInArray, not TaskService.changeStatus.
-  Test: onDrop() to different column calls TaskService.changeStatus with correct status.
-  Test: on changeStatus error → reverts task to original column.
- 
-navbar.component.spec.ts:
-  Mock NotificationStore, AuthStore.
-  Test: unreadCount badge not visible when unreadCount$ = 0.
-  Test: unreadCount badge visible and shows correct number when unreadCount$ > 0.
-  Test: logout() calls AuthStore.clearUser(), TokenService.removeToken(), Router.navigate.
- 
-Run: ng test --no-watch
-Goal: all component tests pass. No test modifies real localStorage or makes real HTTP calls.
-```
- 
-### Task 15.3 — Integration Tests: Auth Flow + Task Flow ✅
-```
-Use Angular's TestBed for integration tests (not e2e — no Cypress needed).
-These tests render the full component tree and simulate user interactions.
- 
-auth-flow.integration.spec.ts:
-  Setup: TestBed with real ReactiveFormsModule, RouterTestingModule, mocked HttpClient.
-  
-  Test — full login flow:
-    Render LoginComponent.
-    Fill email and password inputs (using fixture.debugElement.query).
-    Click submit.
-    Expect HttpClient to have received POST /auth/login.
-    Flush response { token: 'mock-token' }.
-    Expect HttpClient to receive GET /users/me.
-    Flush response { id: '1', username: 'Ahmed', email: 'a@test.com', role: 'TEAM_MEMBER' }.
-    Expect Router.navigate to have been called with ['/dashboard'].
-    Expect TokenService.getToken() to return 'mock-token'.
- 
-  Test — login with wrong credentials:
-    Flush 401 response.
-    Expect ToastrService.error to have been called.
-    Expect Router.navigate NOT called.
- 
-  Test — register then auto-login:
-    Fill register form.
-    Submit → flush 201 User response.
-    Expect login request to follow automatically.
-    Flush token → expect getMe → flush user → expect navigate to /dashboard.
- 
-task-flow.integration.spec.ts:
-  Test — create task and see it in board:
-    Render TaskBoardComponent with projectId.
-    Mock TaskService.getByProject returning [].
-    Expect 5 columns rendered with empty state.
-    Open create modal (click + button on TODO column).
-    Fill title "Test Task", priority "HIGH".
-    Submit → mock TaskService.create returning a Task with status=TODO.
-    Expect task to appear in TODO column without reload.
- 
-  Test — drag task to new column (status change):
-    Mock 1 task in TODO column.
-    Simulate cdkDropList drop event from TODO to IN_PROGRESS container.
-    Expect TaskService.changeStatus called with correct id and status.
-    Flush success → task stays in IN_PROGRESS column.
- 
-  Test — invalid status transition reverts:
-    Simulate drop from IN_PROGRESS to DONE.
-    Expect TaskService.changeStatus called.
-    Flush 400 error.
-    Expect task to revert back to IN_PROGRESS column.
-    Expect ToastrService.error called.
- 
-Run: ng test --no-watch
-Goal: all integration tests pass. They simulate real user flows without a backend.
-```
- 
----
- 
-## PHASE 16 — Final Polish
- 
-### Task 16.1 — Loading + Empty + Error States ✅
-```
-Go through every page and add proper states.
- 
-Loading skeleton (create shared skeleton component):
-  src/app/shared/components/skeleton/skeleton.component.ts
-  Input: type: 'card' | 'list-item' | 'text' | 'avatar'
-  Renders animated gray pulse block matching the shape.
- 
-Pages to audit:
-  dashboard: skeleton stats cards + skeleton workspace cards while loading
-  workspace-list: skeleton workspace cards (3 of them)
-  workspace-detail: skeleton project cards
-  project-detail: skeleton tab content
-  task-board: skeleton task cards in each column (2 per column)
-  task-detail: skeleton for drawer content
-  patterns: skeleton pattern cards (6 of them)
- 
-Error state component (already exists as app-empty-state with error variant):
-  Add variant: 'error' to empty-state component
-  Shows: red icon + "Something went wrong" + "Retry" button
-  Each page: on API error → show error state with retry button that re-calls the load method.
- 
-Global 404 page:
-  src/app/features/not-found/not-found.component.ts
-  Shows: large "404", "Page not found", back to dashboard link.
-  Add to router: { path: '**', loadComponent: () => NotFoundComponent }
- 
-Goal: no blank white screens anywhere. Every loading/empty/error state handled.
-Verify: disconnect from backend → error states appear. Reconnect → retry works.
-```
- 
-### Task 16.2 — Responsive Layout ✅
-```
-Breakpoints (add to styles.scss):
-  $mobile:  576px;
-  $tablet:  768px;
-  $desktop: 1024px;
-  $wide:    1280px;
- 
-Sidebar responsive behavior:
-  Desktop (>1024px): full sidebar 240px, always visible
-  Tablet (768-1024px): collapsed sidebar (64px), icons only, tooltips on hover
-  Mobile (<768px): sidebar hidden, hamburger button in navbar opens it as overlay drawer
- 
-  Add to sidebar.component.ts:
-    @HostListener('window:resize') onResize(): update isCollapsed based on window.innerWidth
-    On mobile: isOverlay = true, shows backdrop behind sidebar when open
- 
-Task board responsive:
-  Desktop: 5 columns horizontal scroll
-  Mobile: 1 column visible, swipe left/right between columns (use CSS scroll snap)
-    Add scroll snap CSS: scroll-snap-type: x mandatory on board container, scroll-snap-align: start on each column
- 
-Modals responsive:
-  Mobile (<576px): modal takes full screen width and 90% height, positioned at bottom (bottom sheet)
-  Add to modal.component.scss: @media (max-width: 576px) { panel: width 100%, border-radius top only }
- 
-Task detail drawer responsive:
-  Desktop: 600px right drawer
-  Mobile: full screen overlay
- 
-Grid responsive fixes:
-  workspace-list: 1 col mobile, 2 tablet, 3 desktop
-  project cards: 1 col mobile, 2 tablet, 3 desktop
-  dashboard stats: 2 col mobile, 4 desktop
-  patterns grid: 1 col mobile, 2 tablet, 3 desktop
- 
-Goal: app is fully usable on mobile. No horizontal scroll except the task board.
-Verify: open on 375px viewport — everything readable, interactive, no overflow.
-```
- 
-### Task 16.3 — Final Cleanup + Build ✅
-```
-Code quality:
-  - Remove all console.log statements
-  - Ensure all Observables are unsubscribed (use takeUntilDestroyed() from @angular/core/rxjs-interop, or AsyncPipe in templates)
-  - No unused imports in any component
-  - All @Input() that are required have required: true in Angular 17+ syntax
-  - All components have OnPush change detection where possible
- 
+  OnPush change detection: apply ChangeDetectionStrategy.OnPush to:
+    task-card.component
+    stat-card.component (new)
+    project-row.component (new)
+    avatar.component
+    badge.component
+    progress-bar.component
+    sparkline.component (new)
+
 Accessibility:
-  - All interactive elements have aria-label or aria-labelledby
-  - Color is never the only indicator (add icons + text to badges)
-  - Focus visible on all interactive elements (add :focus-visible styles)
-  - Images and avatars have alt text
- 
-Page titles (add to each route):
-  title: 'Dashboard | TeamSync'
-  title: 'Workspaces | TeamSync'
-  etc.
-  Use Angular router title strategy: providers: [{ provide: TitleStrategy, useClass: AppTitleStrategy }]
- 
-Environment:
-  Verify environment.ts and environment.prod.ts are correct.
-  ng build --configuration=production must succeed with zero errors and zero warnings.
- 
-Update root README.md to add frontend section:
-  ## Frontend (Angular)
-  Prerequisites: Node 18+, Angular CLI 17+
-  
-  cd frontend
-  npm install
-  ng serve          → http://localhost:4200
-  ng test           → run all tests
-  ng build --configuration=production → production build
- 
-Final verification checklist:
-  [ ] ng serve starts with no errors
-  [ ] ng build --configuration=production succeeds
-  [ ] ng test passes all tests
-  [ ] Login → Dashboard → Create workspace → Create project → Create task → Move task → Comment → all work
-  [ ] /patterns page loads without auth and shows all 14 patterns
-  [ ] Notifications bell updates within 30 seconds of an action
-  [ ] Responsive layout works on 375px mobile viewport
- 
-Goal: production build clean. Full user flow works end-to-end with the Spring Boot backend.
+  All interactive elements: role, aria-label
+  Color contrast: verify all text passes WCAG AA (4.5:1 ratio minimum)
+    text-primary (#F2F2F5) on bg-surface (#141416): passes
+    text-secondary (#9999A8) on bg-surface (#141416): verify with a contrast checker
+    If failing: darken text-secondary to #AAAABC
+  Keyboard navigation: Tab through all interactive elements in logical order
+  Screen reader: all icon-only buttons have aria-label
+
+Final build checks:
+  ng lint — zero errors
+  ng build --configuration=production — zero errors, zero warnings
+  Bundle size: ensure main bundle < 500KB gzipped (verify with source-map-explorer)
+    If over: find and remove unused Chart.js components
+
+Browser testing:
+  Chrome 120+: full functionality
+  Firefox 120+: full functionality
+  Safari 17+: check backdrop-filter blur (may need -webkit- prefix)
+  Add to styles.scss: -webkit-backdrop-filter: blur(20px); alongside backdrop-filter.
+
+Responsive final check:
+  375px (iPhone SE): landing page readable, auth pages single column, dashboard stacks
+  768px (iPad): sidebar collapses, 2-column grids
+  1280px (laptop): full layout
+  1440px+: max-width: 1440px on content, centered
+
+Update README.md:
+  ## Frontend Design System
+  - Colors: near-black backgrounds (#0C0C0E), warm amber accent (#D4A853)
+  - Font: Inter (Google Fonts)
+  - Component library: custom Angular standalone components
+  - Charts: Chart.js with ng2-charts
+  - Animations: Angular Animations
+
+  ## Screenshots
+  [placeholder for screenshots after build]
+
+Final verification flow (must all work end-to-end):
+  1. Visit /home → landing page loads fully, all 10 sections visible
+  2. Click "Start free trial" → /register → create account → auto-login → /dashboard
+  3. Dashboard: stat cards show numbers, sparklines render, kanban shows tasks
+  4. Navigate to /workspaces → workspace list → click workspace → workspace detail
+  5. Workspace detail: warm glow hero, project list with thumbnails and AI Insight, activity feed on right
+  6. Click project → project detail → board tab → kanban loads
+  7. Click a task card → drawer slides in with taskIdentifier, subtasks, tabs
+  8. Add subtask → toggle subtask → progress bar updates
+  9. Navigate to Analytics → charts render, AI Insights show, sub-nav works
+  10. Logout → /login → log back in → back to dashboard
+
+Verify: the full flow works without errors.
+Verify: ng build --configuration=production succeeds.
+Verify: the app visually matches the 5 reference screenshots provided.
 ```
----
-
-## Pattern Checklist
-
-| # | Pattern | Category | Task | Done |
-|---|---|---|---|---|
-| 1 | Singleton | Creational | 2.3 | ✅ |
-| 2 | Factory Method | Creational | 4.1 | ✅ |
-| 3 | Builder | Creational | 6.2 | ✅ |
-| 4 | Prototype | Creational | 3.4 | ✅ |
-| 5 | Facade | Structural | 2.3 | ✅ |
-| 6 | Adapter | Structural | 4.4 | ✅ |
-| 7 | Proxy | Structural | 4.4 | ✅ |
-| 8 | Decorator | Structural | 4.3 | ✅ |
-| 9 | Observer | Behavioral | 4.1 | ✅ |
-| 10 | Strategy | Behavioral | 3.4 | ✅ |
-| 11 | State | Behavioral | 3.2 | ✅ |
-| 12 | Command | Behavioral | 4.2 | ✅ |
-| 13 | Chain of Responsibility | Behavioral | 4.3 | ✅ |
-| 14 | Template Method | Behavioral | 6.2 | ✅ |
 
 ---
 
-## Claude Code Session Header (paste this every session)
+## Pattern Checklist (unchanged — all done)
 
-```
-Read project-brain.md before touching any code.
-Current task: [TASK NUMBER — TASK TITLE]
-Scope: only implement what this task describes. Do not refactor other files.
-Each pattern goes in patterns/<category>/<name>/ with its own README.md.
-After finishing: confirm the app starts and the task's goal is met.
-```
+| # | Pattern | Done |
+|---|---|---|
+| 1-14 | All 14 GoF Patterns | ✅ |

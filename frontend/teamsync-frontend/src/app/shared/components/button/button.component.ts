@@ -23,22 +23,51 @@ import { SpinnerComponent } from '../spinner/spinner.component';
       gap: 6px;
       border: none;
       border-radius: var(--radius-md);
+      font-size: 13px;
       font-weight: 500;
-      transition: opacity 0.15s, background 0.15s;
+      transition: background 0.15s, box-shadow 0.15s, border-color 0.15s;
       white-space: nowrap;
+      cursor: pointer;
     }
     .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-    .btn--sm  { padding: 6px 12px; font-size: 13px; }
-    .btn--md  { padding: 10px 20px; font-size: 14px; }
-    .btn--lg  { padding: 14px 28px; font-size: 16px; }
-    .btn--primary   { background: var(--color-accent); color: #fff; }
-    .btn--primary:hover:not(:disabled) { opacity: 0.85; }
-    .btn--secondary { background: var(--color-surface); color: var(--color-text); border: 1px solid var(--color-border); }
-    .btn--secondary:hover:not(:disabled) { background: var(--color-border); }
-    .btn--danger    { background: var(--color-danger); color: #fff; }
-    .btn--danger:hover:not(:disabled) { opacity: 0.85; }
-    .btn--ghost     { background: transparent; color: var(--color-text); }
-    .btn--ghost:hover:not(:disabled) { background: rgba(255,255,255,0.06); }
+    .btn--sm  { height: 32px; padding: 0 14px; font-size: 13px; }
+    .btn--md  { height: 36px; padding: 0 16px; font-size: 13px; }
+    .btn--lg  { height: 40px; padding: 0 20px; font-size: 14px; }
+    .btn--primary {
+      background: var(--accent);
+      color: #0C0C0E;
+      border: none;
+    }
+    .btn--primary:hover:not(:disabled) {
+      background: var(--accent-hover);
+      box-shadow: var(--shadow-glow);
+    }
+    .btn--secondary {
+      background: transparent;
+      color: var(--text-primary);
+      border: 1px solid var(--border-default);
+    }
+    .btn--secondary:hover:not(:disabled) {
+      background: var(--bg-elevated);
+      border-color: var(--border-strong);
+    }
+    .btn--danger {
+      background: transparent;
+      color: var(--danger);
+      border: 1px solid var(--danger);
+    }
+    .btn--danger:hover:not(:disabled) {
+      background: var(--danger-dim);
+    }
+    .btn--ghost {
+      background: transparent;
+      color: var(--text-secondary);
+      border: none;
+    }
+    .btn--ghost:hover:not(:disabled) {
+      background: var(--bg-elevated);
+      color: var(--text-primary);
+    }
   `]
 })
 export class ButtonComponent {
