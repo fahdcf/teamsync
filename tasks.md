@@ -1878,7 +1878,7 @@ Goal: Kanban board renders. Drag and drop between columns works. Invalid transit
 Verify: drag DONE → IN_PROGRESS fails with toast "Invalid status transition".
 ```
  
-### Task 13.2 — Task Detail Drawer ☐
+### Task 13.2 — Task Detail Drawer ✅
 ```
 src/app/features/task/task-detail/
  
