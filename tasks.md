@@ -2232,7 +2232,7 @@ Run: ng test --no-watch
 Goal: all component tests pass. No test modifies real localStorage or makes real HTTP calls.
 ```
  
-### Task 15.3 — Integration Tests: Auth Flow + Task Flow ☐
+### Task 15.3 — Integration Tests: Auth Flow + Task Flow ✅
 ```
 Use Angular's TestBed for integration tests (not e2e — no Cypress needed).
 These tests render the full component tree and simulate user interactions.
