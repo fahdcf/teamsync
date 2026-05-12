@@ -54,6 +54,8 @@
         <label>Priority</label>
         <div class="td-meta-btn">
           <span class="td-dot" [class]="dotClass(task.priority)"></span>
+          {{ priorityLabel(task.priority) }}
+          <span class="chevron">⌄</span>
           <select [ngModel]="task.priority" (ngModelChange)="onPriorityChange($event)">
             <option *ngFor="let p of priorities" [value]="p">{{ priorityLabel(p) }}</option>
           </select>
@@ -63,6 +65,8 @@
         <label>Status</label>
         <div class="td-meta-btn">
           <span class="td-dot" [class]="dotClass(task.status)"></span>
+          {{ statusLabel(task.status) }}
+          <span class="chevron">⌄</span>
           <select [ngModel]="task.status" (ngModelChange)="onStatusChange($event)">
             <option *ngFor="let s of statuses" [value]="s">{{ statusLabel(s) }}</option>
           </select>
@@ -79,6 +83,7 @@
         <label>Due date</label>
         <div class="td-meta-btn td-date-btn">
           <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M5 1.5v3M11 1.5v3M2 7h12"/></svg>
+          {{ task.dueDate ? (task.dueDate | date:'MMM d, yyyy') : 'No date' }}
           <input type="date" [ngModel]="task.dueDate" (ngModelChange)="onDueDateChange($event)">
         </div>
       </div>
