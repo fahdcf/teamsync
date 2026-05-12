@@ -9,7 +9,7 @@ import { User } from '../../../shared/models/user.model';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CommonModule, DatePipe],
   template: `
-    <button type="button" class="tc" [class.done]="task.status === 'DONE'" (click)="cardClick.emit()">
+    <button type="button" class="tc" [class.done]="task.status === 'DONE'" [class.readonly]="readonly" (click)="!readonly && cardClick.emit()">
       <!-- Title -->
       <div class="tc-title">{{ task.title }}</div>
 
@@ -52,11 +52,12 @@ import { User } from '../../../shared/models/user.model';
       text-align: left;
       transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
     }
-    .tc:hover {
+    .tc:not(.readonly):hover {
       background: rgba(255, 255, 255, 0.06);
       border-color: rgba(255,255,255,0.1);
       box-shadow: var(--shadow-sm);
     }
+    .tc.readonly { cursor: default; }
     .tc.done { opacity: 0.6; }
     .tc.done .tc-title { text-decoration: line-through; color: var(--text-tertiary); }
 
@@ -139,6 +140,7 @@ export class TaskCardComponent {
   @Input({ required: true }) task!: Task;
   @Input() selected = false;
   @Input() commentCount = 0;
+  @Input() readonly = false;
   @Output() cardClick = new EventEmitter<void>();
   @Output() deleted = new EventEmitter<void>();
 

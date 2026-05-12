@@ -446,17 +446,13 @@ $wide:    1280px;
   overflow: hidden;
 }
 
-/* Colored top accent bar per status */
-.dashboard-page .kanban-column[data-status="TODO"]        { border-top: 2px solid var(--text-tertiary); }
-.dashboard-page .kanban-column[data-status="IN_PROGRESS"] { border-top: 2px solid var(--info); }
-.dashboard-page .kanban-column[data-status="IN_REVIEW"]   { border-top: 2px solid var(--warning); }
-.dashboard-page .kanban-column[data-status="DONE"]        { border-top: 2px solid var(--success); }
+/* Removed colored top accent bar per status to match sleek dark theme */
 
 .dashboard-page .kanban-col-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 14px;
+  padding: 16px;
   border-bottom: 1px solid var(--border-subtle);
 }
 
@@ -523,8 +519,11 @@ $wide:    1280px;
 }
 
 .dashboard-page .kanban-col-body {
-  padding: 10px;
-  max-height: 380px;
+  padding: 12px;
+  min-height: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   overflow-y: auto;
   flex: 1;
 }

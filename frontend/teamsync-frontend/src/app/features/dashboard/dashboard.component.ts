@@ -106,14 +106,13 @@ interface BoardColumn {
                 <h3>{{ column.label }}</h3>
                 <span class="kanban-col-count">{{ column.tasks.length }}</span>
               </div>
-              <button class="kanban-col-add" type="button" aria-label="Add task">+</button>
             </header>
             <div class="kanban-col-body">
               <app-task-card
                 *ngFor="let task of column.tasks"
                 [task]="task"
-                [commentCount]="task.dependencies?.length || 0"
-                (cardClick)="openTask(task.id)">
+                [readonly]="true"
+                [commentCount]="task.dependencies?.length || 0">
               </app-task-card>
               <div *ngIf="!column.tasks.length" class="kanban-empty-col">
                 <span>No tasks</span>
