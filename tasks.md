@@ -2034,7 +2034,7 @@ Verify: undo button reverts last status change. Deleting a task closes the drawe
  
 ## PHASE 14 — Notifications + Patterns Page
  
-### Task 14.1 — Notifications ☐
+### Task 14.1 — Notifications ✅
 ```
 Notifications are already partially wired via NotificationStore and Navbar.
 Complete them here.
