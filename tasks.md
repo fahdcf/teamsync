@@ -2325,7 +2325,7 @@ Goal: no blank white screens anywhere. Every loading/empty/error state handled.
 Verify: disconnect from backend → error states appear. Reconnect → retry works.
 ```
  
-### Task 16.2 — Responsive Layout ☐
+### Task 16.2 — Responsive Layout ✅
 ```
 Breakpoints (add to styles.scss):
   $mobile:  576px;

@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { AuthStore } from '../../store/auth.store';
 import { NotificationStore } from '../../store/notification.store';
 import { TokenService } from '../../core/services/token.service';
+import { SidebarStateService } from '../../core/services/sidebar-state.service';
 import { AvatarComponent } from '../../shared/components/avatar/avatar.component';
 import { ClickOutsideDirective } from '../../shared/directives/click-outside.directive';
 import { RelativeTimePipe } from '../../shared/pipes/relative-time.pipe';
@@ -15,6 +16,7 @@ import { RelativeTimePipe } from '../../shared/pipes/relative-time.pipe';
   template: `
     <nav class="navbar">
       <div class="navbar-left">
+        <button class="hamburger" (click)="sidebarState.toggle()" aria-label="Toggle menu">☰</button>
         <span class="page-title">TeamSync</span>
       </div>
 
@@ -69,6 +71,11 @@ import { RelativeTimePipe } from '../../shared/pipes/relative-time.pipe';
       border-bottom: 1px solid var(--color-border);
       flex-shrink: 0;
     }
+    .hamburger {
+      display: none; background: none; border: none;
+      color: var(--color-text); font-size: 22px; padding: 4px; line-height: 1;
+    }
+    @media (max-width: 767px) { .hamburger { display: block; } }
     .page-title { font-weight: 700; font-size: 16px; }
     .navbar-right { display: flex; align-items: center; gap: 16px; }
     .notif-trigger {
@@ -127,6 +134,7 @@ import { RelativeTimePipe } from '../../shared/pipes/relative-time.pipe';
 export class NavbarComponent {
   readonly authStore = inject(AuthStore);
   readonly notifStore = inject(NotificationStore);
+  readonly sidebarState = inject(SidebarStateService);
   private readonly tokenService = inject(TokenService);
   private readonly router = inject(Router);
 

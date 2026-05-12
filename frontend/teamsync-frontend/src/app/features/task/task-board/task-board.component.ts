@@ -135,8 +135,10 @@ interface Column {
     .board {
       display: flex; gap: 16px; overflow-x: auto; padding-bottom: 16px;
       min-height: calc(100vh - 220px);
+      scroll-snap-type: x mandatory;
     }
-    .column { width: 240px; flex-shrink: 0; }
+    .column { width: 240px; flex-shrink: 0; scroll-snap-align: start; }
+    @media (max-width: 767px) { .column { width: calc(100vw - 48px); } }
     .column-header {
       display: flex; align-items: center; justify-content: space-between;
       margin-bottom: 10px;

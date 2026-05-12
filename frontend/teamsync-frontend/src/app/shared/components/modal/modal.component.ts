@@ -36,6 +36,10 @@ import { CommonModule } from '@angular/common';
     .panel--sm { width: 360px; }
     .panel--md { width: 520px; }
     .panel--lg { width: 720px; }
+    @media (max-width: 576px) {
+      .backdrop { align-items: flex-end; }
+      .panel { width: 100% !important; border-radius: var(--radius-lg) var(--radius-lg) 0 0; max-height: 85vh; }
+    }
     .panel__header {
       display: flex; align-items: center; justify-content: space-between;
       padding: 20px 24px; border-bottom: 1px solid var(--color-border);

@@ -86,7 +86,7 @@ type BadgeVariant = 'muted' | 'info' | 'warning' | 'danger' | 'accent' | 'succes
             autofocus></textarea>
 
           <!-- Dependencies -->
-          <div *ngIf="task.dependencies?.length" class="dep-section">
+          <div *ngIf="task.dependencies.length" class="dep-section">
             <h4>Blocked by</h4>
             <div *ngFor="let dep of task.dependencies" class="dep-item">
               <app-badge [text]="dep.status" [variant]="statusVariant(dep.status)"></app-badge>

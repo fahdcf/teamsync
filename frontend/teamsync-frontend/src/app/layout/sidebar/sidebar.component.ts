@@ -1,7 +1,8 @@
-import { Component, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, inject, OnInit, HostListener } from '@angular/core';
+import { CommonModule, AsyncPipe } from '@angular/common';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { AuthStore } from '../../store/auth.store';
+import { SidebarStateService } from '../../core/services/sidebar-state.service';
 import { AvatarComponent } from '../../shared/components/avatar/avatar.component';
 import { BadgeComponent } from '../../shared/components/badge/badge.component';
 
@@ -14,9 +15,18 @@ interface NavItem {
 @Component({
   selector: 'app-sidebar',
   standalone: true,
-  imports: [CommonModule, RouterLink, RouterLinkActive, AvatarComponent, BadgeComponent],
+  imports: [CommonModule, AsyncPipe, RouterLink, RouterLinkActive, AvatarComponent, BadgeComponent],
   template: `
-    <aside class="sidebar" [class.collapsed]="isCollapsed">
+    <!-- Mobile overlay backdrop -->
+    <div class="overlay-backdrop"
+         *ngIf="isOverlay && (sidebarState.mobileOpen$ | async)"
+         (click)="sidebarState.close()">
+    </div>
+
+    <aside class="sidebar"
+           [class.collapsed]="isCollapsed"
+           [class.overlay]="isOverlay"
+           [class.overlay-open]="isOverlay && (sidebarState.mobileOpen$ | async)">
       <div class="logo">
         <span class="logo-icon">TS</span>
         <span class="logo-text" *ngIf="!isCollapsed">TeamSync</span>
@@ -27,7 +37,8 @@ interface NavItem {
            [routerLink]="item.route"
            routerLinkActive="active"
            class="nav-item"
-           [title]="isCollapsed ? item.label : ''">
+           [title]="isCollapsed ? item.label : ''"
+           (click)="isOverlay && sidebarState.close()">
           <span class="nav-icon">{{ item.icon }}</span>
           <span class="nav-label" *ngIf="!isCollapsed">{{ item.label }}</span>
         </a>
@@ -43,6 +54,9 @@ interface NavItem {
     </aside>
   `,
   styles: [`
+    .overlay-backdrop {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 198;
+    }
     .sidebar {
       width: 240px;
       background: var(--color-surface);
@@ -52,8 +66,15 @@ interface NavItem {
       height: 100vh;
       transition: width 0.2s ease;
       flex-shrink: 0;
+      z-index: 199;
     }
     .sidebar.collapsed { width: 64px; }
+    .sidebar.overlay {
+      position: fixed; top: 0; left: 0; height: 100vh;
+      transform: translateX(-100%);
+      transition: transform 0.25s ease;
+    }
+    .sidebar.overlay.overlay-open { transform: translateX(0); }
     .logo {
       display: flex; align-items: center; gap: 10px;
       padding: 20px 16px; border-bottom: 1px solid var(--color-border);
@@ -68,7 +89,7 @@ interface NavItem {
     .nav { flex: 1; padding: 12px 8px; display: flex; flex-direction: column; gap: 2px; }
     .nav-item {
       display: flex; align-items: center; gap: 10px;
-      padding: 10px 10px; border-radius: var(--radius-md);
+      padding: 10px; border-radius: var(--radius-md);
       color: var(--color-muted); text-decoration: none;
       transition: background 0.15s, color 0.15s;
       font-size: 14px; font-weight: 500;
@@ -89,14 +110,37 @@ interface NavItem {
     .username { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   `]
 })
-export class SidebarComponent {
+export class SidebarComponent implements OnInit {
   readonly authStore = inject(AuthStore);
+  readonly sidebarState = inject(SidebarStateService);
   readonly user$ = this.authStore.user$;
+
   isCollapsed = false;
+  isOverlay = false;
 
   readonly navItems: NavItem[] = [
     { label: 'Dashboard', icon: '🏠', route: '/dashboard' },
     { label: 'Workspaces', icon: '📁', route: '/workspaces' },
     { label: 'Patterns', icon: '🧩', route: '/patterns' },
   ];
+
+  ngOnInit(): void { this.updateLayout(); }
+
+  @HostListener('window:resize')
+  onResize(): void { this.updateLayout(); }
+
+  private updateLayout(): void {
+    const w = window.innerWidth;
+    if (w >= 1024) {
+      this.isCollapsed = false;
+      this.isOverlay = false;
+    } else if (w >= 768) {
+      this.isCollapsed = true;
+      this.isOverlay = false;
+    } else {
+      this.isCollapsed = false;
+      this.isOverlay = true;
+      this.sidebarState.close();
+    }
+  }
 }
