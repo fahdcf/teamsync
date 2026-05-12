@@ -520,7 +520,8 @@ $wide:    1280px;
 
 .dashboard-page .kanban-col-body {
   padding: 12px;
-  min-height: 400px;
+  min-height: 200px;
+  max-height: 540px; /* ~4 task cards before scrolling */
   display: flex;
   flex-direction: column;
   gap: 12px;
