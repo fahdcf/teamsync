@@ -1,13 +1,15 @@
 import { Component, Input, Output, EventEmitter, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { scaleIn } from '../../../app.animations';
 
 @Component({
   selector: 'app-modal',
   standalone: true,
   imports: [CommonModule],
+  animations: [scaleIn],
   template: `
     <div *ngIf="isOpen" class="backdrop" (click)="closed.emit()">
-      <div class="panel" [class]="'panel--' + size" (click)="$event.stopPropagation()">
+      <div class="panel" [class]="'panel--' + size" @scaleIn (click)="$event.stopPropagation()">
         <div class="panel__header">
           <h3 class="panel__title">{{ title }}</h3>
           <button class="panel__close" (click)="closed.emit()" aria-label="Close dialog">✕</button>
@@ -26,8 +28,8 @@ import { CommonModule } from '@angular/common';
       z-index: 1000;
     }
     .panel {
-      background: var(--color-surface);
-      border: 1px solid var(--color-border);
+      background: var(--bg-surface);
+      border: 1px solid var(--border-default);
       border-radius: var(--radius-lg);
       box-shadow: var(--shadow-lg);
       max-height: 90vh;
@@ -42,14 +44,14 @@ import { CommonModule } from '@angular/common';
     }
     .panel__header {
       display: flex; align-items: center; justify-content: space-between;
-      padding: 20px 24px; border-bottom: 1px solid var(--color-border);
+      padding: 20px 24px; border-bottom: 1px solid var(--border-subtle);
     }
     .panel__title { margin: 0; font-size: 16px; font-weight: 600; }
     .panel__close {
-      background: none; border: none; color: var(--color-muted);
+      background: none; border: none; color: var(--text-secondary);
       font-size: 18px; padding: 4px; line-height: 1;
     }
-    .panel__close:hover { color: var(--color-text); }
+    .panel__close:hover { color: var(--text-primary); }
     .panel__body { padding: 24px; }
   `]
 })

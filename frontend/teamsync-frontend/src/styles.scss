@@ -83,12 +83,33 @@ a {
 button {
   cursor: pointer;
   font-family: inherit;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s, color 0.15s, transform 0.1s;
 }
 
 input,
 textarea,
 select {
   font-family: inherit;
+}
+
+button:disabled,
+[aria-disabled='true'] {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+input,
+textarea,
+[contenteditable='true'] {
+  cursor: text;
+}
+
+a,
+button,
+select,
+summary,
+[role='button'] {
+  cursor: pointer;
 }
 
 /* Scrollbar styling */
@@ -107,6 +128,83 @@ select {
 }
 :focus:not(:focus-visible) {
   outline: none;
+}
+
+.dash-card,
+.metric-card,
+.chart-card,
+.mini-card,
+.insight-card,
+.workspace-project-row,
+.task-card-redesign,
+.project-row,
+.activity-row,
+.deadline-row,
+.member-row {
+  transition: background 0.15s, border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+}
+
+.dash-card:hover,
+.metric-card:hover,
+.chart-card:hover,
+.mini-card:hover,
+.insight-card:hover,
+.workspace-project-row:hover,
+.project-row:hover {
+  border-color: var(--border-default);
+}
+
+.stat-row .stat-card,
+.analytics-page .metric-card,
+.analytics-page .chart-card,
+.analytics-page .mini-card {
+  animation: slideInUp 200ms ease-out both;
+}
+
+.stat-row .stat-card:nth-child(2),
+.analytics-page .metric-card:nth-child(2) {
+  animation-delay: 50ms;
+}
+
+.stat-row .stat-card:nth-child(3),
+.analytics-page .metric-card:nth-child(3) {
+  animation-delay: 100ms;
+}
+
+.stat-row .stat-card:nth-child(4),
+.analytics-page .metric-card:nth-child(4) {
+  animation-delay: 150ms;
+}
+
+.toast-container .ngx-toastr {
+  animation: toastSlideIn 200ms ease-out both;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--bg-overlay);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-lg);
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes toastSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 $mobile:  576px;

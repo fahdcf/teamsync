@@ -11,12 +11,12 @@ import { CommonModule } from '@angular/common';
     .skeleton {
       background: linear-gradient(
         90deg,
-        var(--color-border) 25%,
-        rgba(255,255,255,0.06) 50%,
-        var(--color-border) 75%
+        var(--bg-elevated) 25%,
+        rgba(255,255,255,0.04) 50%,
+        var(--bg-elevated) 75%
       );
       background-size: 200% 100%;
-      animation: shimmer 1.5s infinite;
+      animation: shimmer 1.25s linear infinite;
       border-radius: var(--radius-md);
     }
     @keyframes shimmer {

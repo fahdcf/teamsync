@@ -25,7 +25,7 @@ import { SpinnerComponent } from '../spinner/spinner.component';
       border-radius: var(--radius-md);
       font-size: 13px;
       font-weight: 500;
-      transition: background 0.15s, box-shadow 0.15s, border-color 0.15s;
+      transition: background 0.15s, box-shadow 0.15s, border-color 0.15s, transform 0.1s;
       white-space: nowrap;
       cursor: pointer;
     }
@@ -41,6 +41,7 @@ import { SpinnerComponent } from '../spinner/spinner.component';
     .btn--primary:hover:not(:disabled) {
       background: var(--accent-hover);
       box-shadow: var(--shadow-glow);
+      transform: translateY(-1px);
     }
     .btn--secondary {
       background: transparent;

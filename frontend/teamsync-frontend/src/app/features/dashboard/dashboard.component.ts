@@ -31,7 +31,7 @@ interface BoardColumn {
           <span class="sun-icon">☀</span>
           <div>
             <h1>Good {{ timeOfDay }}, {{ currentUser?.username || 'there' }}.</h1>
-            <p>You have {{ activeProjectsCount }} active projects and {{ stats?.activeTasks || 0 }} tasks in progress.</p>
+            <p>You have {{ activeProjectsCount }} active projects and {{ animatedStats.activeTasks }} tasks in progress.</p>
             <p>Let's make today productive.</p>
           </div>
         </div>
@@ -46,7 +46,7 @@ interface BoardColumn {
       <section class="stat-row">
         <article class="dash-card stat-card">
           <span class="stat-label">Active Tasks</span>
-          <strong>{{ stats?.activeTasks || 0 }}</strong>
+          <strong>{{ animatedStats.activeTasks }}</strong>
           <span class="trend" [class.down]="(stats?.trendActiveTasks || 0) < 0">{{ trendText(stats?.trendActiveTasks) }} from last week</span>
           <svg class="sparkline" viewBox="0 0 180 48" preserveAspectRatio="none">
             <path d="M0 36 C18 35 20 21 38 24 C58 28 62 13 82 17 C102 21 112 38 132 29 C150 20 158 14 180 8"></path>
@@ -55,7 +55,7 @@ interface BoardColumn {
 
         <article class="dash-card stat-card progress-stat">
           <span class="stat-label">Completion Rate</span>
-          <strong>{{ stats?.completionRate || 0 }}%</strong>
+          <strong>{{ animatedStats.completionRate }}%</strong>
           <span class="trend" [class.down]="(stats?.trendCompletion || 0) < 0">{{ trendText(stats?.trendCompletion) }} from last week</span>
           <svg class="ring" viewBox="0 0 80 80">
             <circle cx="40" cy="40" r="28"></circle>
@@ -65,7 +65,7 @@ interface BoardColumn {
 
         <article class="dash-card stat-card">
           <span class="stat-label">Team Velocity</span>
-          <strong>{{ stats?.teamVelocity || 0 }}</strong>
+          <strong>{{ animatedStats.teamVelocity }}</strong>
           <span class="trend" [class.down]="(stats?.trendVelocity || 0) < 0">{{ trendText(stats?.trendVelocity) }} from last week</span>
           <svg class="barline" viewBox="0 0 180 48">
             <rect *ngFor="let bar of bars; let i = index" [attr.x]="i * 22 + 8" [attr.y]="48 - bar" width="8" [attr.height]="bar"></rect>
@@ -74,7 +74,7 @@ interface BoardColumn {
 
         <article class="dash-card stat-card">
           <span class="stat-label">Overdue Items</span>
-          <strong [class.danger-value]="(stats?.overdueItems || 0) > 0">{{ stats?.overdueItems || 0 }}</strong>
+          <strong [class.danger-value]="animatedStats.overdueItems > 0">{{ animatedStats.overdueItems }}</strong>
           <span class="trend overdue" [class.down]="(stats?.trendOverdue || 0) > 0">{{ trendText(stats?.trendOverdue) }} from last week</span>
           <svg class="sparkline danger-line" viewBox="0 0 180 48" preserveAspectRatio="none">
             <path d="M0 12 C18 18 22 8 38 16 C55 28 65 13 82 16 C100 18 102 34 122 36 C145 38 150 16 180 30"></path>
@@ -122,7 +122,7 @@ interface BoardColumn {
         <div class="analytics-grid">
           <article class="dash-card analytic-card">
             <span>Progress Overview</span>
-            <strong>{{ stats?.completionRate || 0 }}%</strong>
+            <strong>{{ animatedStats.completionRate }}%</strong>
             <small>{{ trendText(stats?.trendCompletion) }} from last week</small>
             <svg viewBox="0 0 220 80" preserveAspectRatio="none"><path d="M0 64 C22 58 34 42 55 45 C80 49 85 30 110 34 C132 38 144 24 165 28 C190 30 196 12 220 10"></path></svg>
             <div class="days"><span *ngFor="let day of days">{{ day }}</span></div>
@@ -226,6 +226,16 @@ export default class DashboardComponent implements OnInit {
 
   currentUser: User | null = null;
   stats: DashboardStats | null = null;
+  animatedStats: DashboardStats = {
+    activeTasks: 0,
+    completionRate: 0,
+    teamVelocity: 0,
+    overdueItems: 0,
+    trendActiveTasks: 0,
+    trendCompletion: 0,
+    trendVelocity: 0,
+    trendOverdue: 0,
+  };
   deadlines: DashboardDeadline[] = [];
   overviewProjects: DashboardProjectOverview[] = [];
   projects: Project[] = [];
@@ -298,6 +308,7 @@ export default class DashboardComponent implements OnInit {
       .pipe(
         switchMap((data) => {
           this.stats = data.stats;
+          this.animateStats(data.stats);
           this.deadlines = data.deadlines;
           this.overviewProjects = data.overview;
           this.workspaces = data.workspaces;
@@ -323,8 +334,31 @@ export default class DashboardComponent implements OnInit {
             trendVelocity: 0,
             trendOverdue: 0,
           };
+          this.animateStats(this.stats);
         },
       });
+  }
+
+  animateStats(target: DashboardStats): void {
+    const start = performance.now();
+    const duration = 800;
+    const from = { ...this.animatedStats };
+    const easeOut = (value: number) => 1 - Math.pow(1 - value, 3);
+
+    const tick = (now: number) => {
+      const progress = Math.min(1, (now - start) / duration);
+      const eased = easeOut(progress);
+      this.animatedStats = {
+        ...target,
+        activeTasks: Math.round(from.activeTasks + (target.activeTasks - from.activeTasks) * eased),
+        completionRate: Math.round(from.completionRate + (target.completionRate - from.completionRate) * eased),
+        teamVelocity: Math.round(from.teamVelocity + (target.teamVelocity - from.teamVelocity) * eased),
+        overdueItems: Math.round(from.overdueItems + (target.overdueItems - from.overdueItems) * eased),
+      };
+      if (progress < 1) requestAnimationFrame(tick);
+    };
+
+    requestAnimationFrame(tick);
   }
 
   loadProjectTasks(projectId: string): void {

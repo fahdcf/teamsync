@@ -58,6 +58,7 @@ export default class AnalyticsComponent implements OnInit {
   toast = '';
   isLoading = true;
   performance: TeamPerformance | null = null;
+  animatedPerformance: TeamPerformance | null = null;
   insights: AnalyticsInsight[] = [];
   projects: Project[] = [];
   selectedProjectId = '';
@@ -97,6 +98,7 @@ export default class AnalyticsComponent implements OnInit {
       .pipe(
         switchMap(({ performance, insights, projects }) => {
           this.performance = performance;
+          if (performance) this.animatePerformance(performance);
           this.insights = insights;
           this.projects = projects;
           this.selectedProjectId = projects[0]?.id || '';
@@ -175,7 +177,7 @@ export default class AnalyticsComponent implements OnInit {
   }
 
   get topStats() {
-    const performance = this.performance;
+    const performance = this.animatedPerformance ?? this.performance;
     return [
       { label: 'Completion Rate', value: `${performance?.completionRate ?? 0}%`, trend: performance?.trendCompletion ?? 0, visual: 'line' },
       { label: 'Team Velocity', value: `${performance?.teamVelocity ?? 0}`, trend: performance?.trendVelocity ?? 0, visual: 'bars' },
@@ -185,7 +187,7 @@ export default class AnalyticsComponent implements OnInit {
   }
 
   get bottomStats() {
-    const performance = this.performance;
+    const performance = this.animatedPerformance ?? this.performance;
     return [
       { title: 'Team Productivity', label: 'Tasks completed', value: `${performance?.teamProductivity.tasksCompleted ?? 0}`, trend: performance?.teamProductivity.trend ?? 0 },
       { title: 'Focus Time', label: 'Deep work hours', value: `${performance?.focusTime.hours ?? 0}h`, trend: performance?.focusTime.trend ?? 0 },
@@ -201,6 +203,56 @@ export default class AnalyticsComponent implements OnInit {
   sendAssistant(): void {
     this.toast = 'Coming soon';
     window.setTimeout(() => (this.toast = ''), 1800);
+  }
+
+  animatePerformance(target: TeamPerformance): void {
+    const start = globalThis.performance.now();
+    const duration = 800;
+    const from = this.animatedPerformance ?? {
+      completionRate: 0,
+      trendCompletion: target.trendCompletion,
+      teamVelocity: 0,
+      trendVelocity: target.trendVelocity,
+      workloadBalance: target.workloadBalance,
+      projectsHealth: 0,
+      trendHealth: target.trendHealth,
+      teamProductivity: { tasksCompleted: 0, trend: target.teamProductivity.trend },
+      focusTime: { hours: 0, trend: target.focusTime.trend },
+      cycleTime: { days: 0, trend: target.cycleTime.trend },
+      onTimeDelivery: { percent: 0, trend: target.onTimeDelivery.trend },
+    };
+    const easeOut = (value: number) => 1 - Math.pow(1 - value, 3);
+
+    const tick = (now: number) => {
+      const progress = Math.min(1, (now - start) / duration);
+      const eased = easeOut(progress);
+      const lerp = (a: number, b: number) => a + (b - a) * eased;
+      this.animatedPerformance = {
+        ...target,
+        completionRate: Math.round(lerp(from.completionRate, target.completionRate)),
+        teamVelocity: Math.round(lerp(from.teamVelocity, target.teamVelocity) * 10) / 10,
+        projectsHealth: Math.round(lerp(from.projectsHealth, target.projectsHealth)),
+        teamProductivity: {
+          ...target.teamProductivity,
+          tasksCompleted: Math.round(lerp(from.teamProductivity.tasksCompleted, target.teamProductivity.tasksCompleted)),
+        },
+        focusTime: {
+          ...target.focusTime,
+          hours: Math.round(lerp(from.focusTime.hours, target.focusTime.hours) * 10) / 10,
+        },
+        cycleTime: {
+          ...target.cycleTime,
+          days: Math.round(lerp(from.cycleTime.days, target.cycleTime.days) * 10) / 10,
+        },
+        onTimeDelivery: {
+          ...target.onTimeDelivery,
+          percent: Math.round(lerp(from.onTimeDelivery.percent, target.onTimeDelivery.percent)),
+        },
+      };
+      if (progress < 1) requestAnimationFrame(tick);
+    };
+
+    requestAnimationFrame(tick);
   }
 
   lineOptions(max: number, axes: boolean): ChartConfiguration<'line'>['options'] {

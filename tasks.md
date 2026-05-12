@@ -1437,7 +1437,7 @@ Verify: successful login → redirects to /dashboard.
 
 ## PHASE R8 — Final Quality Pass
 
-### Task R8.1 — Global Micro-interactions + Animations ☐
+### Task R8.1 — Global Micro-interactions + Animations ✅
 ```
 These small details are what separate a premium app from a generic one.
 Apply globally across ALL pages.

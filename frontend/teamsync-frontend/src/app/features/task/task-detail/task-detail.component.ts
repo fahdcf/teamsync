@@ -1,7 +1,6 @@
 import { Component, Input, Output, EventEmitter, OnInit, inject } from '@angular/core';
 import { CommonModule, DatePipe, Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { trigger, transition, style, animate } from '@angular/animations';
 import { ActivatedRoute } from '@angular/router';
 import { TaskService } from '../../../api/task.service';
 import { CommentService } from '../../../api/comment.service';
@@ -15,6 +14,7 @@ import { ButtonComponent } from '../../../shared/components/button/button.compon
 import { SkeletonComponent } from '../../../shared/components/skeleton/skeleton.component';
 import { RelativeTimePipe } from '../../../shared/pipes/relative-time.pipe';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
+import { slideInRight } from '../../../app.animations';
 
 type TaskDetailTab = 'comments' | 'activity' | 'files' | 'assistant';
 
@@ -22,17 +22,7 @@ type TaskDetailTab = 'comments' | 'activity' | 'files' | 'assistant';
   selector: 'app-task-detail',
   standalone: true,
   imports: [CommonModule, DatePipe, FormsModule, ButtonComponent, SkeletonComponent, RelativeTimePipe, EmptyStateComponent],
-  animations: [
-    trigger('slideIn', [
-      transition(':enter', [
-        style({ transform: 'translateX(100%)' }),
-        animate('200ms ease-out', style({ transform: 'translateX(0)' })),
-      ]),
-      transition(':leave', [
-        animate('200ms ease-in', style({ transform: 'translateX(100%)' })),
-      ]),
-    ]),
-  ],
+  animations: [slideInRight],
   templateUrl: './task-detail.component.html',
   styleUrl: './task-detail.component.scss',
 })
