@@ -175,14 +175,15 @@
 }
 
 .task-modal-container {
-  height: 100%;
-  width: 800px;
+  height: calc(100% - 32px);
+  margin: 16px;
+  width: 1100px;
   max-width: calc(100vw - 32px);
-  background: #18181b;
-  border-radius: var(--radius-xl);
-  border: 1px solid rgba(255,255,255,0.05);
-  box-shadow: -10px 0 30px rgba(0,0,0,0.5);
-  animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  background: #171717;
+  border-radius: 16px;
+  border: 1px solid #262626;
+  box-shadow: -20px 0 50px rgba(0,0,0,0.8);
+  animation: slideInRight 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   overflow: hidden;
   display: flex;
   flex-direction: column;
