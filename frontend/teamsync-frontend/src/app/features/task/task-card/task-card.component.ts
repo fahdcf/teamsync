@@ -39,11 +39,11 @@ import { User } from '../../../shared/models/user.model';
     .tc {
       width: 100%;
       padding: 16px;
-      border: 1px solid rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.05);
       border-radius: var(--radius-lg);
-      background: rgba(36, 36, 38, 0.65);
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
+      background: rgba(255, 255, 255, 0.03);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
       color: var(--text-primary);
       cursor: pointer;
       display: flex;
@@ -53,8 +53,8 @@ import { User } from '../../../shared/models/user.model';
       transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
     }
     .tc:hover {
-      background: rgba(42, 42, 45, 0.85);
-      border-color: rgba(255,255,255,0.06);
+      background: rgba(255, 255, 255, 0.06);
+      border-color: rgba(255,255,255,0.1);
       box-shadow: var(--shadow-sm);
     }
     .tc.done { opacity: 0.6; }
