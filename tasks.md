@@ -1582,7 +1582,7 @@ Verify: creating a workspace from the modal adds it to the list without page rel
  
 ## PHASE 12 — Workspace + Project Pages
  
-### Task 12.1 — Workspace List Page ☐
+### Task 12.1 — Workspace List Page ✅
 ```
 src/app/features/workspace/workspace-list/
  
@@ -1616,7 +1616,7 @@ workspace-list.component.html:
 Goal: workspace list loads and displays correctly.
 ```
  
-### Task 12.2 — Workspace Detail Page ☐
+### Task 12.2 — Workspace Detail Page ✅
 ```
 src/app/features/workspace/workspace-detail/
  
