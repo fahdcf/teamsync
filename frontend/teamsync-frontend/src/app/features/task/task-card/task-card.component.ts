@@ -14,8 +14,8 @@ import { User } from '../../../shared/models/user.model';
       <div class="tc-title">{{ task.title }}</div>
 
       <!-- Priority -->
-      <div class="tc-priority">
-        <span class="pri-dot" [class]="task.priority.toLowerCase()"></span>
+      <div class="tc-priority" [class]="task.priority.toLowerCase()">
+        <span class="pri-dot"></span>
         <span>{{ task.priority | titlecase }}</span>
       </div>
 
@@ -39,12 +39,10 @@ import { User } from '../../../shared/models/user.model';
     .tc {
       width: 100%;
       padding: 16px;
-      border: 1px solid rgba(255,255,255,0.05);
-      border-radius: var(--radius-lg);
-      background: rgba(255, 255, 255, 0.03);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      color: var(--text-primary);
+      border: 1px solid #262626;
+      border-radius: 12px;
+      background: #1b1b1b;
+      color: #f9fafb;
       cursor: pointer;
       display: flex;
       flex-direction: column;
@@ -53,9 +51,9 @@ import { User } from '../../../shared/models/user.model';
       transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
     }
     .tc:not(.readonly):hover {
-      background: rgba(255, 255, 255, 0.06);
-      border-color: rgba(255,255,255,0.1);
-      box-shadow: var(--shadow-sm);
+      background: #202020;
+      border-color: #333;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
     }
     .tc.readonly { cursor: default; }
     .tc.done { opacity: 0.6; }
@@ -77,19 +75,21 @@ import { User } from '../../../shared/models/user.model';
       align-items: center;
       gap: 6px;
       font-size: 12px;
-      color: var(--text-secondary);
+      font-weight: 500;
     }
+    .tc-priority.low      { color: #4ade80; }
+    .tc-priority.medium   { color: #f59e0b; }
+    .tc-priority.high     { color: #ef4444; }
+    .tc-priority.critical { color: #ff3333; }
 
     .pri-dot {
-      width: 7px;
-      height: 7px;
+      width: 6px;
+      height: 6px;
       border-radius: 50%;
       flex-shrink: 0;
+      background: currentColor;
+      box-shadow: 0 0 6px currentColor;
     }
-    .pri-dot.low      { background: var(--success); }
-    .pri-dot.medium   { background: var(--warning); }
-    .pri-dot.high     { background: var(--danger); }
-    .pri-dot.critical { background: #ff3333; }
 
     .tc-footer {
       display: flex;
@@ -103,16 +103,16 @@ import { User } from '../../../shared/models/user.model';
 
     .tc-avatars { display: flex; flex: 1; }
     .tc-av, .tc-av-empty {
-      width: 22px; height: 22px;
+      width: 24px; height: 24px;
       border-radius: 50%;
       display: inline-flex;
       align-items: center; justify-content: center;
       font-size: 9px; font-weight: 600;
     }
     .tc-av {
-      background: linear-gradient(135deg, #c18c60, #2f5874);
-      color: #fff;
-      border: 1px solid #242426;
+      background: #374151;
+      color: #f9fafb;
+      border: 1.5px solid #1b1b1b;
     }
     .tc-av-empty {
       border: 1px dashed rgba(255,255,255,0.1);
