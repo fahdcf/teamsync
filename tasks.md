@@ -2365,7 +2365,7 @@ Goal: app is fully usable on mobile. No horizontal scroll except the task board.
 Verify: open on 375px viewport — everything readable, interactive, no overflow.
 ```
  
-### Task 16.3 — Final Cleanup + Build ☐
+### Task 16.3 — Final Cleanup + Build ✅
 ```
 Code quality:
   - Remove all console.log statements

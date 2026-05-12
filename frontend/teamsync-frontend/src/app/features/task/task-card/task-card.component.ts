@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter } from '@angular/core';
+import { Component, Input, Output, EventEmitter, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { Task } from '../../../shared/models/task.model';
 import { BadgeComponent } from '../../../shared/components/badge/badge.component';
@@ -10,6 +10,7 @@ type BadgeVariant = 'muted' | 'info' | 'warning' | 'danger' | 'accent' | 'succes
 @Component({
   selector: 'app-task-card',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CommonModule, DatePipe, BadgeComponent, AvatarComponent, TruncatePipe],
   template: `
     <div class="task-card" (click)="cardClick.emit()">
@@ -51,7 +52,7 @@ type BadgeVariant = 'muted' | 'info' | 'warning' | 'danger' | 'accent' | 'succes
   `]
 })
 export class TaskCardComponent {
-  @Input() task!: Task;
+  @Input({ required: true }) task!: Task;
   @Output() cardClick = new EventEmitter<void>();
   @Output() deleted = new EventEmitter<void>();
 

@@ -10,7 +10,7 @@ import { CommonModule } from '@angular/common';
       <div class="panel" [class]="'panel--' + size" (click)="$event.stopPropagation()">
         <div class="panel__header">
           <h3 class="panel__title">{{ title }}</h3>
-          <button class="panel__close" (click)="closed.emit()">✕</button>
+          <button class="panel__close" (click)="closed.emit()" aria-label="Close dialog">✕</button>
         </div>
         <div class="panel__body">
           <ng-content></ng-content>

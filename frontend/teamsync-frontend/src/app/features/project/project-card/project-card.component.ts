@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter } from '@angular/core';
+import { Component, Input, Output, EventEmitter, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Project } from '../../../shared/models/project.model';
 import { BadgeComponent } from '../../../shared/components/badge/badge.component';
@@ -10,6 +10,7 @@ type BadgeVariant = 'muted' | 'accent' | 'warning' | 'success' | 'info' | 'dange
 @Component({
   selector: 'app-project-card',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CommonModule, BadgeComponent, AvatarComponent, ProgressBarComponent],
   template: `
     <div class="project-card" (click)="clicked.emit()">
@@ -48,7 +49,7 @@ type BadgeVariant = 'muted' | 'accent' | 'warning' | 'success' | 'info' | 'dange
   `]
 })
 export class ProjectCardComponent {
-  @Input() project!: Project;
+  @Input({ required: true }) project!: Project;
   @Output() clicked = new EventEmitter<void>();
 
   get isOverdue(): boolean {

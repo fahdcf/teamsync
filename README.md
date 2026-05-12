@@ -57,3 +57,19 @@ It serves as a full-stack demonstration of all 14 Gang-of-Four design patterns i
 | Analytics | `/analytics/projects/{id}` | Stats, team workload, health indicator |
 | Reports | `/reports/projects/{id}` | JSON / CSV / PDF report generation |
 | Patterns | `/patterns` | Academic catalogue of all 14 GoF patterns |
+
+## Frontend (Angular)
+
+**Prerequisites:** Node 18+, Angular CLI 17+
+
+```bash
+cd frontend/teamsync-frontend
+npm install
+ng serve          # → http://localhost:4200
+ng test           # → run all tests
+ng build --configuration=production  # → production build
+```
+
+**Tech Stack:** Angular 21, standalone components, CDK Drag-Drop, Vitest
+
+**Features:** Authentication, workspace & project management, Kanban task board with drag-and-drop, real-time notifications, patterns viewer, responsive layout (mobile/tablet/desktop)
