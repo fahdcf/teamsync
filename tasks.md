@@ -2149,7 +2149,7 @@ Verify: page is presentable enough to show during academic defense.
  
 ## PHASE 15 — Tests
  
-### Task 15.1 — Unit Tests: Services ☐
+### Task 15.1 — Unit Tests: Services ✅
 ```
 Use Angular's default testing setup: Jasmine + Karma (already included in ng new).
 Test files go next to the files they test: auth.service.spec.ts, etc.
