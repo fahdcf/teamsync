@@ -10,7 +10,7 @@ import { ButtonComponent } from '../../../shared/components/button/button.compon
 import { InputComponent } from '../../../shared/components/input/input.component';
 import { ModalComponent } from '../../../shared/components/modal/modal.component';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
-import { SpinnerComponent } from '../../../shared/components/spinner/spinner.component';
+import { SkeletonComponent } from '../../../shared/components/skeleton/skeleton.component';
 import { TruncatePipe } from '../../../shared/pipes/truncate.pipe';
 
 @Component({
@@ -19,7 +19,7 @@ import { TruncatePipe } from '../../../shared/pipes/truncate.pipe';
   imports: [
     CommonModule, ReactiveFormsModule,
     AvatarComponent, BadgeComponent, ButtonComponent, InputComponent,
-    ModalComponent, EmptyStateComponent, SpinnerComponent, TruncatePipe
+    ModalComponent, EmptyStateComponent, SkeletonComponent, TruncatePipe
   ],
   template: `
     <div class="workspace-list">
@@ -28,11 +28,18 @@ import { TruncatePipe } from '../../../shared/pipes/truncate.pipe';
         <app-button (click)="isCreateOpen = true">+ New Workspace</app-button>
       </div>
 
-      <div *ngIf="isLoading" class="loading-center">
-        <app-spinner size="lg"></app-spinner>
+      <div *ngIf="isLoading" class="skeleton-grid">
+        <app-skeleton *ngFor="let i of [1,2,3]" type="card"></app-skeleton>
       </div>
 
-      <div *ngIf="!isLoading && workspaces.length" class="workspace-grid">
+      <app-empty-state
+        *ngIf="!isLoading && hasError"
+        variant="error"
+        description="Failed to load workspaces"
+        (action)="load()">
+      </app-empty-state>
+
+      <div *ngIf="!isLoading && !hasError && workspaces.length" class="workspace-grid">
         <div *ngFor="let ws of workspaces" class="workspace-card" (click)="router.navigate(['/workspaces', ws.id])">
           <div class="ws-header">
             <h3>{{ ws.name }}</h3>
@@ -48,7 +55,7 @@ import { TruncatePipe } from '../../../shared/pipes/truncate.pipe';
       </div>
 
       <app-empty-state
-        *ngIf="!isLoading && !workspaces.length"
+        *ngIf="!isLoading && !hasError && !workspaces.length"
         icon="📁"
         title="No workspaces yet"
         description="Create your first workspace to start collaborating"
@@ -72,7 +79,7 @@ import { TruncatePipe } from '../../../shared/pipes/truncate.pipe';
     .workspace-list { max-width: 1200px; }
     .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; }
     .page-header h1 { margin: 0; font-size: 24px; font-weight: 700; }
-    .loading-center { display: flex; justify-content: center; padding: 60px; }
+    .skeleton-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
     .workspace-grid {
       display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;
     }
@@ -100,6 +107,7 @@ export default class WorkspaceListComponent implements OnInit {
 
   workspaces: Workspace[] = [];
   isLoading = true;
+  hasError = false;
   isCreateOpen = false;
   isCreating = false;
 
@@ -108,10 +116,14 @@ export default class WorkspaceListComponent implements OnInit {
     description: ['']
   });
 
-  ngOnInit(): void {
+  ngOnInit(): void { this.load(); }
+
+  load(): void {
+    this.isLoading = true;
+    this.hasError = false;
     this.workspaceService.getAll().subscribe({
       next: ws => { this.workspaces = ws; this.isLoading = false; },
-      error: () => { this.isLoading = false; }
+      error: () => { this.hasError = true; this.isLoading = false; }
     });
   }
 

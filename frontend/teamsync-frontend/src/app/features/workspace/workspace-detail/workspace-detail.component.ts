@@ -11,7 +11,7 @@ import { ButtonComponent } from '../../../shared/components/button/button.compon
 import { InputComponent } from '../../../shared/components/input/input.component';
 import { ModalComponent } from '../../../shared/components/modal/modal.component';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
-import { SpinnerComponent } from '../../../shared/components/spinner/spinner.component';
+import { SkeletonComponent } from '../../../shared/components/skeleton/skeleton.component';
 import { ProjectCardComponent } from '../../project/project-card/project-card.component';
 
 @Component({
@@ -20,14 +20,21 @@ import { ProjectCardComponent } from '../../project/project-card/project-card.co
   imports: [
     CommonModule, ReactiveFormsModule,
     AvatarComponent, ButtonComponent, InputComponent,
-    ModalComponent, EmptyStateComponent, SpinnerComponent, ProjectCardComponent
+    ModalComponent, EmptyStateComponent, SkeletonComponent, ProjectCardComponent
   ],
   template: `
-    <div *ngIf="isLoading" class="loading-center">
-      <app-spinner size="lg"></app-spinner>
+    <div *ngIf="isLoading" class="skeleton-grid">
+      <app-skeleton *ngFor="let i of [1,2,3]" type="card"></app-skeleton>
     </div>
 
-    <div *ngIf="!isLoading && workspace" class="workspace-detail">
+    <app-empty-state
+      *ngIf="!isLoading && hasError"
+      variant="error"
+      description="Failed to load workspace"
+      (action)="load()">
+    </app-empty-state>
+
+    <div *ngIf="!isLoading && !hasError && workspace" class="workspace-detail">
       <!-- Hero -->
       <div class="ws-hero">
         <div class="ws-info">
@@ -108,7 +115,7 @@ import { ProjectCardComponent } from '../../project/project-card/project-card.co
     </app-modal>
   `,
   styles: [`
-    .loading-center { display: flex; justify-content: center; padding: 60px; }
+    .skeleton-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; padding: 20px 0; }
     .workspace-detail { max-width: 1200px; }
     .ws-hero { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; gap: 16px; }
     .ws-info h1 { margin: 0 0 6px; font-size: 24px; font-weight: 700; }
@@ -141,6 +148,7 @@ export default class WorkspaceDetailComponent implements OnInit {
   workspace: Workspace | null = null;
   projects: Project[] = [];
   isLoading = true;
+  hasError = false;
   isAddMemberOpen = false;
   isCreateProjectOpen = false;
   isAddingMember = false;
@@ -154,17 +162,21 @@ export default class WorkspaceDetailComponent implements OnInit {
     managerId: ['']
   });
 
-  ngOnInit(): void {
+  ngOnInit(): void { this.load(); }
+
+  load(): void {
+    this.isLoading = true;
+    this.hasError = false;
     const id = this.route.snapshot.paramMap.get('id')!;
     this.workspaceService.getById(id).subscribe({
       next: ws => {
         this.workspace = ws;
         this.projectService.getByWorkspace(id).subscribe({
           next: ps => { this.projects = ps; this.isLoading = false; },
-          error: () => { this.isLoading = false; }
+          error: () => { this.hasError = true; this.isLoading = false; }
         });
       },
-      error: () => { this.isLoading = false; }
+      error: () => { this.hasError = true; this.isLoading = false; }
     });
   }
 

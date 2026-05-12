@@ -28,5 +28,5 @@ export const routes: Routes = [
     ]
   },
   { path: 'patterns', loadComponent: () => import('./features/patterns/patterns.component') },
-  { path: '**', redirectTo: 'dashboard' }
+  { path: '**', loadComponent: () => import('./features/not-found/not-found.component') }
 ];

@@ -10,6 +10,7 @@ import { ButtonComponent } from '../../../shared/components/button/button.compon
 import { InputComponent } from '../../../shared/components/input/input.component';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { SpinnerComponent } from '../../../shared/components/spinner/spinner.component';
+import { SkeletonComponent } from '../../../shared/components/skeleton/skeleton.component';
 import { debounceTime, distinctUntilChanged, Subject } from 'rxjs';
 import { Router } from '@angular/router';
 
@@ -25,7 +26,7 @@ interface Column {
   imports: [
     CommonModule, ReactiveFormsModule, DragDropModule,
     TaskCardComponent, ModalComponent, ButtonComponent, InputComponent,
-    EmptyStateComponent, SpinnerComponent
+    EmptyStateComponent, SkeletonComponent
   ],
   template: `
     <!-- Filter bar -->
@@ -39,12 +40,23 @@ interface Column {
       <button *ngIf="hasFilters" class="clear-btn" (click)="clearFilters()">Clear</button>
     </div>
 
-    <div *ngIf="isLoading" class="loading-center">
-      <app-spinner size="md"></app-spinner>
+    <div *ngIf="isLoading" class="board board--skeleton">
+      <div *ngFor="let col of columns" class="column">
+        <app-skeleton type="list-item"></app-skeleton>
+        <app-skeleton type="card"></app-skeleton>
+        <app-skeleton type="card"></app-skeleton>
+      </div>
     </div>
 
+    <app-empty-state
+      *ngIf="!isLoading && hasError"
+      variant="error"
+      description="Failed to load tasks"
+      (action)="loadTasks()">
+    </app-empty-state>
+
     <!-- Kanban board -->
-    <div *ngIf="!isLoading" class="board" cdkDropListGroup>
+    <div *ngIf="!isLoading && !hasError" class="board" cdkDropListGroup>
       <div *ngFor="let col of columns" class="column">
         <div class="column-header">
           <div class="col-title-row">
@@ -120,7 +132,6 @@ interface Column {
       padding: 8px 12px; font-size: 13px;
     }
     .clear-btn:hover { border-color: var(--color-accent); color: var(--color-accent); }
-    .loading-center { display: flex; justify-content: center; padding: 40px; }
     .board {
       display: flex; gap: 16px; overflow-x: auto; padding-bottom: 16px;
       min-height: calc(100vh - 220px);
@@ -186,6 +197,7 @@ export default class TaskBoardComponent implements OnInit {
   filters: { keyword?: string; priority?: string } = {};
   priorities: TaskPriority[] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
   isLoading = true;
+  hasError = false;
   isCreateModalOpen = false;
   isCreating = false;
   selectedStatus: TaskStatus = 'TODO';
@@ -211,12 +223,13 @@ export default class TaskBoardComponent implements OnInit {
 
   loadTasks(): void {
     this.isLoading = true;
+    this.hasError = false;
     this.taskService.getByProject(this.projectId, this.filters).subscribe({
       next: tasks => {
         this.columns.forEach(col => col.tasks = tasks.filter(t => t.status === col.status));
         this.isLoading = false;
       },
-      error: () => { this.isLoading = false; }
+      error: () => { this.hasError = true; this.isLoading = false; }
     });
   }
 

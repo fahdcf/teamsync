@@ -12,7 +12,7 @@ import { User } from '../../../shared/models/user.model';
 import { AvatarComponent } from '../../../shared/components/avatar/avatar.component';
 import { BadgeComponent } from '../../../shared/components/badge/badge.component';
 import { ButtonComponent } from '../../../shared/components/button/button.component';
-import { SpinnerComponent } from '../../../shared/components/spinner/spinner.component';
+import { SkeletonComponent } from '../../../shared/components/skeleton/skeleton.component';
 import { RelativeTimePipe } from '../../../shared/pipes/relative-time.pipe';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 
@@ -23,8 +23,8 @@ type BadgeVariant = 'muted' | 'info' | 'warning' | 'danger' | 'accent' | 'succes
   standalone: true,
   imports: [
     CommonModule, DatePipe, FormsModule,
-    AvatarComponent, BadgeComponent, ButtonComponent, SpinnerComponent,
-    RelativeTimePipe, EmptyStateComponent
+    AvatarComponent, BadgeComponent, ButtonComponent,
+    SkeletonComponent, RelativeTimePipe, EmptyStateComponent
   ],
   animations: [
     trigger('slideIn', [
@@ -50,10 +50,21 @@ type BadgeVariant = 'muted' | 'info' | 'warning' | 'danger' | 'accent' | 'succes
       </div>
 
       <div *ngIf="isLoading" class="loading-center">
-        <app-spinner size="md"></app-spinner>
+        <div class="skeleton-drawer">
+          <app-skeleton type="text"></app-skeleton>
+          <app-skeleton type="text"></app-skeleton>
+          <app-skeleton type="card"></app-skeleton>
+        </div>
       </div>
 
-      <div *ngIf="!isLoading && task" class="drawer-body">
+      <app-empty-state
+        *ngIf="!isLoading && hasError"
+        variant="error"
+        description="Failed to load task"
+        (action)="load()">
+      </app-empty-state>
+
+      <div *ngIf="!isLoading && !hasError && task" class="drawer-body">
         <!-- Main column -->
         <div class="drawer-main">
           <!-- Editable title -->
@@ -174,7 +185,8 @@ type BadgeVariant = 'muted' | 'info' | 'warning' | 'danger' | 'accent' | 'succes
     }
     .close-btn:hover { color: var(--color-text); }
     .drawer-actions { display: flex; gap: 8px; }
-    .loading-center { display: flex; justify-content: center; padding: 40px; }
+    .loading-center { padding: 24px; }
+    .skeleton-drawer { display: flex; flex-direction: column; gap: 12px; }
     .drawer-body {
       display: flex; gap: 0; flex: 1; overflow: hidden;
     }
@@ -251,6 +263,7 @@ export default class TaskDetailComponent implements OnInit {
   task: Task | null = null;
   comments: Comment[] = [];
   isLoading = true;
+  hasError = false;
   isEditingTitle = false;
   isEditingDescription = false;
   newCommentText = '';
@@ -279,17 +292,21 @@ export default class TaskDetailComponent implements OnInit {
     return user?.id === comment.author.id || user?.role === 'ADMIN';
   }
 
-  ngOnInit(): void {
+  ngOnInit(): void { this.load(); }
+
+  load(): void {
+    this.isLoading = true;
+    this.hasError = false;
     const id = this.taskId || this.route.snapshot.paramMap.get('id') || '';
     this.taskService.getById(id).subscribe({
       next: t => {
         this.task = t;
         this.commentService.getByTask(id).subscribe({
           next: c => { this.comments = c; this.isLoading = false; },
-          error: () => { this.isLoading = false; }
+          error: () => { this.hasError = true; this.isLoading = false; }
         });
       },
-      error: () => { this.isLoading = false; }
+      error: () => { this.hasError = true; this.isLoading = false; }
     });
   }
 

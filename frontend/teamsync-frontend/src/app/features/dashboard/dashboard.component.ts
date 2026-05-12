@@ -13,7 +13,7 @@ import { ModalComponent } from '../../shared/components/modal/modal.component';
 import { ButtonComponent } from '../../shared/components/button/button.component';
 import { InputComponent } from '../../shared/components/input/input.component';
 import { EmptyStateComponent } from '../../shared/components/empty-state/empty-state.component';
-import { SpinnerComponent } from '../../shared/components/spinner/spinner.component';
+import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.component';
 import { RelativeTimePipe } from '../../shared/pipes/relative-time.pipe';
 
 @Component({
@@ -23,7 +23,7 @@ import { RelativeTimePipe } from '../../shared/pipes/relative-time.pipe';
     CommonModule, DatePipe, ReactiveFormsModule,
     StatsCardComponent, WorkspaceCardComponent,
     ModalComponent, ButtonComponent, InputComponent, EmptyStateComponent,
-    SpinnerComponent
+    SkeletonComponent
   ],
   template: `
     <div class="dashboard">
@@ -33,12 +33,20 @@ import { RelativeTimePipe } from '../../shared/pipes/relative-time.pipe';
         <p class="date">{{ today | date:'EEEE, MMMM d' }}</p>
       </div>
 
-      <!-- Loading -->
-      <div *ngIf="isLoading" class="loading-center">
-        <app-spinner size="lg"></app-spinner>
+      <!-- Loading skeleton -->
+      <div *ngIf="isLoading" class="stats-grid">
+        <app-skeleton *ngFor="let i of [1,2,3,4]" type="card"></app-skeleton>
       </div>
 
-      <ng-container *ngIf="!isLoading">
+      <!-- Error -->
+      <app-empty-state
+        *ngIf="!isLoading && hasError"
+        variant="error"
+        description="Failed to load dashboard"
+        (action)="load()">
+      </app-empty-state>
+
+      <ng-container *ngIf="!isLoading && !hasError">
         <!-- Stats row -->
         <div class="stats-grid">
           <app-stats-card icon="📋" label="Active Tasks"   [value]="activeTaskCount"  color="accent"></app-stats-card>
@@ -90,7 +98,7 @@ import { RelativeTimePipe } from '../../shared/pipes/relative-time.pipe';
     .greeting { margin-bottom: 28px; }
     .greeting h1 { margin: 0 0 4px; font-size: 24px; font-weight: 700; }
     .date { color: var(--color-muted); margin: 0; font-size: 14px; }
-    .loading-center { display: flex; justify-content: center; padding: 60px; }
+    .skeleton-row { display: flex; gap: 16px; }
     .stats-grid {
       display: grid; grid-template-columns: repeat(4, 1fr);
       gap: 16px; margin-bottom: 32px;
@@ -115,6 +123,7 @@ export default class DashboardComponent implements OnInit {
   workspaces: Workspace[] = [];
   tasks: Task[] = [];
   isLoading = true;
+  hasError = false;
   isCreating = false;
   isCreateModalOpen = false;
 
@@ -140,10 +149,14 @@ export default class DashboardComponent implements OnInit {
     return this.tasks.filter(t => t.dueDate && t.dueDate < today && t.status !== 'DONE').length;
   }
 
-  ngOnInit(): void {
+  ngOnInit(): void { this.load(); }
+
+  load(): void {
+    this.isLoading = true;
+    this.hasError = false;
     this.workspaceService.getAll().subscribe({
       next: ws => { this.workspaces = ws; this.isLoading = false; },
-      error: () => { this.isLoading = false; }
+      error: () => { this.hasError = true; this.isLoading = false; }
     });
   }
 

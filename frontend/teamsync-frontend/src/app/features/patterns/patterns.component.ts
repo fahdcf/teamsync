@@ -4,7 +4,8 @@ import { RouterLink } from '@angular/router';
 import { PatternsService } from '../../api/patterns.service';
 import { Pattern } from '../../shared/models/pattern.model';
 import { BadgeComponent } from '../../shared/components/badge/badge.component';
-import { SpinnerComponent } from '../../shared/components/spinner/spinner.component';
+import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.component';
+import { EmptyStateComponent } from '../../shared/components/empty-state/empty-state.component';
 
 type Category = 'ALL' | 'Creational' | 'Structural' | 'Behavioral';
 type BadgeVariant = 'info' | 'accent' | 'success' | 'muted' | 'warning' | 'danger';
@@ -12,7 +13,7 @@ type BadgeVariant = 'info' | 'accent' | 'success' | 'muted' | 'warning' | 'dange
 @Component({
   selector: 'app-patterns',
   standalone: true,
-  imports: [CommonModule, RouterLink, BadgeComponent, SpinnerComponent],
+  imports: [CommonModule, RouterLink, BadgeComponent, SkeletonComponent, EmptyStateComponent],
   template: `
     <div class="patterns-page">
       <header class="patterns-header">
@@ -36,11 +37,18 @@ type BadgeVariant = 'info' | 'accent' | 'success' | 'muted' | 'warning' | 'dange
         </button>
       </div>
 
-      <div *ngIf="isLoading" class="loading">
-        <app-spinner size="lg"></app-spinner>
+      <div *ngIf="isLoading" class="patterns-grid">
+        <app-skeleton *ngFor="let i of [1,2,3,4,5,6]" type="card"></app-skeleton>
       </div>
 
-      <div *ngIf="!isLoading" class="patterns-grid">
+      <app-empty-state
+        *ngIf="!isLoading && hasError"
+        variant="error"
+        description="Failed to load patterns"
+        (action)="load()">
+      </app-empty-state>
+
+      <div *ngIf="!isLoading && !hasError" class="patterns-grid">
         <div *ngFor="let p of filteredPatterns" class="pattern-card">
           <div class="pattern-card-header">
             <app-badge [text]="p.category" [variant]="categoryVariant(p.category)"></app-badge>
@@ -94,6 +102,7 @@ type BadgeVariant = 'info' | 'accent' | 'success' | 'muted' | 'warning' | 'dange
     .cat-btn:hover { border-color: var(--color-accent); color: var(--color-accent); }
     .cat-btn.active { background: var(--color-accent); border-color: var(--color-accent); color: #fff; }
     .loading { display: flex; justify-content: center; padding: 80px; }
+    /* legacy -- kept for potential re-use */
     .patterns-grid {
       display: grid; grid-template-columns: repeat(3, 1fr);
       gap: 20px; padding: 0 40px 40px;
@@ -130,6 +139,7 @@ export default class PatternsComponent implements OnInit {
   filteredPatterns: Pattern[] = [];
   activeCategory: Category = 'ALL';
   isLoading = true;
+  hasError = false;
 
   readonly categories: Category[] = ['ALL', 'Creational', 'Structural', 'Behavioral'];
 
@@ -147,14 +157,18 @@ export default class PatternsComponent implements OnInit {
       : this.patterns.filter(p => p.category === cat);
   }
 
-  ngOnInit(): void {
+  ngOnInit(): void { this.load(); }
+
+  load(): void {
+    this.isLoading = true;
+    this.hasError = false;
     this.patternsService.getAll().subscribe({
       next: ps => {
         this.patterns = ps;
         this.filteredPatterns = ps;
         this.isLoading = false;
       },
-      error: () => { this.isLoading = false; }
+      error: () => { this.hasError = true; this.isLoading = false; }
     });
   }
 }

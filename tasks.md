@@ -2293,7 +2293,7 @@ Goal: all integration tests pass. They simulate real user flows without a backen
  
 ## PHASE 16 — Final Polish
  
-### Task 16.1 — Loading + Empty + Error States ☐
+### Task 16.1 — Loading + Empty + Error States ✅
 ```
 Go through every page and add proper states.
  
