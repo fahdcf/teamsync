@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
-import { ProjectStats, TeamWorkload, ProjectHealth } from '../shared/models/analytics.model';
+import { AnalyticsInsight, ProjectStats, TeamPerformance, TeamWorkload, ProjectHealth } from '../shared/models/analytics.model';
 
 @Injectable({ providedIn: 'root' })
 export class AnalyticsService {
@@ -19,5 +19,13 @@ export class AnalyticsService {
 
   getHealth(projectId: string): Observable<ProjectHealth> {
     return this.http.get<ProjectHealth>(`${this.base}/analytics/projects/${projectId}/health`);
+  }
+
+  getTeamPerformance(): Observable<TeamPerformance> {
+    return this.http.get<TeamPerformance>(`${this.base}/analytics/team/performance`);
+  }
+
+  getInsights(): Observable<AnalyticsInsight[]> {
+    return this.http.get<AnalyticsInsight[]>(`${this.base}/analytics/insights`);
   }
 }

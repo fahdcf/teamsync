@@ -1202,7 +1202,7 @@ Verify: GET /analytics/team/performance returns all fields.
 Verify: GET /analytics/insights returns at least 1 insight based on real task data.
 ```
 
-### Task R6.2 — Analytics Page Redesign ☐
+### Task R6.2 — Analytics Page Redesign ✅
 ```
 Reference: Screenshot 5: c:\Users\pp\Downloads\ChatGPT Image 12 mai 2026, 17_04_48.png — "Team Performance Insights" page.
 

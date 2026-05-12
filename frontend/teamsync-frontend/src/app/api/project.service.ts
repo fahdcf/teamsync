@@ -13,6 +13,10 @@ export class ProjectService {
     return this.http.get<Project[]>(`${this.base}/workspaces/${workspaceId}/projects`);
   }
 
+  search(): Observable<Project[]> {
+    return this.http.get<Project[]>(`${this.base}/projects`);
+  }
+
   getById(id: string): Observable<Project> {
     return this.http.get<Project>(`${this.base}/projects/${id}`);
   }

@@ -1,0 +1,131 @@
+<div class="analytics-page">
+  <aside class="analytics-nav">
+    <div class="analytics-brand">
+      <span>Analytics</span>
+      <small>Beta</small>
+    </div>
+    <button *ngFor="let item of navItems" type="button" [class.active]="activeView === item.key" (click)="activeView = item.key">
+      <span>{{ item.icon }}</span>
+      {{ item.label }}
+    </button>
+  </aside>
+
+  <main class="analytics-main">
+    <header class="analytics-header">
+      <div>
+        <h1>Team Performance Insights</h1>
+        <p>AI-powered analytics for modern collaborative teams.</p>
+      </div>
+      <div class="header-actions">
+        <button type="button">May 12 – Jun 12, 2024 ▾</button>
+        <button type="button">Share</button>
+        <button type="button">Filter</button>
+      </div>
+    </header>
+
+    <div *ngIf="isLoading" class="loading-card">Loading analytics...</div>
+
+    <section *ngIf="!isLoading && activeView === 'overview'" class="overview">
+      <div class="top-stats">
+        <article *ngFor="let stat of topStats" class="metric-card">
+          <span class="metric-label">{{ stat.label }}</span>
+          <strong>{{ stat.value }}</strong>
+          <small *ngIf="stat.trend">↑ {{ stat.trend }}% from last period</small>
+          <small *ngIf="!stat.trend && stat.visual === 'ring'">All teams are optimal</small>
+          <svg *ngIf="stat.visual === 'line'" viewBox="0 0 180 50" class="sparkline">
+            <path d="M4 40 C 24 14, 36 44, 55 28 S 88 16, 104 24 S 128 40, 143 20 S 162 18, 176 10" />
+          </svg>
+          <div *ngIf="stat.visual === 'bars'" class="bar-spark">
+            <span *ngFor="let h of [26,38,50,32,14,42,18,28]" [style.height.px]="h"></span>
+          </div>
+          <svg *ngIf="stat.visual === 'ring'" viewBox="0 0 90 55" class="ring-chart">
+            <path d="M15 48 A30 30 0 0 1 75 48" />
+            <path d="M15 48 A30 30 0 0 1 75 48" class="ring-fill" />
+          </svg>
+        </article>
+      </div>
+
+      <div class="charts-row">
+        <article class="chart-card">
+          <header><h2>Sprint Velocity</h2><button type="button">Last 5 sprints ▾</button></header>
+          <div class="line-chart">
+            <canvas baseChart [data]="sprintChartData" [options]="sprintChartOptions" type="line"></canvas>
+          </div>
+        </article>
+
+        <article class="chart-card distribution-card">
+          <header><h2>Workload Distribution</h2></header>
+          <div class="distribution-layout">
+            <div class="donut-wrap">
+              <canvas baseChart [data]="workloadChartData" [options]="workloadChartOptions" type="doughnut"></canvas>
+              <div class="donut-center"><strong>{{ totalDistributedTasks }}</strong><span>Tasks</span></div>
+            </div>
+            <div class="legend">
+              <div *ngFor="let item of distribution; let i = index">
+                <span [class]="'legend-dot dot-' + i"></span>
+                <span>{{ item.category }}</span>
+                <strong>{{ item.percent }}%</strong>
+              </div>
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <div class="bottom-stats">
+        <article *ngFor="let stat of bottomStats" class="mini-card">
+          <header><h3>{{ stat.title }}</h3><button type="button">This week ▾</button></header>
+          <span>{{ stat.label }}</span>
+          <strong>{{ stat.value }}</strong>
+          <small [class.negative]="stat.trend < 0">{{ stat.trend >= 0 ? '↑' : '↓' }} {{ stat.trend < 0 ? -stat.trend : stat.trend }}% from last week</small>
+          <svg viewBox="0 0 180 54" class="sparkline amber">
+            <path d="M4 40 C 18 10, 32 52, 48 30 S 78 22, 92 34 S 120 18, 136 22 S 158 42, 176 20" />
+          </svg>
+        </article>
+      </div>
+    </section>
+
+    <section *ngIf="!isLoading && activeView !== 'overview'" class="detail-panel">
+      <h2>{{ navItems.find(item => item.key === activeView)?.label }}</h2>
+      <p *ngIf="activeView === 'team'">Completion rate is {{ performance?.completionRate ?? 0 }}% with velocity {{ performance?.teamVelocity ?? 0 }}.</p>
+      <div *ngIf="activeView === 'projects'" class="project-stats-list">
+        <select [ngModel]="selectedProjectId" (ngModelChange)="selectProject($event)">
+          <option *ngFor="let project of projects" [value]="project.id">{{ project.title }}</option>
+        </select>
+        <p>Total tasks: {{ selectedStats?.totalTasks ?? 0 }} · Completion: {{ selectedStats?.completionRate ?? selectedStats?.completionPercent ?? 0 }}%</p>
+      </div>
+      <p *ngIf="activeView === 'sprint'">Sprint velocity uses the same last-5-sprints dataset rendered in the overview chart.</p>
+      <p *ngIf="activeView === 'workload'">Workload balance is {{ performance?.workloadBalance ?? 'Balanced' }}.</p>
+      <p *ngIf="activeView === 'flow'">Cycle time is {{ performance?.cycleTime?.days ?? 0 }} days with on-time delivery at {{ performance?.onTimeDelivery?.percent ?? 0 }}%.</p>
+      <p *ngIf="activeView === 'reports'">Reports are ready for JSON, CSV, and PDF export when a project is selected.</p>
+    </section>
+  </main>
+
+  <aside class="insights-panel">
+    <header>
+      <h2>* AI Insights</h2>
+      <p>Smart insights to help your team perform better.</p>
+    </header>
+    <article *ngFor="let insight of insights" class="insight-card" [class]="insight.type">
+      <div class="insight-title">
+        <span></span>
+        <strong>{{ insight.title }}</strong>
+      </div>
+      <p>{{ insight.description }}</p>
+      <button type="button">{{ insight.action }} →</button>
+    </article>
+
+    <div class="assistant-box">
+      <h3>* AI Assistant <span>Beta</span></h3>
+      <p>Ask anything about your team's performance...</p>
+      <div class="assistant-input">
+        <input [(ngModel)]="assistantQuestion" placeholder="Ask a question...">
+        <button type="button" (click)="sendAssistant()">↗</button>
+      </div>
+      <div class="quick-pills">
+        <button type="button" (click)="setQuestion('Why is velocity declining?')">Why is velocity declining?</button>
+        <button type="button" (click)="setQuestion('Show workload balance')">Show workload balance</button>
+      </div>
+      <small *ngIf="toast">{{ toast }}</small>
+    </div>
+  </aside>
+</div>

@@ -30,6 +30,7 @@ export const routes: Routes = [
       { path: 'dashboard', title: 'Dashboard | TeamSync', loadComponent: () => import('./features/dashboard/dashboard.component') },
       { path: 'workspaces', title: 'Workspaces | TeamSync', loadComponent: () => import('./features/workspace/workspace-list/workspace-list.component') },
       { path: 'workspaces/:id', title: 'Workspace | TeamSync', loadComponent: () => import('./features/workspace/workspace-detail/workspace-detail.component') },
+      { path: 'analytics', title: 'Analytics | TeamSync', loadComponent: () => import('./features/analytics/analytics.component') },
       { path: 'projects/:id', title: 'Project | TeamSync', loadComponent: () => import('./features/project/project-detail/project-detail.component') },
       { path: 'projects/:id/board', title: 'Board | TeamSync', loadComponent: () => import('./features/task/task-board/task-board.component') },
       { path: 'tasks/:id', title: 'Task | TeamSync', loadComponent: () => import('./features/task/task-detail/task-detail.component') },
