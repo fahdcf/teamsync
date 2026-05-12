@@ -837,7 +837,7 @@ ENHANCE: GET /workspaces/{id}/activity — already exists, ensure it returns:
 Verify: GET /workspaces/{id}/projects returns health and insight fields.
 ```
 
-### Task R4.2 — Workspace Detail Page Redesign ☐
+### Task R4.2 — Workspace Detail Page Redesign ✅
 ```
 Reference: Screenshot 3 : c:\Users\pp\Downloads\ChatGPT Image 12 mai 2026, 17_04_31.png— the "Product Design Workspace" page.
 

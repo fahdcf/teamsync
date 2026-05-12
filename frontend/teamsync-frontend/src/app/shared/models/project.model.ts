@@ -10,7 +10,10 @@ export interface Project {
   status: ProjectStatus;
   deadline: string;
   progress: number;
+  health?: 'ON_TRACK' | 'AT_RISK' | 'DELAYED';
+  insight?: string;
   workspace: Workspace;
+  workspaceId?: string;
   manager: User;
   createdAt: string;
 }
