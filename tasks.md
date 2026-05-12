@@ -254,7 +254,7 @@ Verify: Accent color is warm amber #D4A853, not the old indigo #6366F1.
 
 ### Task R1.2 — Redesign Layout Shell (Sidebar + Navbar) ✅
 ```
-Reference: screenshots 2, 3, 4 — study the sidebar and navbar carefully.
+Reference: screenshot 2:  c:\Users\pp\Downloads\ChatGPT Image 12 mai 2026, 17_04_31.png — study the sidebar and navbar carefully.
 
 BACKEND: No changes needed.
 
@@ -374,7 +374,7 @@ Verify: sidebar active item highlighted, all icons render, bottom section shows 
 
 ## PHASE R2 — Landing / Home Page
 
-### Task R2.1 — Backend: Add Public Stats Endpoint ✅
+### Task R2.1 — Backend: Add Public Stats Endpoint 
 ```
 The landing page needs real-sounding (but public) stats.
 Add to backend:
@@ -396,7 +396,8 @@ Verify: curl http://localhost:8080/public/stats returns JSON without token.
 
 ### Task R2.2 — Landing Page (Public Homepage) ☐
 ```
-Reference: Screenshot 1 — the full marketing landing page.
+Reference: c:\Users\pp\Downloads\ChatGPT Image 12 mai 2026, 17_04_11.png — the full marketing landing page.
+
 This is a STANDALONE route at / (before login).
 Route: /home or / → redirects to /dashboard if authenticated, else shows landing.
 No sidebar. No app navbar. Has its own marketing nav.
@@ -587,7 +588,7 @@ Verify: all 3 endpoints return correct data with a valid JWT token.
 
 ### Task R3.2 — Dashboard Page Redesign ☐
 ```
-Reference: Screenshot 2 — study every pixel of this dashboard.
+Reference: Screenshot 2 : c:\Users\pp\Downloads\ChatGPT Image 12 mai 2026, 17_04_48.png— study every pixel of this dashboard.
 
 FRONTEND: Complete rewrite of src/app/features/dashboard/
 
@@ -838,7 +839,7 @@ Verify: GET /workspaces/{id}/projects returns health and insight fields.
 
 ### Task R4.2 — Workspace Detail Page Redesign ☐
 ```
-Reference: Screenshot 3 — the "Product Design Workspace" page.
+Reference: Screenshot 3 : c:\Users\pp\Downloads\ChatGPT Image 12 mai 2026, 17_04_31.png— the "Product Design Workspace" page.
 
 FRONTEND: Complete rewrite of src/app/features/workspace/workspace-detail/
 
@@ -970,7 +971,7 @@ Verify: POST /tasks/{id}/subtasks creates a subtask. Toggle works.
 
 ### Task R5.2 — Task Board Page Redesign ☐
 ```
-Reference: Screenshot 4 — the board BEHIND the open drawer.
+Reference: Screenshot 4 : c:\Users\pp\Downloads\ChatGPT Image 12 mai 2026, 17_04_44.png — the board BEHIND the open drawer.
 
 FRONTEND: Redesign src/app/features/task/task-board/task-board.component
 
@@ -1014,7 +1015,7 @@ Verify: drag and drop still works (test by dragging a card between columns).
 
 ### Task R5.3 — Task Detail Drawer Redesign ☐
 ```
-Reference: Screenshot 4 — the right-side drawer overlay.
+Reference: Screenshot 4: c:\Users\pp\Downloads\ChatGPT Image 12 mai 2026, 17_04_44.png — the right-side drawer overlay.
 
 FRONTEND: Complete rewrite of src/app/features/task/task-detail/task-detail.component
 
@@ -1203,7 +1204,7 @@ Verify: GET /analytics/insights returns at least 1 insight based on real task da
 
 ### Task R6.2 — Analytics Page Redesign ☐
 ```
-Reference: Screenshot 5 — "Team Performance Insights" page.
+Reference: Screenshot 5: c:\Users\pp\Downloads\ChatGPT Image 12 mai 2026, 17_04_48.png — "Team Performance Insights" page.
 
 FRONTEND: Complete rewrite of src/app/features/analytics/
 

@@ -1,5 +1,5 @@
-import { Component, inject, OnInit, HostListener } from '@angular/core';
-import { CommonModule, AsyncPipe } from '@angular/common';
+import { Component, HostListener, OnInit, inject } from '@angular/core';
+import { AsyncPipe, CommonModule } from '@angular/common';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { AuthStore } from '../../store/auth.store';
 import { SidebarStateService } from '../../core/services/sidebar-state.service';
@@ -9,6 +9,7 @@ interface NavItem {
   label: string;
   route: string;
   iconPath: string;
+  count?: number;
 }
 
 @Component({
@@ -16,287 +17,412 @@ interface NavItem {
   standalone: true,
   imports: [CommonModule, AsyncPipe, RouterLink, RouterLinkActive, AvatarComponent],
   template: `
-    <div class="overlay-backdrop"
-         *ngIf="isOverlay && (sidebarState.mobileOpen$ | async)"
-         (click)="sidebarState.close()">
-    </div>
+    <div
+      class="overlay-backdrop"
+      *ngIf="isOverlay && (sidebarState.mobileOpen$ | async)"
+      (click)="sidebarState.close()"
+    ></div>
 
-    <aside class="sidebar"
-           [class.collapsed]="isCollapsed"
-           [class.overlay]="isOverlay"
-           [class.overlay-open]="isOverlay && (sidebarState.mobileOpen$ | async)">
-
-      <!-- Logo -->
+    <aside
+      class="sidebar"
+      [class.collapsed]="isCollapsed"
+      [class.overlay]="isOverlay"
+      [class.overlay-open]="isOverlay && (sidebarState.mobileOpen$ | async)"
+    >
       <div class="logo">
-        <span class="logo-icon">◈</span>
-        <span class="logo-text" *ngIf="!isCollapsed">TeamSync</span>
-        <button class="collapse-btn" *ngIf="!isOverlay" (click)="toggleCollapse()" [title]="isCollapsed ? 'Expand' : 'Collapse'">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
-            <path *ngIf="!isCollapsed" d="M9 2L4 7l5 5" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/>
-            <path *ngIf="isCollapsed" d="M5 2l5 5-5 5" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+        <div class="logo-brand">
+          <svg class="logo-icon" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+            <path d="M8 1.2 14.2 4.8 8 8.4 1.8 4.8 8 1.2Z"></path>
+            <path d="M8 9.1 14.2 5.5v5L8 14.2 1.8 10.5v-5L8 9.1Z" opacity="0.85"></path>
           </svg>
+          <span class="logo-text" *ngIf="!isCollapsed">TeamSync</span>
+        </div>
+        <button
+          *ngIf="!isOverlay"
+          class="collapse-btn"
+          type="button"
+          [attr.aria-label]="isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+          [title]="isCollapsed ? 'Expand' : 'Collapse'"
+          (click)="toggleCollapse()"
+        >
+          <span aria-hidden="true">{{ isCollapsed ? '>>' : '<<' }}</span>
         </button>
       </div>
 
-      <!-- Nav -->
       <nav class="nav">
-        <a *ngFor="let item of navItems"
-           [routerLink]="item.route"
-           routerLinkActive="active"
-           class="nav-item"
-           [title]="isCollapsed ? item.label : ''"
-           (click)="isOverlay && sidebarState.close()">
+        <a
+          *ngFor="let item of navItems"
+          class="nav-item"
+          [routerLink]="item.route"
+          routerLinkActive="active"
+          [title]="isCollapsed ? item.label : ''"
+          (click)="isOverlay && sidebarState.close()"
+        >
           <span class="nav-icon" [innerHTML]="item.iconPath"></span>
           <span class="nav-label" *ngIf="!isCollapsed">{{ item.label }}</span>
+          <span class="nav-count" *ngIf="!isCollapsed && item.count">{{ item.count }}</span>
         </a>
-
-        <div class="nav-separator"></div>
       </nav>
 
-      <!-- Bottom section -->
-      <div class="sidebar-bottom">
-        <!-- AI Assistant -->
-        <div class="ai-item" *ngIf="!isCollapsed">
-          <div class="ai-avatar">
-            <svg width="28" height="28" viewBox="0 0 28 28">
-              <defs>
-                <linearGradient id="aiGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" style="stop-color:#8B5CF6"/>
-                  <stop offset="100%" style="stop-color:#3B82F6"/>
-                </linearGradient>
-              </defs>
-              <circle cx="14" cy="14" r="14" fill="url(#aiGrad)"/>
-              <text x="14" y="18" text-anchor="middle" fill="white" font-size="11" font-weight="600">AI</text>
-            </svg>
-          </div>
-          <div class="ai-info">
-            <span class="ai-label">AI Assistant</span>
+      <div class="separator"></div>
+
+      <div class="sidebar-bottom" *ngIf="(user$ | async) as user">
+        <button class="ai-item" type="button" [title]="isCollapsed ? 'AI Assistant' : ''">
+          <span class="ai-avatar">AI</span>
+          <span class="ai-content" *ngIf="!isCollapsed">
+            <span class="ai-title">AI Assistant</span>
             <span class="ai-status"><span class="online-dot"></span> Online</span>
-          </div>
-          <button class="ai-plus">+</button>
-        </div>
+          </span>
+          <span class="ai-plus" *ngIf="!isCollapsed">+</span>
+        </button>
 
-        <!-- Trial usage -->
         <div class="trial" *ngIf="!isCollapsed">
-          <div class="trial-header">
+          <div class="trial-row">
             <span class="trial-label">Trial usage</span>
-            <span class="trial-pct">78%</span>
+            <span class="trial-percent">78%</span>
           </div>
-          <div class="trial-bar"><div class="trial-fill"></div></div>
-          <a class="trial-upgrade" href="#">Upgrade plan →</a>
+          <div class="trial-bar"><span class="trial-fill"></span></div>
+          <a class="trial-link" href="#">Upgrade plan -></a>
         </div>
 
-        <!-- User -->
-        <div class="user-section" *ngIf="(user$ | async) as user">
+        <button class="user-item" type="button" [title]="isCollapsed ? user.username : ''">
           <app-avatar [user]="user" size="sm"></app-avatar>
-          <div class="user-info" *ngIf="!isCollapsed">
+          <span class="user-copy" *ngIf="!isCollapsed">
             <span class="user-name">{{ user.username }}</span>
             <span class="user-role">{{ user.role }}</span>
-          </div>
-          <svg *ngIf="!isCollapsed" class="chevron" width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
-            <path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/>
-          </svg>
-        </div>
+          </span>
+          <span class="user-chevron" *ngIf="!isCollapsed">v</span>
+        </button>
       </div>
     </aside>
   `,
-  styles: [`
-    .overlay-backdrop {
-      position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 198;
-    }
-    .sidebar {
-      width: 200px;
-      background: var(--bg-surface);
-      border-right: 1px solid var(--border-subtle);
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-      transition: width 0.2s ease;
-      flex-shrink: 0;
-      z-index: 199;
-    }
-    .sidebar.collapsed { width: 52px; }
-    .sidebar.overlay {
-      position: fixed; top: 0; left: 0; height: 100vh;
-      transform: translateX(-100%);
-      transition: transform 0.25s ease;
-    }
-    .sidebar.overlay.overlay-open { transform: translateX(0); }
+  styles: [
+    `
+      .overlay-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.45);
+        z-index: 198;
+      }
 
-    /* Logo */
-    .logo {
-      height: 52px;
-      display: flex;
-      align-items: center;
-      padding: 0 16px;
-      gap: 8px;
-      flex-shrink: 0;
-    }
-    .logo-icon {
-      font-size: 20px;
-      color: var(--text-primary);
-      flex-shrink: 0;
-      line-height: 1;
-    }
-    .logo-text {
-      font-size: 15px;
-      font-weight: 600;
-      color: var(--text-primary);
-      white-space: nowrap;
-      flex: 1;
-    }
-    .collapse-btn {
-      background: none;
-      border: none;
-      color: var(--text-tertiary);
-      padding: 4px;
-      border-radius: var(--radius-sm);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      transition: color 0.15s, background 0.15s;
-      margin-left: auto;
-      flex-shrink: 0;
-    }
-    .collapse-btn:hover { color: var(--text-secondary); background: var(--bg-elevated); }
-    .sidebar.collapsed .logo { justify-content: center; padding: 0; }
-    .sidebar.collapsed .collapse-btn { margin-left: 0; }
+      .sidebar {
+        width: 200px;
+        height: 100vh;
+        padding-top: 20px;
+        background: var(--bg-surface);
+        border-right: 1px solid var(--border-subtle);
+        display: flex;
+        flex-direction: column;
+        transition: width 0.2s ease;
+        flex-shrink: 0;
+        z-index: 199;
+      }
 
-    /* Nav */
-    .nav {
-      flex: 1;
-      padding: 8px 0;
-      display: flex;
-      flex-direction: column;
-      overflow-y: auto;
-    }
-    .nav-item {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 8px 12px;
-      margin: 2px 8px;
-      border-radius: var(--radius-md);
-      color: var(--text-tertiary);
-      text-decoration: none;
-      font-size: 13px;
-      font-weight: 400;
-      transition: background 0.1s, color 0.1s;
-      white-space: nowrap;
-    }
-    .nav-item:hover { background: rgba(28,28,31,0.6); color: var(--text-secondary); }
-    .nav-item.active { background: var(--bg-elevated); color: var(--text-primary); }
-    .nav-icon {
-      width: 16px;
-      height: 16px;
-      flex-shrink: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .nav-icon svg { width: 16px; height: 16px; }
-    .nav-label { overflow: hidden; text-overflow: ellipsis; }
-    .nav-separator {
-      height: 1px;
-      background: var(--border-subtle);
-      margin: 8px 16px;
-    }
-    .sidebar.collapsed .nav-item {
-      justify-content: center;
-      padding: 8px;
-      margin: 2px 6px;
-    }
+      .sidebar.collapsed {
+        width: 52px;
+      }
 
-    /* Bottom section */
-    .sidebar-bottom {
-      padding: 8px 0 12px;
-      border-top: 1px solid var(--border-subtle);
-      display: flex;
-      flex-direction: column;
-      gap: 0;
-    }
+      .sidebar.overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        transform: translateX(-100%);
+        transition: transform 0.25s ease;
+      }
 
-    /* AI Assistant */
-    .ai-item {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 8px 12px;
-      margin: 2px 8px;
-      border-radius: var(--radius-md);
-      cursor: pointer;
-    }
-    .ai-item:hover { background: var(--bg-elevated); }
-    .ai-avatar { flex-shrink: 0; }
-    .ai-info { flex: 1; min-width: 0; }
-    .ai-label { display: block; font-size: 12px; font-weight: 500; color: var(--text-primary); }
-    .ai-status { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text-tertiary); }
-    .online-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success); flex-shrink: 0; }
-    .ai-plus {
-      background: none;
-      border: none;
-      color: var(--text-tertiary);
-      font-size: 16px;
-      cursor: pointer;
-      padding: 2px 4px;
-      line-height: 1;
-    }
+      .sidebar.overlay.overlay-open {
+        transform: translateX(0);
+      }
 
-    /* Trial */
-    .trial {
-      padding: 8px 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-    .trial-header { display: flex; justify-content: space-between; }
-    .trial-label { font-size: 11px; color: var(--text-tertiary); }
-    .trial-pct { font-size: 11px; color: var(--text-secondary); }
-    .trial-bar {
-      height: 4px;
-      background: var(--bg-elevated);
-      border-radius: 2px;
-      overflow: hidden;
-    }
-    .trial-fill {
-      height: 100%;
-      width: 78%;
-      background: var(--accent);
-      border-radius: 2px;
-    }
-    .trial-upgrade {
-      font-size: 11px;
-      color: var(--accent);
-      text-decoration: none;
-    }
-    .trial-upgrade:hover { color: var(--accent-hover); }
+      .logo {
+        height: 52px;
+        padding: 0 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
 
-    /* User section */
-    .user-section {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 8px 12px;
-      margin: 2px 8px;
-      border-radius: var(--radius-md);
-      cursor: pointer;
-    }
-    .user-section:hover { background: var(--bg-elevated); }
-    .user-info { flex: 1; min-width: 0; }
-    .user-name {
-      display: block;
-      font-size: 13px;
-      font-weight: 500;
-      color: var(--text-primary);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .user-role { font-size: 11px; color: var(--text-tertiary); }
-    .chevron { color: var(--text-tertiary); flex-shrink: 0; }
-    .sidebar.collapsed .user-section { justify-content: center; }
-  `]
+      .logo-brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+      }
+
+      .logo-icon {
+        width: 18px;
+        height: 18px;
+        color: var(--text-primary);
+        flex-shrink: 0;
+      }
+
+      .logo-text {
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--text-primary);
+        white-space: nowrap;
+      }
+
+      .collapse-btn {
+        width: 20px;
+        height: 20px;
+        border: none;
+        border-radius: 4px;
+        color: var(--text-tertiary);
+        background: transparent;
+        cursor: pointer;
+        font-size: 11px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .collapse-btn:hover {
+        color: var(--text-secondary);
+        background: var(--bg-elevated);
+      }
+
+      .nav {
+        padding: 10px 0;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+
+      .nav-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 12px;
+        margin: 0 8px;
+        border-radius: var(--radius-md);
+        text-decoration: none;
+        color: var(--text-tertiary);
+        font-size: 13px;
+        font-weight: 400;
+        line-height: 1;
+      }
+
+      .nav-item:hover {
+        background: rgba(28, 28, 31, 0.6);
+        color: var(--text-secondary);
+      }
+
+      .nav-item.active {
+        background: var(--bg-elevated);
+        color: var(--text-primary);
+      }
+
+      .nav-icon {
+        width: 16px;
+        height: 16px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+
+      .nav-icon :is(svg) {
+        width: 16px;
+        height: 16px;
+      }
+
+      .nav-label {
+        flex: 1;
+      }
+
+      .nav-count {
+        min-width: 18px;
+        height: 18px;
+        border-radius: 9999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(245, 158, 11, 0.15);
+        color: var(--warning);
+        font-size: 11px;
+      }
+
+      .separator {
+        margin: 8px 16px 0;
+        border-top: 1px solid var(--border-subtle);
+      }
+
+      .sidebar-bottom {
+        margin-top: auto;
+        padding: 10px 0 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .ai-item,
+      .user-item {
+        margin: 0 8px;
+        border: 0;
+        border-radius: var(--radius-md);
+        background: transparent;
+        color: inherit;
+        padding: 8px 12px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        text-align: left;
+        cursor: pointer;
+      }
+
+      .ai-item:hover,
+      .user-item:hover {
+        background: var(--bg-elevated);
+      }
+
+      .ai-avatar {
+        width: 28px;
+        height: 28px;
+        border-radius: 9999px;
+        font-size: 11px;
+        font-weight: 600;
+        color: #f9fafb;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #8b5cf6, #3b82f6);
+        flex-shrink: 0;
+      }
+
+      .ai-content {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        flex: 1;
+      }
+
+      .ai-title {
+        font-size: 12px;
+        color: var(--text-primary);
+      }
+
+      .ai-status {
+        font-size: 11px;
+        color: var(--text-secondary);
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+      }
+
+      .online-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 9999px;
+        background: var(--success);
+      }
+
+      .ai-plus {
+        color: var(--text-secondary);
+        font-size: 16px;
+      }
+
+      .trial {
+        margin: 0 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+      }
+
+      .trial-row {
+        display: flex;
+        justify-content: space-between;
+      }
+
+      .trial-label,
+      .trial-percent {
+        font-size: 11px;
+        color: var(--text-secondary);
+      }
+
+      .trial-bar {
+        height: 4px;
+        border-radius: 9999px;
+        background: var(--bg-elevated);
+        overflow: hidden;
+      }
+
+      .trial-fill {
+        display: block;
+        width: 78%;
+        height: 100%;
+        border-radius: inherit;
+        background: var(--accent);
+      }
+
+      .trial-link {
+        color: var(--accent);
+        font-size: 11px;
+        text-decoration: none;
+      }
+
+      .trial-link:hover {
+        color: var(--accent-hover);
+      }
+
+      .user-copy {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        flex: 1;
+        min-width: 0;
+      }
+
+      .user-name {
+        font-size: 13px;
+        color: var(--text-primary);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .user-role {
+        font-size: 11px;
+        color: var(--text-secondary);
+      }
+
+      .user-chevron {
+        color: var(--text-tertiary);
+        font-size: 12px;
+      }
+
+      .collapsed .logo {
+        padding: 0 6px;
+        justify-content: space-between;
+      }
+
+      .collapsed .logo-brand {
+        width: 18px;
+        justify-content: flex-start;
+      }
+
+      .collapsed .logo-text,
+      .collapsed .trial,
+      .collapsed .ai-content,
+      .collapsed .ai-plus,
+      .collapsed .user-copy,
+      .collapsed .user-chevron {
+        display: none;
+      }
+
+      .collapsed .nav-item,
+      .collapsed .ai-item,
+      .collapsed .user-item {
+        margin: 0 6px;
+        padding: 8px;
+        justify-content: center;
+      }
+
+      .collapsed .separator {
+        margin: 8px 10px 0;
+      }
+    `,
+  ],
 })
 export class SidebarComponent implements OnInit {
   readonly authStore = inject(AuthStore);
@@ -308,53 +434,78 @@ export class SidebarComponent implements OnInit {
 
   readonly navItems: NavItem[] = [
     {
-      label: 'Dashboard', route: '/dashboard',
-      iconPath: '<svg viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>'
+      label: 'Dashboard',
+      route: '/dashboard',
+      iconPath:
+        '<svg viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="1" width="6" height="6" rx="1"></rect><rect x="9" y="1" width="6" height="6" rx="1"></rect><rect x="1" y="9" width="6" height="6" rx="1"></rect><rect x="9" y="9" width="6" height="6" rx="1"></rect></svg>',
     },
     {
-      label: 'Workspaces', route: '/workspaces',
-      iconPath: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="3" width="12" height="10" rx="1"/><path d="M5 3V2M11 3V2"/><path d="M2 7h12"/></svg>'
+      label: 'Workspaces',
+      route: '/workspaces',
+      iconPath:
+        '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 6.2 8 2l6 4.2V14H2V6.2Z"></path><path d="M5.2 8.6h5.6"></path></svg>',
     },
     {
-      label: 'Projects', route: '/workspaces',
-      iconPath: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" xmlns="http://www.w3.org/2000/svg"><path d="M1 4a1 1 0 011-1h4l2 2h6a1 1 0 011 1v7a1 1 0 01-1 1H2a1 1 0 01-1-1V4z"/></svg>'
+      label: 'Projects',
+      route: '/workspaces',
+      iconPath:
+        '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M1.5 4.5A1.5 1.5 0 0 1 3 3h3l1.4 1.8H13a1.5 1.5 0 0 1 1.5 1.5v6.2A1.5 1.5 0 0 1 13 14H3a1.5 1.5 0 0 1-1.5-1.5z"></path></svg>',
     },
     {
-      label: 'Tasks', route: '/dashboard',
-      iconPath: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 8l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+      label: 'Tasks',
+      route: '/dashboard',
+      iconPath:
+        '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2" y="2" width="12" height="12" rx="2"></rect><path d="m5 8 2 2 4-4" stroke-linecap="round" stroke-linejoin="round"></path></svg>',
     },
     {
-      label: 'Analytics', route: '/dashboard',
-      iconPath: '<svg viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="10" width="3" height="5"/><rect x="6" y="6" width="3" height="9"/><rect x="11" y="2" width="3" height="13"/></svg>'
+      label: 'Analytics',
+      route: '/dashboard',
+      iconPath:
+        '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 13.5h12"></path><path d="M4 12V8"></path><path d="M8 12V5"></path><path d="M12 12V3"></path></svg>',
     },
     {
-      label: 'Notifications', route: '/dashboard',
-      iconPath: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" xmlns="http://www.w3.org/2000/svg"><path d="M8 2a5 5 0 00-5 5v3l-1 1h12l-1-1V7a5 5 0 00-5-5z"/><path d="M6.5 13a1.5 1.5 0 003 0"/></svg>'
+      label: 'Notifications',
+      route: '/dashboard',
+      iconPath:
+        '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 2.2a4.4 4.4 0 0 0-4.4 4.4v2.8L2.5 11h11L12.4 9.4V6.6A4.4 4.4 0 0 0 8 2.2Z"></path><path d="M6.3 12.6a1.7 1.7 0 0 0 3.4 0"></path></svg>',
+      count: 3,
     },
     {
-      label: 'Settings', route: '/dashboard',
-      iconPath: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="8" r="2.5"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.2 3.2l1.4 1.4M11.4 11.4l1.4 1.4M3.2 12.8l1.4-1.4M11.4 4.6l1.4-1.4"/></svg>'
+      label: 'Settings',
+      route: '/dashboard',
+      iconPath:
+        '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="2.1"></circle><path d="M8 1.5v1.7M8 12.8v1.7M1.5 8h1.7M12.8 8h1.7M3.1 3.1l1.2 1.2M11.7 11.7l1.2 1.2M3.1 12.9l1.2-1.2M11.7 4.3l1.2-1.2"></path></svg>',
     },
   ];
 
-  ngOnInit(): void { this.updateLayout(); }
+  ngOnInit(): void {
+    this.updateLayout();
+  }
 
   @HostListener('window:resize')
-  onResize(): void { this.updateLayout(); }
+  onResize(): void {
+    this.updateLayout();
+  }
 
-  toggleCollapse(): void { this.isCollapsed = !this.isCollapsed; }
+  toggleCollapse(): void {
+    this.isCollapsed = !this.isCollapsed;
+  }
 
   private updateLayout(): void {
-    const w = window.innerWidth;
-    if (w >= 1024) {
+    const width = window.innerWidth;
+    if (width >= 1024) {
       this.isOverlay = false;
-    } else if (w >= 768) {
-      this.isCollapsed = true;
-      this.isOverlay = false;
-    } else {
-      this.isCollapsed = false;
-      this.isOverlay = true;
-      this.sidebarState.close();
+      return;
     }
+
+    if (width >= 768) {
+      this.isOverlay = false;
+      this.isCollapsed = true;
+      return;
+    }
+
+    this.isOverlay = true;
+    this.isCollapsed = false;
+    this.sidebarState.close();
   }
 }
