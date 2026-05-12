@@ -1194,7 +1194,7 @@ Goal: routing works. Navigating to /dashboard without token redirects to /login.
 Verify: ng build --configuration=production has zero errors.
 ```
  
-### Task 8.4 — Design System + Shared Components ☐
+### Task 8.4 — Design System + Shared Components ✅
 ```
 --- SCSS DESIGN SYSTEM (src/styles.scss) ---
  
