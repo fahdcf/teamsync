@@ -1,6 +1,6 @@
 <div class="task-board-shell">
   <div *ngIf="isLoading" class="board board--skeleton" aria-label="Loading task board">
-    <section *ngFor="let col of columns" class="column">
+    <section *ngFor="let col of columns" class="column" [attr.data-status]="col.status">
       <div class="column-header">
         <div class="col-title-row">
           <span class="column-title">{{ col.label }}</span>
@@ -21,7 +21,7 @@
   </app-empty-state>
 
   <div *ngIf="!isLoading && !hasError" class="board" cdkDropListGroup>
-    <section *ngFor="let col of columns" class="column">
+    <section *ngFor="let col of columns" class="column" [attr.data-status]="col.status">
       <header class="column-header">
         <div class="col-title-row">
           <span class="column-title">{{ col.label }}</span>

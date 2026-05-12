@@ -2,76 +2,113 @@ import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ProjectService } from '../../../api/project.service';
-import { Project } from '../../../shared/models/project.model';
+import { Project, ProjectStatus } from '../../../shared/models/project.model';
 import { AuthStore } from '../../../store/auth.store';
-import { BadgeComponent } from '../../../shared/components/badge/badge.component';
-import { ButtonComponent } from '../../../shared/components/button/button.component';
-import { SkeletonComponent } from '../../../shared/components/skeleton/skeleton.component';
-import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { ProjectAnalyticsComponent } from '../project-analytics/project-analytics.component';
 import { ProjectSettingsComponent } from '../project-settings/project-settings.component';
 import TaskBoardComponent from '../../task/task-board/task-board.component';
 
 type Tab = 'board' | 'analytics' | 'settings';
-type BadgeVariant = 'muted' | 'accent' | 'warning' | 'success' | 'info' | 'danger';
 
 @Component({
   selector: 'app-project-detail',
   standalone: true,
-  imports: [
-    CommonModule, BadgeComponent, ButtonComponent,
-    SkeletonComponent, EmptyStateComponent,
-    ProjectAnalyticsComponent, ProjectSettingsComponent, TaskBoardComponent
-  ],
+  imports: [CommonModule, ProjectAnalyticsComponent, ProjectSettingsComponent, TaskBoardComponent],
   template: `
-    <div *ngIf="isLoading" class="skeleton-stack">
-      <app-skeleton type="text"></app-skeleton>
-      <app-skeleton type="list-item"></app-skeleton>
-      <app-skeleton type="card"></app-skeleton>
+    <!-- Loading skeleton -->
+    <div class="project-page" *ngIf="isLoading">
+      <div class="skeleton-header">
+        <div class="sk sk-title"></div>
+        <div class="sk sk-meta"></div>
+      </div>
+      <div class="sk sk-tabs"></div>
+      <div class="sk sk-board"></div>
     </div>
 
-    <app-empty-state
-      *ngIf="!isLoading && hasError"
-      variant="error"
-      description="Failed to load project"
-      (action)="load()">
-    </app-empty-state>
+    <!-- Error -->
+    <div class="project-page error-page" *ngIf="!isLoading && hasError">
+      <div class="error-state">
+        <div class="error-icon">⚠</div>
+        <p>Failed to load project</p>
+        <button class="retry-btn" (click)="load()" type="button">Try again</button>
+      </div>
+    </div>
 
-    <div *ngIf="!isLoading && !hasError && project" class="project-detail">
-      <!-- Header -->
-      <div class="project-header">
-        <div class="header-left">
-          <h1 *ngIf="!isEditingTitle" (click)="isEditingTitle = true" class="project-title">{{ project.title }}</h1>
-          <input *ngIf="isEditingTitle"
-            class="title-input"
-            [value]="project.title"
-            (blur)="onTitleBlur($event)"
-            autofocus>
-          <div class="project-meta">
-            <app-badge [text]="project.status" [variant]="statusVariant"></app-badge>
-            <span class="deadline" [class.overdue]="isOverdue">
-              {{ isOverdue ? 'Overdue' : daysLeft + ' days left' }}
+    <!-- Project detail -->
+    <div class="project-page" *ngIf="!isLoading && !hasError && project">
+
+      <!-- Hero header -->
+      <div class="project-hero">
+        <div class="hero-left">
+          <div class="breadcrumb-row">
+            <span class="crumb" (click)="router.navigate(['/workspaces'])" tabindex="0">Workspaces</span>
+            <span class="crumb-sep">›</span>
+            <span class="crumb current">{{ project.workspace?.name || 'Project' }}</span>
+          </div>
+
+          <div class="title-row">
+            <h1 *ngIf="!isEditingTitle" (click)="isEditingTitle = true" class="project-title" title="Click to edit">
+              {{ project.title }}
+            </h1>
+            <input *ngIf="isEditingTitle"
+              class="title-input"
+              [value]="project.title"
+              (blur)="onTitleBlur($event)"
+              autofocus />
+          </div>
+
+          <div class="meta-row">
+            <span class="status-chip" [class]="project.status.toLowerCase().replace('_','-')">
+              {{ statusLabel(project.status) }}
+            </span>
+            <span class="deadline-chip" [class.overdue]="isOverdue">
+              <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M4 1.5v3M12 1.5v3M2 7h12"/></svg>
+              {{ project.deadline ? (project.deadline | date:'MMM d, y') : 'No deadline' }}
+              <span *ngIf="!isOverdue && daysLeft > 0"> · {{ daysLeft }}d left</span>
+              <span *ngIf="isOverdue"> · Overdue</span>
+            </span>
+            <span class="manager-chip" *ngIf="project.manager">
+              <div class="mini-avatar">{{ initials(project.manager.username) }}</div>
+              {{ project.manager.username }}
             </span>
           </div>
         </div>
-        <app-button *ngIf="canArchive && project.status !== 'ARCHIVED'" variant="danger" size="sm"
-          (click)="archiveProject()">
-          Archive
-        </app-button>
+
+        <div class="hero-right">
+          <!-- Progress ring -->
+          <div class="progress-widget">
+            <svg class="progress-ring" viewBox="0 0 80 80">
+              <circle class="ring-track" cx="40" cy="40" r="28"/>
+              <circle class="ring-fill" cx="40" cy="40" r="28"
+                [attr.stroke-dasharray]="progressDash" />
+            </svg>
+            <div class="progress-label">
+              <span class="progress-pct">{{ project.progress }}%</span>
+              <span class="progress-sub">done</span>
+            </div>
+          </div>
+
+          <button *ngIf="canArchive && project.status !== 'ARCHIVED'"
+            class="archive-btn" (click)="archiveProject()" type="button">
+            Archive
+          </button>
+        </div>
       </div>
 
-      <!-- Tab nav -->
+      <!-- Tab navigation -->
       <div class="tab-nav">
         <button *ngFor="let t of tabs"
           class="tab-btn"
           [class.active]="activeTab === t.key"
-          (click)="activeTab = t.key">
+          (click)="activeTab = t.key"
+          type="button">
+          <span class="tab-icon">{{ t.icon }}</span>
           {{ t.label }}
         </button>
       </div>
 
       <!-- Tab content -->
-      <div class="tab-content">
+      <div class="tab-body">
         <app-task-board *ngIf="activeTab === 'board'" [projectId]="project.id"></app-task-board>
         <app-project-analytics *ngIf="activeTab === 'analytics'" [projectId]="project.id"></app-project-analytics>
         <app-project-settings *ngIf="activeTab === 'settings'" [project]="project" (updated)="project = $event"></app-project-settings>
@@ -79,39 +116,151 @@ type BadgeVariant = 'muted' | 'accent' | 'warning' | 'success' | 'info' | 'dange
     </div>
   `,
   styles: [`
-    .skeleton-stack { display: flex; flex-direction: column; gap: 12px; padding: 20px 0; }
-    .project-detail { max-width: 1400px; }
-    .project-header {
-      display: flex; align-items: flex-start; justify-content: space-between;
-      gap: 16px; margin-bottom: 20px;
+    .project-page {
+      min-height: 100%;
+      padding: 28px 32px 32px;
+      background: var(--bg-base);
+      color: var(--text-primary);
     }
+
+    /* Skeleton */
+    .skeleton-header { margin-bottom: 20px; display: flex; flex-direction: column; gap: 12px; }
+    .sk { background: var(--bg-elevated); border-radius: 6px; animation: shimmer 1.5s ease-in-out infinite alternate; }
+    .sk-title { height: 32px; width: 40%; }
+    .sk-meta { height: 18px; width: 60%; }
+    .sk-tabs { height: 40px; margin-bottom: 20px; }
+    .sk-board { height: 400px; }
+    @keyframes shimmer { from { opacity: 0.5; } to { opacity: 1; } }
+
+    /* Error */
+    .error-page { display: flex; align-items: center; justify-content: center; }
+    .error-state { display: flex; flex-direction: column; align-items: center; gap: 12px; color: var(--text-secondary); }
+    .error-icon { font-size: 36px; color: var(--danger); }
+    .error-state p { font-size: 15px; color: var(--text-primary); }
+    .retry-btn {
+      height: 32px; padding: 0 16px;
+      border: 1px solid var(--border-subtle); border-radius: var(--radius-md);
+      background: transparent; color: var(--text-secondary);
+      font-size: 13px; cursor: pointer; transition: all 0.15s;
+    }
+    .retry-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* Hero */
+    .project-hero {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 24px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .hero-left { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+
+    .breadcrumb-row { display: flex; align-items: center; gap: 6px; }
+    .crumb { font-size: 12px; color: var(--text-tertiary); cursor: pointer; transition: color 0.15s; }
+    .crumb:hover { color: var(--text-secondary); }
+    .crumb.current { color: var(--text-secondary); cursor: default; }
+    .crumb-sep { color: var(--text-tertiary); font-size: 14px; }
+
+    .title-row { display: flex; align-items: center; }
     .project-title {
-      margin: 0 0 8px; font-size: 24px; font-weight: 700; cursor: pointer;
+      font-size: 26px; font-weight: 700; cursor: pointer;
+      transition: color 0.15s;
     }
-    .project-title:hover { text-decoration: underline; }
+    .project-title:hover { color: var(--accent); }
     .title-input {
-      background: none; border: none; border-bottom: 2px solid var(--color-accent);
-      color: var(--color-text); font-size: 24px; font-weight: 700;
-      outline: none; margin-bottom: 8px; width: 100%;
+      background: none; border: none;
+      border-bottom: 2px solid var(--accent);
+      color: var(--text-primary);
+      font-size: 26px; font-weight: 700;
+      outline: none; width: 100%;
     }
-    .project-meta { display: flex; align-items: center; gap: 12px; }
-    .deadline { font-size: 13px; color: var(--color-muted); }
-    .deadline.overdue { color: var(--color-danger); }
-    .tab-nav { display: flex; gap: 4px; margin-bottom: 24px; border-bottom: 1px solid var(--color-border); }
+
+    .meta-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+    /* Status chip */
+    .status-chip {
+      font-size: 11px; font-weight: 600; padding: 3px 10px;
+      border-radius: var(--radius-full);
+      border: 1px solid currentColor;
+      text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    .status-chip.planning { color: var(--info); }
+    .status-chip.active { color: var(--success); }
+    .status-chip.on-hold { color: var(--warning); }
+    .status-chip.completed { color: var(--accent); }
+    .status-chip.archived { color: var(--text-tertiary); }
+
+    .deadline-chip {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 12px; color: var(--text-secondary);
+    }
+    .deadline-chip.overdue { color: var(--danger); }
+
+    .manager-chip {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 12px; color: var(--text-secondary);
+    }
+    .mini-avatar {
+      width: 20px; height: 20px; border-radius: 50%;
+      background: linear-gradient(135deg, #c18c60, #2f5874);
+      color: #fff; font-size: 8px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    /* Hero right */
+    .hero-right { display: flex; align-items: center; gap: 16px; flex-shrink: 0; }
+
+    .progress-widget { position: relative; width: 72px; height: 72px; }
+    .progress-ring { width: 72px; height: 72px; transform: rotate(-90deg); }
+    .ring-track { fill: none; stroke: var(--bg-elevated); stroke-width: 8; }
+    .ring-fill { fill: none; stroke: var(--accent); stroke-width: 8; stroke-linecap: round; transition: stroke-dasharray 0.4s ease; }
+    .progress-label {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 1px;
+    }
+    .progress-pct { font-size: 14px; font-weight: 700; color: var(--text-primary); line-height: 1; }
+    .progress-sub { font-size: 9px; color: var(--text-tertiary); }
+
+    .archive-btn {
+      height: 32px; padding: 0 14px;
+      border: 1px solid var(--danger);
+      border-radius: var(--radius-md);
+      background: transparent; color: var(--danger);
+      font-size: 12px; cursor: pointer; transition: all 0.15s;
+    }
+    .archive-btn:hover { background: var(--danger-dim); }
+
+    /* Tabs */
+    .tab-nav {
+      display: flex; gap: 4px;
+      border-bottom: 1px solid var(--border-subtle);
+      margin-bottom: 24px;
+    }
     .tab-btn {
-      background: none; border: none; color: var(--color-muted);
-      padding: 10px 16px; font-size: 14px; font-weight: 500;
-      border-bottom: 2px solid transparent; margin-bottom: -1px;
+      height: 40px; padding: 0 16px;
+      border: none; background: transparent;
+      color: var(--text-secondary);
+      font-size: 13px; font-weight: 500;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px; cursor: pointer;
+      display: inline-flex; align-items: center; gap: 7px;
       transition: color 0.15s, border-color 0.15s;
     }
-    .tab-btn:hover { color: var(--color-text); }
-    .tab-btn.active { color: var(--color-accent); border-bottom-color: var(--color-accent); }
+    .tab-btn:hover { color: var(--text-primary); }
+    .tab-btn.active { color: var(--text-primary); border-bottom-color: var(--accent); }
+    .tab-icon { font-size: 14px; }
+
+    .tab-body { flex: 1; }
   `]
 })
 export default class ProjectDetailComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly projectService = inject(ProjectService);
-  private readonly router = inject(Router);
+  readonly router = inject(Router);
   readonly authStore = inject(AuthStore);
 
   project: Project | null = null;
@@ -121,22 +270,14 @@ export default class ProjectDetailComponent implements OnInit {
   activeTab: Tab = 'board';
 
   readonly tabs = [
-    { key: 'board' as Tab, label: 'Board' },
-    { key: 'analytics' as Tab, label: 'Analytics' },
-    { key: 'settings' as Tab, label: 'Settings' },
+    { key: 'board' as Tab, label: 'Board', icon: '📋' },
+    { key: 'analytics' as Tab, label: 'Analytics', icon: '📊' },
+    { key: 'settings' as Tab, label: 'Settings', icon: '⚙️' },
   ];
 
   get canArchive(): boolean {
     const role = this.authStore.getUser()?.role;
     return role === 'ADMIN' || role === 'PROJECT_MANAGER';
-  }
-
-  get statusVariant(): BadgeVariant {
-    const map: Record<string, BadgeVariant> = {
-      PLANNING: 'muted', ACTIVE: 'accent', ON_HOLD: 'warning',
-      COMPLETED: 'success', ARCHIVED: 'muted'
-    };
-    return map[this.project?.status ?? ''] ?? 'muted';
   }
 
   get isOverdue(): boolean {
@@ -147,6 +288,12 @@ export default class ProjectDetailComponent implements OnInit {
   get daysLeft(): number {
     if (!this.project?.deadline) return 0;
     return Math.ceil((new Date(this.project.deadline).getTime() - Date.now()) / 86400000);
+  }
+
+  get progressDash(): string {
+    const pct = Math.max(0, Math.min(100, this.project?.progress ?? 0));
+    const r = 28, circ = 2 * Math.PI * r;
+    return `${(pct / 100) * circ} ${circ}`;
   }
 
   ngOnInit(): void { this.load(); }
@@ -175,5 +322,13 @@ export default class ProjectDetailComponent implements OnInit {
     this.projectService.archive(this.project!.id).subscribe({
       next: p => { this.project = p; }
     });
+  }
+
+  statusLabel(status: ProjectStatus): string {
+    return status.replace('_', ' ');
+  }
+
+  initials(name: string): string {
+    return name.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase();
   }
 }
