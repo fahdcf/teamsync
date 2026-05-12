@@ -37,48 +37,50 @@
       <span class="td-project-name">{{ projectName }}</span>
     </div>
 
-    <h1 class="td-title">
+    <h1 *ngIf="!isEditingTitle" class="td-title">
       {{ task.title }} 
       <button class="td-edit-icon" (click)="isEditingTitle = true">✎</button>
     </h1>
+    <input *ngIf="isEditingTitle" class="title-input" [value]="task.title" (blur)="onTitleBlur($event)" autofocus>
     
-    <p class="td-description">
-      {{ task.description || 'Create the core foundations for our design system including typography, color tokens, spacing scale, and foundational components.' }}
+    <p *ngIf="!isEditingDescription" class="td-description" (click)="isEditingDescription = true">
+      {{ task.description || 'Add a clear description for this task...' }}
     </p>
+    <textarea *ngIf="isEditingDescription" class="description-input" [value]="task.description || ''" (blur)="onDescBlur($event)" autofocus></textarea>
 
     <!-- Meta grid -->
     <div class="td-meta-grid">
       <div class="td-meta-item">
         <label>Priority</label>
-        <button class="td-meta-btn">
+        <div class="td-meta-btn">
           <span class="td-dot" [class]="dotClass(task.priority)"></span>
-          {{ priorityLabel(task.priority) }}
-          <span class="chevron">⌄</span>
-        </button>
+          <select [ngModel]="task.priority" (ngModelChange)="onPriorityChange($event)">
+            <option *ngFor="let p of priorities" [value]="p">{{ priorityLabel(p) }}</option>
+          </select>
+        </div>
       </div>
       <div class="td-meta-item">
         <label>Status</label>
-        <button class="td-meta-btn">
+        <div class="td-meta-btn">
           <span class="td-dot" [class]="dotClass(task.status)"></span>
-          {{ statusLabel(task.status) }}
-          <span class="chevron">⌄</span>
-        </button>
+          <select [ngModel]="task.status" (ngModelChange)="onStatusChange($event)">
+            <option *ngFor="let s of statuses" [value]="s">{{ statusLabel(s) }}</option>
+          </select>
+        </div>
       </div>
       <div class="td-meta-item">
         <label>Assignees</label>
         <div class="td-assignee-stack">
-          <span class="td-av">{{ initials(task.assignee) || 'MJ' }}</span>
-          <span class="td-av">SC</span>
-          <span class="td-av">AJ</span>
-          <span class="td-av-count">+2</span>
+          <span class="td-av" *ngIf="task.assignee">{{ initials(task.assignee) }}</span>
+          <span class="td-av" *ngIf="!task.assignee">?</span>
         </div>
       </div>
       <div class="td-meta-item">
         <label>Due date</label>
-        <button class="td-meta-btn td-date-btn">
+        <div class="td-meta-btn td-date-btn">
           <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M5 1.5v3M11 1.5v3M2 7h12"/></svg>
-          {{ task.dueDate ? (task.dueDate | date:'MMM d, yyyy') : 'May 26, 2024' }}
-        </button>
+          <input type="date" [ngModel]="task.dueDate" (ngModelChange)="onDueDateChange($event)">
+        </div>
       </div>
     </div>
 
@@ -87,50 +89,27 @@
       <div class="td-subtasks-header">
         <div class="td-subtasks-title">
           <strong>Subtasks</strong>
-          <span class="td-subtasks-count">3 / 6</span>
-          <div class="td-progress-bar"><div class="td-progress-fill" style="width: 50%"></div></div>
+          <span class="td-subtasks-count">{{ completedSubtasks }} / {{ subtasks.length }}</span>
+          <div class="td-progress-bar"><div class="td-progress-fill" [style.width.%]="subtaskProgress"></div></div>
         </div>
         <button class="td-icon-btn">...</button>
       </div>
       <div class="td-subtask-list">
-        <!-- Mocked Checked Subtasks matching image -->
-        <div class="td-subtask-row checked">
-          <span class="td-check-icon">✓</span>
-          <span class="td-subtask-name">Define color tokens</span>
-          <span class="td-av-small">SC</span>
-          <span class="td-subtask-date">May 18</span>
+        <div *ngFor="let subtask of subtasks" class="td-subtask-row" [class.checked]="subtask.completed">
+          <button class="td-check-btn-wrapper" (click)="toggleSubtask(subtask)">
+            <span *ngIf="subtask.completed" class="td-check-icon">✓</span>
+            <span *ngIf="!subtask.completed" class="td-uncheck-icon"></span>
+          </button>
+          <span class="td-subtask-name">{{ subtask.title }}</span>
+          <span class="td-av-small">{{ initials(subtask.assignee) }}</span>
+          <span class="td-subtask-date">{{ subtask.dueDate ? (subtask.dueDate | date:'MMM d') : 'No date' }}</span>
+          <button class="td-delete-subtask" (click)="deleteSubtask(subtask)">✕</button>
         </div>
-        <div class="td-subtask-row checked">
-          <span class="td-check-icon">✓</span>
-          <span class="td-subtask-name">Typography scale</span>
-          <span class="td-av-small">AJ</span>
-          <span class="td-subtask-date">May 18</span>
-        </div>
-        <div class="td-subtask-row checked">
-          <span class="td-check-icon">✓</span>
-          <span class="td-subtask-name">Spacing & layout scale</span>
-          <span class="td-av-small">MJ</span>
-          <span class="td-subtask-date">May 19</span>
-        </div>
-        <!-- Mocked Unchecked Subtasks matching image -->
-        <div class="td-subtask-row">
-          <span class="td-uncheck-icon"></span>
-          <span class="td-subtask-name">Core component library</span>
-          <span class="td-av-small">SC</span>
-          <span class="td-subtask-date">May 24</span>
-        </div>
-        <div class="td-subtask-row">
-          <span class="td-uncheck-icon"></span>
-          <span class="td-subtask-name">Documentation & guidelines</span>
-          <span class="td-av-small">AJ</span>
-          <span class="td-subtask-date">May 25</span>
-        </div>
-        <div class="td-subtask-row">
-          <span class="td-uncheck-icon"></span>
-          <span class="td-subtask-name">Design system QA</span>
-          <span class="td-av-small">MJ</span>
-          <span class="td-subtask-date">May 26</span>
-        </div>
+
+        <button *ngIf="!isAddingSubtask" class="add-subtask-placeholder" type="button" (click)="isAddingSubtask = true">
+          + Add a subtask...
+        </button>
+        <input *ngIf="isAddingSubtask" class="add-subtask-input" [(ngModel)]="newSubtaskTitle" placeholder="Add a subtask..." (keydown.enter)="addSubtask()" (keydown.escape)="cancelSubtask($event)" autofocus>
       </div>
     </div>
 
@@ -152,31 +131,16 @@
 
         <!-- Comments list -->
         <div class="td-comments-list">
-          <div class="td-comment-item">
-            <span class="td-av">SC</span>
+          <div *ngFor="let comment of comments" class="td-comment-item">
+            <span class="td-av">{{ initials(comment.author) }}</span>
             <div class="td-comment-body">
               <div class="td-comment-meta">
-                <strong>Sarah Chen</strong> <span class="time">2 hours ago</span>
+                <strong>{{ comment.author.username }}</strong> <span class="time">{{ comment.createdAt | date:'shortTime' }}</span>
               </div>
-              <p>The typography scale looks great! Just wondering if we should increase the base line-height for readability?</p>
+              <p>{{ comment.content }}</p>
               <div class="td-comment-actions">
-                <button>Reply</button>
-                <button>☺</button>
-                <button>♡</button>
-              </div>
-            </div>
-          </div>
-          <div class="td-comment-item">
-            <span class="td-av">MJ</span>
-            <div class="td-comment-body">
-              <div class="td-comment-meta">
-                <strong>Mike Johnson</strong> <span class="time">1 hour ago</span>
-              </div>
-              <p>Good call <span class="mention">@Sarah Chen</span> – I've updated the scale in Figma.</p>
-              <div class="td-comment-actions">
-                <button>Reply</button>
-                <button>☺</button>
-                <button>♡</button>
+                <button (click)="replyingToId = comment.id">Reply</button>
+                <button *ngIf="canDeleteComment(comment)" (click)="deleteComment(comment.id)">Delete</button>
               </div>
             </div>
           </div>

@@ -93,6 +93,10 @@
   align-items: center;
   gap: 12px;
 }
+.title-input {
+  font-size: 24px; font-weight: 500; color: #fff; margin: 0 0 12px 0;
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 4px 8px; width: 100%; outline: none;
+}
 .td-edit-icon {
   background: transparent; border: none; color: var(--text-tertiary); cursor: pointer; font-size: 16px;
 }
@@ -103,6 +107,10 @@
   line-height: 1.5;
   margin: 0 0 32px 0;
   max-width: 600px;
+}
+.description-input {
+  color: var(--text-secondary); font-size: 14px; line-height: 1.5; margin: 0 0 32px 0; max-width: 600px; width: 100%; height: 80px;
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 8px; outline: none; resize: vertical;
 }
 
 .td-meta-grid {
@@ -131,7 +139,13 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  cursor: pointer;
+  position: relative;
+}
+.td-meta-btn select {
+  opacity: 0; position: absolute; top: 0; left: 0; width: 100%; height: 100%; cursor: pointer;
+}
+.td-date-btn input {
+  opacity: 0; position: absolute; top: 0; left: 0; width: 100%; height: 100%; cursor: pointer;
 }
 .chevron { color: var(--text-tertiary); font-size: 10px; margin-left: 4px; }
 .td-dot { width: 6px; height: 6px; border-radius: 50%; }
@@ -193,16 +207,34 @@
 .td-subtask-row:last-child { border-bottom: none; }
 .td-subtask-row.checked .td-subtask-name { color: var(--text-secondary); text-decoration: line-through; opacity: 0.6; }
 
+.td-check-btn-wrapper {
+  background: transparent; border: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; padding: 0;
+}
 .td-check-icon {
   width: 16px; height: 16px; border-radius: 50%; background: rgba(34, 197, 94, 0.2); color: var(--success);
   display: inline-flex; align-items: center; justify-content: center; font-size: 10px; margin-right: 12px;
 }
 .td-uncheck-icon {
   width: 16px; height: 16px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.2);
-  margin-right: 12px;
+  margin-right: 12px; display: inline-block;
 }
 .td-subtask-name { flex: 1; font-size: 13px; color: var(--text-primary); }
 .td-subtask-date { color: var(--text-tertiary); font-size: 12px; width: 60px; text-align: right; margin-left: 16px; }
+.td-delete-subtask {
+  background: transparent; border: none; color: var(--text-tertiary); font-size: 12px; cursor: pointer; margin-left: 8px;
+  opacity: 0; transition: opacity 0.2s;
+}
+.td-subtask-row:hover .td-delete-subtask { opacity: 1; }
+
+.add-subtask-placeholder {
+  background: transparent; border: 1px dashed rgba(255,255,255,0.1); border-radius: 4px; padding: 8px; color: var(--text-tertiary);
+  font-size: 13px; text-align: left; cursor: pointer; margin-top: 8px; width: 100%;
+}
+.add-subtask-placeholder:hover { background: rgba(255,255,255,0.02); }
+.add-subtask-input {
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 8px; color: #fff;
+  font-size: 13px; outline: none; margin-top: 8px; width: 100%;
+}
 
 .td-bottom-split {
   display: flex;
