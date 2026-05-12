@@ -9,181 +9,120 @@ import { User } from '../../../shared/models/user.model';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CommonModule, DatePipe],
   template: `
-    <button
-      type="button"
-      class="task-card-redesign"
-      [class.selected]="selected"
-      [class.done]="task.status === 'DONE'"
-      (click)="cardClick.emit()"
-    >
-      <div class="task-title-row">
-        <span class="done-check" *ngIf="task.status === 'DONE'">✓</span>
-        <strong>{{ task.title }}</strong>
-      </div>
+    <button type="button" class="tc" [class.done]="task.status === 'DONE'" (click)="cardClick.emit()">
+      <!-- Title -->
+      <div class="tc-title">{{ task.title }}</div>
 
-      <div class="priority-row">
-        <span class="priority-dot" [class]="task.priority.toLowerCase()"></span>
+      <!-- Priority -->
+      <div class="tc-priority">
+        <span class="pri-dot" [class]="task.priority.toLowerCase()"></span>
         <span>{{ task.priority | titlecase }}</span>
       </div>
 
-      <div class="task-footer-row">
-        <span class="avatar-stack" *ngIf="task.assignee; else unassigned">
-          <span>{{ initials(task.assignee) }}</span>
-        </span>
-        <ng-template #unassigned>
-          <span class="unassigned-avatar">+</span>
-        </ng-template>
-
-        <time [class.overdue]="isOverdue" *ngIf="task.dueDate">{{ task.dueDate | date:'MMM d' }}</time>
-        <time *ngIf="!task.dueDate">No date</time>
-
-        <span class="comment-count">◌ {{ commentCount }}</span>
+      <!-- Footer: avatar(s) | date | comments -->
+      <div class="tc-footer">
+        <div class="tc-avatars">
+          <span class="tc-av" *ngIf="task.assignee">{{ initials(task.assignee) }}</span>
+          <span class="tc-av-empty" *ngIf="!task.assignee">+</span>
+        </div>
+        <div class="tc-date" [class.overdue]="isOverdue">
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M5 1.5v3M11 1.5v3M2 7h12"/></svg>
+          {{ task.dueDate ? (task.dueDate | date:'MMM d') : '—' }}
+        </div>
+        <div class="tc-comments">
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3h12v8H6l-4 3v-3z" stroke-linejoin="round"/></svg>
+          {{ commentCount }}
+        </div>
       </div>
     </button>
   `,
-  styles: [
-    `
-      .task-card-redesign {
-        width: 100%;
-        margin-bottom: 8px;
-        padding: 14px 16px;
-        border: 1px solid var(--border-subtle);
-        border-radius: var(--radius-lg);
-        background: var(--bg-elevated);
-        color: var(--text-primary);
-        cursor: pointer;
-        display: flex;
-        flex-direction: column;
-        gap: 11px;
-        text-align: left;
-        transition: background 0.15s, border-color 0.15s;
-      }
+  styles: [`
+    .tc {
+      width: 100%;
+      padding: 14px 16px;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      background: var(--bg-elevated);
+      color: var(--text-primary);
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      text-align: left;
+      transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+    }
+    .tc:hover {
+      background: #222228;
+      border-color: var(--border-default);
+      box-shadow: var(--shadow-sm);
+    }
+    .tc.done { opacity: 0.6; }
+    .tc.done .tc-title { text-decoration: line-through; color: var(--text-tertiary); }
 
-      .task-card-redesign:hover {
-        background: #222228;
-        border-color: var(--border-default);
-      }
+    .tc-title {
+      font-size: 13px;
+      font-weight: 500;
+      line-height: 1.4;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
 
-      .task-card-redesign.selected {
-        border-left: 3px solid var(--accent);
-        background: rgba(212, 168, 83, 0.05);
-      }
+    .tc-priority {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
 
-      .task-card-redesign.done {
-        opacity: 0.7;
-      }
+    .pri-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .pri-dot.low      { background: var(--success); }
+    .pri-dot.medium   { background: var(--warning); }
+    .pri-dot.high     { background: var(--danger); }
+    .pri-dot.critical { background: #ff3333; }
 
-      .task-title-row {
-        display: flex;
-        align-items: flex-start;
-        gap: 8px;
-      }
+    .tc-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      color: var(--text-tertiary);
+      font-size: 11px;
+      margin-top: 2px;
+    }
 
-      .task-title-row strong {
-        color: var(--text-primary);
-        font-size: 13px;
-        font-weight: 500;
-        line-height: 1.35;
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-      }
+    .tc-avatars { display: flex; }
+    .tc-av, .tc-av-empty {
+      width: 24px; height: 24px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center; justify-content: center;
+      font-size: 9px; font-weight: 600;
+    }
+    .tc-av {
+      background: linear-gradient(135deg, #c18c60, #2f5874);
+      color: #fff;
+      border: 1.5px solid var(--bg-elevated);
+    }
+    .tc-av-empty {
+      border: 1px dashed var(--border-default);
+      color: var(--text-tertiary);
+    }
 
-      .done .task-title-row strong {
-        color: var(--text-tertiary);
-        text-decoration: line-through;
-      }
-
-      .done-check {
-        width: 16px;
-        height: 16px;
-        border-radius: var(--radius-full);
-        background: var(--success-dim);
-        color: var(--success);
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 10px;
-        flex-shrink: 0;
-      }
-
-      .priority-row {
-        color: var(--text-secondary);
-        display: flex;
-        align-items: center;
-        gap: 7px;
-        font-size: 12px;
-      }
-
-      .priority-dot {
-        width: 6px;
-        height: 6px;
-        border-radius: var(--radius-full);
-        background: rgba(255, 255, 255, 0.2);
-      }
-
-      .priority-dot.medium {
-        background: var(--info);
-      }
-
-      .priority-dot.high {
-        background: var(--warning);
-      }
-
-      .priority-dot.critical {
-        background: var(--danger);
-      }
-
-      .task-footer-row {
-        display: grid;
-        grid-template-columns: 1fr auto 1fr;
-        align-items: center;
-        gap: 8px;
-        color: var(--text-tertiary);
-        font-size: 11px;
-      }
-
-      .avatar-stack {
-        display: flex;
-      }
-
-      .avatar-stack span,
-      .unassigned-avatar {
-        width: 24px;
-        height: 24px;
-        border-radius: var(--radius-full);
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 9px;
-        font-weight: 600;
-      }
-
-      .avatar-stack span {
-        border: 1px solid var(--border-default);
-        background: linear-gradient(135deg, #c18c60, #2f5874);
-        color: #fff;
-      }
-
-      .unassigned-avatar {
-        border: 1px dashed var(--border-default);
-        color: var(--text-tertiary);
-      }
-
-      time {
-        justify-self: center;
-      }
-
-      time.overdue {
-        color: var(--danger);
-      }
-
-      .comment-count {
-        justify-self: end;
-      }
-    `,
-  ],
+    .tc-date, .tc-comments {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .tc-date.overdue { color: var(--danger); }
+  `]
 })
 export class TaskCardComponent {
   @Input({ required: true }) task!: Task;

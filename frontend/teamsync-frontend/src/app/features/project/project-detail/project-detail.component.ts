@@ -15,100 +15,64 @@ type Tab = 'board' | 'analytics' | 'settings';
   standalone: true,
   imports: [CommonModule, ProjectAnalyticsComponent, ProjectSettingsComponent, TaskBoardComponent],
   template: `
-    <!-- Loading skeleton -->
-    <div class="project-page" *ngIf="isLoading">
-      <div class="skeleton-header">
-        <div class="sk sk-title"></div>
-        <div class="sk sk-meta"></div>
+    <!-- Loading -->
+    <div class="pd" *ngIf="isLoading">
+      <div class="pd-skeleton">
+        <div class="sk sk-bar w40"></div>
+        <div class="sk sk-bar w60"></div>
+        <div class="sk sk-board"></div>
       </div>
-      <div class="sk sk-tabs"></div>
-      <div class="sk sk-board"></div>
     </div>
 
     <!-- Error -->
-    <div class="project-page error-page" *ngIf="!isLoading && hasError">
-      <div class="error-state">
-        <div class="error-icon">⚠</div>
+    <div class="pd" *ngIf="!isLoading && hasError">
+      <div class="pd-error">
+        <span class="err-icon">⚠</span>
         <p>Failed to load project</p>
-        <button class="retry-btn" (click)="load()" type="button">Try again</button>
+        <button (click)="load()" type="button">Retry</button>
       </div>
     </div>
 
-    <!-- Project detail -->
-    <div class="project-page" *ngIf="!isLoading && !hasError && project">
+    <!-- Main -->
+    <div class="pd" *ngIf="!isLoading && !hasError && project">
 
-      <!-- Hero header -->
-      <div class="project-hero">
-        <div class="hero-left">
-          <div class="breadcrumb-row">
-            <span class="crumb" (click)="router.navigate(['/workspaces'])" tabindex="0">Workspaces</span>
-            <span class="crumb-sep">›</span>
-            <span class="crumb current">{{ project.workspace?.name || 'Project' }}</span>
-          </div>
+      <!-- Compact top bar: breadcrumb -->
+      <div class="pd-breadcrumb">
+        <span class="crumb link" (click)="router.navigate(['/workspaces'])">{{ project.workspace?.name || 'Workspace' }}</span>
+        <span class="sep">›</span>
+        <span class="crumb current">{{ project.title }}</span>
+      </div>
 
-          <div class="title-row">
-            <h1 *ngIf="!isEditingTitle" (click)="isEditingTitle = true" class="project-title" title="Click to edit">
-              {{ project.title }}
-            </h1>
-            <input *ngIf="isEditingTitle"
-              class="title-input"
-              [value]="project.title"
-              (blur)="onTitleBlur($event)"
-              autofocus />
-          </div>
-
-          <div class="meta-row">
-            <span class="status-chip" [class]="project.status.toLowerCase().replace('_','-')">
-              {{ statusLabel(project.status) }}
-            </span>
-            <span class="deadline-chip" [class.overdue]="isOverdue">
-              <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M4 1.5v3M12 1.5v3M2 7h12"/></svg>
-              {{ project.deadline ? (project.deadline | date:'MMM d, y') : 'No deadline' }}
-              <span *ngIf="!isOverdue && daysLeft > 0"> · {{ daysLeft }}d left</span>
-              <span *ngIf="isOverdue"> · Overdue</span>
-            </span>
-            <span class="manager-chip" *ngIf="project.manager">
-              <div class="mini-avatar">{{ initials(project.manager.username) }}</div>
-              {{ project.manager.username }}
-            </span>
-          </div>
+      <!-- Title row -->
+      <div class="pd-title-row">
+        <div class="pd-title-left">
+          <h1 *ngIf="!isEditingTitle" (click)="isEditingTitle = true">{{ project.title }}</h1>
+          <input *ngIf="isEditingTitle" class="title-edit" [value]="project.title"
+            (blur)="onTitleBlur($event)" (keydown.enter)="$any($event.target).blur()" autofocus />
+          <span class="pd-status" [class]="project.status.toLowerCase().replace('_','-')">{{ statusLabel(project.status) }}</span>
         </div>
-
-        <div class="hero-right">
-          <!-- Progress ring -->
-          <div class="progress-widget">
-            <svg class="progress-ring" viewBox="0 0 80 80">
-              <circle class="ring-track" cx="40" cy="40" r="28"/>
-              <circle class="ring-fill" cx="40" cy="40" r="28"
-                [attr.stroke-dasharray]="progressDash" />
-            </svg>
-            <div class="progress-label">
-              <span class="progress-pct">{{ project.progress }}%</span>
-              <span class="progress-sub">done</span>
-            </div>
-          </div>
-
-          <button *ngIf="canArchive && project.status !== 'ARCHIVED'"
-            class="archive-btn" (click)="archiveProject()" type="button">
-            Archive
-          </button>
+        <div class="pd-title-right" *ngIf="canArchive && project.status !== 'ARCHIVED'">
+          <button class="archive-btn" (click)="archiveProject()" type="button">Archive</button>
         </div>
       </div>
 
-      <!-- Tab navigation -->
-      <div class="tab-nav">
-        <button *ngFor="let t of tabs"
-          class="tab-btn"
-          [class.active]="activeTab === t.key"
-          (click)="activeTab = t.key"
-          type="button">
-          <span class="tab-icon">{{ t.icon }}</span>
-          {{ t.label }}
-        </button>
+      <!-- Tab bar + actions -->
+      <div class="pd-tab-bar">
+        <div class="pd-tabs">
+          <button *ngFor="let t of tabs" class="pd-tab"
+            [class.active]="activeTab === t.key"
+            (click)="activeTab = t.key" type="button">{{ t.label }}</button>
+        </div>
+        <div class="pd-tab-actions" *ngIf="activeTab === 'board'">
+          <button type="button" class="tab-action-btn">⊞ Filter</button>
+          <button type="button" class="tab-action-btn">↕ Sort</button>
+          <button type="button" class="tab-action-btn">⊟ Group</button>
+          <button type="button" class="tab-action-btn icon-btn">···</button>
+        </div>
       </div>
 
-      <!-- Tab content -->
-      <div class="tab-body">
+      <!-- Content -->
+      <div class="pd-content">
         <app-task-board *ngIf="activeTab === 'board'" [projectId]="project.id"></app-task-board>
         <app-project-analytics *ngIf="activeTab === 'analytics'" [projectId]="project.id"></app-project-analytics>
         <app-project-settings *ngIf="activeTab === 'settings'" [project]="project" (updated)="project = $event"></app-project-settings>
@@ -116,145 +80,119 @@ type Tab = 'board' | 'analytics' | 'settings';
     </div>
   `,
   styles: [`
-    .project-page {
-      min-height: 100%;
-      padding: 28px 32px 32px;
+    :host { display: block; height: 100%; }
+
+    .pd {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      padding: 16px 24px 0;
       background: var(--bg-base);
       color: var(--text-primary);
+      overflow: hidden;
     }
 
     /* Skeleton */
-    .skeleton-header { margin-bottom: 20px; display: flex; flex-direction: column; gap: 12px; }
-    .sk { background: var(--bg-elevated); border-radius: 6px; animation: shimmer 1.5s ease-in-out infinite alternate; }
-    .sk-title { height: 32px; width: 40%; }
-    .sk-meta { height: 18px; width: 60%; }
-    .sk-tabs { height: 40px; margin-bottom: 20px; }
-    .sk-board { height: 400px; }
-    @keyframes shimmer { from { opacity: 0.5; } to { opacity: 1; } }
+    .pd-skeleton { display: flex; flex-direction: column; gap: 12px; padding: 20px 0; }
+    .sk { background: var(--bg-elevated); border-radius: 4px; animation: shimmer 1.5s ease-in-out infinite alternate; }
+    .sk-bar { height: 20px; }
+    .w40 { width: 40%; }
+    .w60 { width: 60%; }
+    .sk-board { height: 400px; border-radius: 8px; }
+    @keyframes shimmer { from { opacity: 0.4; } to { opacity: 0.8; } }
 
     /* Error */
-    .error-page { display: flex; align-items: center; justify-content: center; }
-    .error-state { display: flex; flex-direction: column; align-items: center; gap: 12px; color: var(--text-secondary); }
-    .error-icon { font-size: 36px; color: var(--danger); }
-    .error-state p { font-size: 15px; color: var(--text-primary); }
-    .retry-btn {
-      height: 32px; padding: 0 16px;
-      border: 1px solid var(--border-subtle); border-radius: var(--radius-md);
-      background: transparent; color: var(--text-secondary);
-      font-size: 13px; cursor: pointer; transition: all 0.15s;
+    .pd-error { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; }
+    .err-icon { font-size: 32px; color: var(--danger); }
+    .pd-error p { font-size: 15px; }
+    .pd-error button {
+      height: 32px; padding: 0 16px; border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md); background: transparent; color: var(--text-secondary);
+      cursor: pointer; font-size: 13px;
     }
-    .retry-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .pd-error button:hover { border-color: var(--accent); color: var(--accent); }
 
-    /* Hero */
-    .project-hero {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 24px;
-      margin-bottom: 24px;
-      padding-bottom: 24px;
-      border-bottom: 1px solid var(--border-subtle);
+    /* Breadcrumb */
+    .pd-breadcrumb {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 12px; color: var(--text-tertiary);
+      margin-bottom: 6px;
     }
+    .crumb.link { cursor: pointer; transition: color 0.15s; }
+    .crumb.link:hover { color: var(--text-secondary); }
+    .crumb.current { color: var(--text-secondary); }
+    .sep { font-size: 14px; }
 
-    .hero-left { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
-
-    .breadcrumb-row { display: flex; align-items: center; gap: 6px; }
-    .crumb { font-size: 12px; color: var(--text-tertiary); cursor: pointer; transition: color 0.15s; }
-    .crumb:hover { color: var(--text-secondary); }
-    .crumb.current { color: var(--text-secondary); cursor: default; }
-    .crumb-sep { color: var(--text-tertiary); font-size: 14px; }
-
-    .title-row { display: flex; align-items: center; }
-    .project-title {
-      font-size: 26px; font-weight: 700; cursor: pointer;
-      transition: color 0.15s;
+    /* Title row */
+    .pd-title-row {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 16px; margin-bottom: 12px;
     }
-    .project-title:hover { color: var(--accent); }
-    .title-input {
-      background: none; border: none;
-      border-bottom: 2px solid var(--accent);
-      color: var(--text-primary);
-      font-size: 26px; font-weight: 700;
-      outline: none; width: 100%;
+    .pd-title-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
+
+    h1 {
+      font-size: 22px; font-weight: 700; cursor: pointer;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      transition: color 0.15s; margin: 0;
+    }
+    h1:hover { color: var(--accent); }
+
+    .title-edit {
+      font-size: 22px; font-weight: 700; background: none; border: none;
+      border-bottom: 2px solid var(--accent); color: var(--text-primary);
+      outline: none; width: 320px;
     }
 
-    .meta-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-
-    /* Status chip */
-    .status-chip {
-      font-size: 11px; font-weight: 600; padding: 3px 10px;
-      border-radius: var(--radius-full);
-      border: 1px solid currentColor;
-      text-transform: uppercase; letter-spacing: 0.05em;
+    .pd-status {
+      font-size: 11px; font-weight: 600; padding: 2px 10px;
+      border-radius: var(--radius-full); border: 1px solid currentColor;
+      text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; flex-shrink: 0;
     }
-    .status-chip.planning { color: var(--info); }
-    .status-chip.active { color: var(--success); }
-    .status-chip.on-hold { color: var(--warning); }
-    .status-chip.completed { color: var(--accent); }
-    .status-chip.archived { color: var(--text-tertiary); }
-
-    .deadline-chip {
-      display: inline-flex; align-items: center; gap: 5px;
-      font-size: 12px; color: var(--text-secondary);
-    }
-    .deadline-chip.overdue { color: var(--danger); }
-
-    .manager-chip {
-      display: inline-flex; align-items: center; gap: 6px;
-      font-size: 12px; color: var(--text-secondary);
-    }
-    .mini-avatar {
-      width: 20px; height: 20px; border-radius: 50%;
-      background: linear-gradient(135deg, #c18c60, #2f5874);
-      color: #fff; font-size: 8px; font-weight: 700;
-      display: flex; align-items: center; justify-content: center;
-    }
-
-    /* Hero right */
-    .hero-right { display: flex; align-items: center; gap: 16px; flex-shrink: 0; }
-
-    .progress-widget { position: relative; width: 72px; height: 72px; }
-    .progress-ring { width: 72px; height: 72px; transform: rotate(-90deg); }
-    .ring-track { fill: none; stroke: var(--bg-elevated); stroke-width: 8; }
-    .ring-fill { fill: none; stroke: var(--accent); stroke-width: 8; stroke-linecap: round; transition: stroke-dasharray 0.4s ease; }
-    .progress-label {
-      position: absolute; inset: 0;
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      gap: 1px;
-    }
-    .progress-pct { font-size: 14px; font-weight: 700; color: var(--text-primary); line-height: 1; }
-    .progress-sub { font-size: 9px; color: var(--text-tertiary); }
+    .pd-status.planning   { color: var(--info); }
+    .pd-status.active     { color: var(--success); }
+    .pd-status.on-hold    { color: var(--warning); }
+    .pd-status.completed  { color: var(--accent); }
+    .pd-status.archived   { color: var(--text-tertiary); }
 
     .archive-btn {
-      height: 32px; padding: 0 14px;
-      border: 1px solid var(--danger);
-      border-radius: var(--radius-md);
-      background: transparent; color: var(--danger);
-      font-size: 12px; cursor: pointer; transition: all 0.15s;
+      height: 30px; padding: 0 14px; font-size: 12px;
+      border: 1px solid var(--danger); border-radius: var(--radius-md);
+      background: transparent; color: var(--danger); cursor: pointer;
+      transition: background 0.15s;
     }
     .archive-btn:hover { background: var(--danger-dim); }
 
-    /* Tabs */
-    .tab-nav {
-      display: flex; gap: 4px;
+    /* Tab bar */
+    .pd-tab-bar {
+      display: flex; align-items: center; justify-content: space-between;
       border-bottom: 1px solid var(--border-subtle);
-      margin-bottom: 24px;
+      margin-bottom: 0; flex-shrink: 0;
     }
-    .tab-btn {
-      height: 40px; padding: 0 16px;
-      border: none; background: transparent;
-      color: var(--text-secondary);
-      font-size: 13px; font-weight: 500;
-      border-bottom: 2px solid transparent;
-      margin-bottom: -1px; cursor: pointer;
-      display: inline-flex; align-items: center; gap: 7px;
-      transition: color 0.15s, border-color 0.15s;
+    .pd-tabs { display: flex; gap: 0; }
+    .pd-tab {
+      height: 38px; padding: 0 16px; border: none; background: transparent;
+      color: var(--text-secondary); font-size: 13px; font-weight: 500;
+      border-bottom: 2px solid transparent; margin-bottom: -1px;
+      cursor: pointer; transition: color 0.15s, border-color 0.15s;
     }
-    .tab-btn:hover { color: var(--text-primary); }
-    .tab-btn.active { color: var(--text-primary); border-bottom-color: var(--accent); }
-    .tab-icon { font-size: 14px; }
+    .pd-tab:hover { color: var(--text-primary); }
+    .pd-tab.active { color: var(--text-primary); border-bottom-color: var(--accent); }
 
-    .tab-body { flex: 1; }
+    .pd-tab-actions { display: flex; align-items: center; gap: 6px; }
+    .tab-action-btn {
+      height: 28px; padding: 0 10px; border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md); background: transparent;
+      color: var(--text-secondary); font-size: 12px; cursor: pointer;
+      transition: all 0.15s; display: inline-flex; align-items: center; gap: 4px;
+    }
+    .tab-action-btn:hover { border-color: var(--border-default); color: var(--text-primary); }
+    .icon-btn { padding: 0 8px; letter-spacing: 2px; }
+
+    /* Content — fill remaining space */
+    .pd-content {
+      flex: 1; min-height: 0; overflow: auto;
+      padding-top: 16px; padding-bottom: 16px;
+    }
   `]
 })
 export default class ProjectDetailComponent implements OnInit {
@@ -270,30 +208,14 @@ export default class ProjectDetailComponent implements OnInit {
   activeTab: Tab = 'board';
 
   readonly tabs = [
-    { key: 'board' as Tab, label: 'Board', icon: '📋' },
-    { key: 'analytics' as Tab, label: 'Analytics', icon: '📊' },
-    { key: 'settings' as Tab, label: 'Settings', icon: '⚙️' },
+    { key: 'board' as Tab, label: 'Board' },
+    { key: 'analytics' as Tab, label: 'Analytics' },
+    { key: 'settings' as Tab, label: 'Settings' },
   ];
 
   get canArchive(): boolean {
     const role = this.authStore.getUser()?.role;
     return role === 'ADMIN' || role === 'PROJECT_MANAGER';
-  }
-
-  get isOverdue(): boolean {
-    if (!this.project?.deadline) return false;
-    return new Date(this.project.deadline) < new Date() && this.project.status !== 'COMPLETED';
-  }
-
-  get daysLeft(): number {
-    if (!this.project?.deadline) return 0;
-    return Math.ceil((new Date(this.project.deadline).getTime() - Date.now()) / 86400000);
-  }
-
-  get progressDash(): string {
-    const pct = Math.max(0, Math.min(100, this.project?.progress ?? 0));
-    const r = 28, circ = 2 * Math.PI * r;
-    return `${(pct / 100) * circ} ${circ}`;
   }
 
   ngOnInit(): void { this.load(); }
@@ -326,9 +248,5 @@ export default class ProjectDetailComponent implements OnInit {
 
   statusLabel(status: ProjectStatus): string {
     return status.replace('_', ' ');
-  }
-
-  initials(name: string): string {
-    return name.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase();
   }
 }
