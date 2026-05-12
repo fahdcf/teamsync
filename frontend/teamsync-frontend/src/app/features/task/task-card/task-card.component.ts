@@ -9,7 +9,7 @@ import { User } from '../../../shared/models/user.model';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CommonModule, DatePipe],
   template: `
-    <button type="button" class="tc" [class.done]="task.status === 'DONE'" [class.readonly]="readonly" (click)="!readonly && cardClick.emit()">
+    <div class="tc" [class.done]="task.status === 'DONE'" [class.readonly]="readonly" (click)="!readonly && cardClick.emit()">
       <!-- Title -->
       <div class="tc-title">{{ task.title }}</div>
 
@@ -33,7 +33,7 @@ import { User } from '../../../shared/models/user.model';
           {{ commentCount }}
         </div>
       </div>
-    </button>
+    </div>
   `,
   styles: [`
     .tc {
