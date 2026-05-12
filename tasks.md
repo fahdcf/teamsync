@@ -1392,7 +1392,7 @@ Verify: logout button clears token and redirects to /login.
  
 ## PHASE 10 — Auth Pages
  
-### Task 10.1 — Login Page ☐
+### Task 10.1 — Login Page ✅
 ```
 src/app/features/auth/login/
  
@@ -1454,7 +1454,7 @@ Goal: login form works. Correct credentials → redirect to /dashboard. Wrong �
 Verify: empty submission shows inline validation errors. Loading spinner appears during API call.
 ```
  
-### Task 10.2 — Register Page ☐
+### Task 10.2 — Register Page ✅
 ```
 src/app/features/auth/register/
  
