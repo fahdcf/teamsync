@@ -8,6 +8,13 @@
   height: 100%;
   display: flex;
   flex-direction: column;
+  transition: filter 0.3s ease, transform 0.3s ease;
+}
+
+.task-board-shell.blurred {
+  filter: blur(8px) brightness(0.6);
+  transform: scale(0.98);
+  pointer-events: none;
 }
 
 .board {
@@ -152,6 +159,46 @@
 .field-select:focus { border-color: var(--border-default); box-shadow: 0 0 0 2px var(--accent-dim); }
 .form-actions { display: flex; justify-content: flex-end; gap: 8px; }
 
+/* Modal Backdrop */
+.task-modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+  display: flex;
+  justify-content: flex-end;
+  padding: 16px;
+  animation: fadeIn 0.3s ease forwards;
+}
+
+.task-modal-container {
+  height: 100%;
+  width: 800px;
+  max-width: calc(100vw - 32px);
+  background: #18181b;
+  border-radius: var(--radius-xl);
+  border: 1px solid rgba(255,255,255,0.05);
+  box-shadow: -10px 0 30px rgba(0,0,0,0.5);
+  animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(50px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
 @media (max-width: 767px) {
   .board { grid-template-columns: 1fr; }
+  .task-modal-container { width: 100%; }
 }

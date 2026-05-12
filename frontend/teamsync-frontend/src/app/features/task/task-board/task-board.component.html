@@ -1,4 +1,4 @@
-<div class="task-board-shell">
+<div class="task-board-shell" [class.blurred]="selectedTaskId">
   <div *ngIf="isLoading" class="board board--skeleton" aria-label="Loading task board">
     <section *ngFor="let col of columns" class="column" [attr.data-status]="col.status">
       <div class="column-header">
@@ -81,3 +81,10 @@
     </div>
   </form>
 </app-modal>
+
+<!-- Task Detail Modal Backdrop -->
+<div class="task-modal-backdrop" *ngIf="selectedTaskId" (click)="closeTask()">
+  <div class="task-modal-container" (click)="$event.stopPropagation()">
+    <app-task-detail [taskId]="selectedTaskId" (closed)="closeTask()"></app-task-detail>
+  </div>
+</div>

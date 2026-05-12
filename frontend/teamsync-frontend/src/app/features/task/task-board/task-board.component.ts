@@ -12,6 +12,7 @@ import { ButtonComponent } from '../../../shared/components/button/button.compon
 import { InputComponent } from '../../../shared/components/input/input.component';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { SkeletonComponent } from '../../../shared/components/skeleton/skeleton.component';
+import TaskDetailComponent from '../task-detail/task-detail.component';
 
 interface Column {
   status: TaskStatus;
@@ -32,6 +33,7 @@ interface Column {
     InputComponent,
     EmptyStateComponent,
     SkeletonComponent,
+    TaskDetailComponent,
   ],
   templateUrl: './task-board.component.html',
   styleUrl: './task-board.component.scss',
@@ -60,6 +62,7 @@ export default class TaskBoardComponent implements OnInit {
   isCreateModalOpen = false;
   isCreating = false;
   selectedStatus: TaskStatus = 'TODO';
+  selectedTaskId: string | null = null;
 
   createForm = this.fb.group({
     title: ['', Validators.required],
@@ -168,7 +171,11 @@ export default class TaskBoardComponent implements OnInit {
   }
 
   openTask(task: Task): void {
-    this.router.navigate(['/tasks', task.id]);
+    this.selectedTaskId = task.id;
+  }
+
+  closeTask(): void {
+    this.selectedTaskId = null;
   }
 
   commentCountFor(task: Task): number {

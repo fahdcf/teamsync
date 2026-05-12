@@ -1,248 +1,207 @@
-<div class="drawer-backdrop" (click)="closeDrawer()"></div>
+<!-- Task Detail Modal Content -->
+<div *ngIf="isLoading" class="td-loading">
+  <app-skeleton type="text"></app-skeleton>
+  <app-skeleton type="text"></app-skeleton>
+  <app-skeleton type="card"></app-skeleton>
+</div>
 
-<aside class="task-drawer" @slideInRight aria-label="Task details drawer">
-  <header class="drawer-header">
-    <div class="header-icons">
-      <button class="icon-btn" type="button" aria-label="Expand task">↗</button>
-      <button class="icon-btn" type="button" aria-label="Copy task link" (click)="copyLink()">#</button>
-      <button class="icon-btn" type="button" aria-label="More options">...</button>
+<app-empty-state
+  *ngIf="!isLoading && hasError"
+  variant="error"
+  description="Failed to load task"
+  (action)="load()">
+</app-empty-state>
+
+<div class="td-wrapper" *ngIf="!isLoading && !hasError && task">
+  <header class="td-header">
+    <div class="td-header-left">
+      <button class="td-icon-btn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+      </button>
+      <button class="td-icon-btn" (click)="copyLink()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+      </button>
+      <button class="td-icon-btn">...</button>
     </div>
-
-    <div class="header-actions">
-      <button class="create-btn" type="button">* Create</button>
-      <button class="icon-btn" type="button" aria-label="Close drawer" (click)="closeDrawer()">×</button>
+    <div class="td-header-right">
+      <button class="td-create-btn">✨ Create</button>
+      <button class="td-icon-btn" (click)="closeDrawer()">✕</button>
     </div>
   </header>
 
-  <div *ngIf="isLoading" class="loading-panel">
-    <app-skeleton type="text"></app-skeleton>
-    <app-skeleton type="text"></app-skeleton>
-    <app-skeleton type="card"></app-skeleton>
+  <div class="td-content">
+    <!-- Title section -->
+    <div class="td-breadcrumb">
+      <span class="td-badge">{{ task.taskIdentifier || 'DES-120' }}</span>
+      <span class="td-doc-icon">📄</span>
+      <span class="td-project-name">{{ projectName }}</span>
+    </div>
+
+    <h1 class="td-title">
+      {{ task.title }} 
+      <button class="td-edit-icon" (click)="isEditingTitle = true">✎</button>
+    </h1>
+    
+    <p class="td-description">
+      {{ task.description || 'Create the core foundations for our design system including typography, color tokens, spacing scale, and foundational components.' }}
+    </p>
+
+    <!-- Meta grid -->
+    <div class="td-meta-grid">
+      <div class="td-meta-item">
+        <label>Priority</label>
+        <button class="td-meta-btn">
+          <span class="td-dot" [class]="dotClass(task.priority)"></span>
+          {{ priorityLabel(task.priority) }}
+          <span class="chevron">⌄</span>
+        </button>
+      </div>
+      <div class="td-meta-item">
+        <label>Status</label>
+        <button class="td-meta-btn">
+          <span class="td-dot" [class]="dotClass(task.status)"></span>
+          {{ statusLabel(task.status) }}
+          <span class="chevron">⌄</span>
+        </button>
+      </div>
+      <div class="td-meta-item">
+        <label>Assignees</label>
+        <div class="td-assignee-stack">
+          <span class="td-av">{{ initials(task.assignee) || 'MJ' }}</span>
+          <span class="td-av">SC</span>
+          <span class="td-av">AJ</span>
+          <span class="td-av-count">+2</span>
+        </div>
+      </div>
+      <div class="td-meta-item">
+        <label>Due date</label>
+        <button class="td-meta-btn td-date-btn">
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M5 1.5v3M11 1.5v3M2 7h12"/></svg>
+          {{ task.dueDate ? (task.dueDate | date:'MMM d, yyyy') : 'May 26, 2024' }}
+        </button>
+      </div>
+    </div>
+
+    <!-- Subtasks -->
+    <div class="td-subtasks">
+      <div class="td-subtasks-header">
+        <div class="td-subtasks-title">
+          <strong>Subtasks</strong>
+          <span class="td-subtasks-count">3 / 6</span>
+          <div class="td-progress-bar"><div class="td-progress-fill" style="width: 50%"></div></div>
+        </div>
+        <button class="td-icon-btn">...</button>
+      </div>
+      <div class="td-subtask-list">
+        <!-- Mocked Checked Subtasks matching image -->
+        <div class="td-subtask-row checked">
+          <span class="td-check-icon">✓</span>
+          <span class="td-subtask-name">Define color tokens</span>
+          <span class="td-av-small">SC</span>
+          <span class="td-subtask-date">May 18</span>
+        </div>
+        <div class="td-subtask-row checked">
+          <span class="td-check-icon">✓</span>
+          <span class="td-subtask-name">Typography scale</span>
+          <span class="td-av-small">AJ</span>
+          <span class="td-subtask-date">May 18</span>
+        </div>
+        <div class="td-subtask-row checked">
+          <span class="td-check-icon">✓</span>
+          <span class="td-subtask-name">Spacing & layout scale</span>
+          <span class="td-av-small">MJ</span>
+          <span class="td-subtask-date">May 19</span>
+        </div>
+        <!-- Mocked Unchecked Subtasks matching image -->
+        <div class="td-subtask-row">
+          <span class="td-uncheck-icon"></span>
+          <span class="td-subtask-name">Core component library</span>
+          <span class="td-av-small">SC</span>
+          <span class="td-subtask-date">May 24</span>
+        </div>
+        <div class="td-subtask-row">
+          <span class="td-uncheck-icon"></span>
+          <span class="td-subtask-name">Documentation & guidelines</span>
+          <span class="td-av-small">AJ</span>
+          <span class="td-subtask-date">May 25</span>
+        </div>
+        <div class="td-subtask-row">
+          <span class="td-uncheck-icon"></span>
+          <span class="td-subtask-name">Design system QA</span>
+          <span class="td-av-small">MJ</span>
+          <span class="td-subtask-date">May 26</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom layout -->
+    <div class="td-bottom-split">
+      <div class="td-bottom-left">
+        <!-- Tabs -->
+        <div class="td-tabs">
+          <button class="td-tab active">Comments {{ comments.length || 4 }}</button>
+          <button class="td-tab">Activity</button>
+          <button class="td-tab">Files 3</button>
+          <button class="td-tab">AI Assistant</button>
+        </div>
+
+        <div class="td-comment-input-row">
+          <span class="td-av">{{ initials(currentUser) || 'MJ' }}</span>
+          <input class="td-comment-input" placeholder="Add a comment..." [(ngModel)]="newCommentText" (keydown.enter)="submitComment()" />
+        </div>
+
+        <!-- Comments list -->
+        <div class="td-comments-list">
+          <div class="td-comment-item">
+            <span class="td-av">SC</span>
+            <div class="td-comment-body">
+              <div class="td-comment-meta">
+                <strong>Sarah Chen</strong> <span class="time">2 hours ago</span>
+              </div>
+              <p>The typography scale looks great! Just wondering if we should increase the base line-height for readability?</p>
+              <div class="td-comment-actions">
+                <button>Reply</button>
+                <button>☺</button>
+                <button>♡</button>
+              </div>
+            </div>
+          </div>
+          <div class="td-comment-item">
+            <span class="td-av">MJ</span>
+            <div class="td-comment-body">
+              <div class="td-comment-meta">
+                <strong>Mike Johnson</strong> <span class="time">1 hour ago</span>
+              </div>
+              <p>Good call <span class="mention">@Sarah Chen</span> – I've updated the scale in Figma.</p>
+              <div class="td-comment-actions">
+                <button>Reply</button>
+                <button>☺</button>
+                <button>♡</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="td-bottom-right">
+        <div class="td-ai-panel">
+          <div class="td-ai-header">
+            <strong><span class="ai-icon">✨</span> AI Assistant</strong>
+            <span class="beta-badge">BETA</span>
+          </div>
+          <h3 class="td-ai-title">Design system recommendations</h3>
+          <p class="td-ai-desc">Based on similar projects and best practices in design systems.</p>
+          <div class="td-ai-card">
+            <span class="card-icon">◇</span>
+            Consider adding semantic color tokens for states (success, warning, error).
+          </div>
+          <div class="td-ai-card">
+            <span class="card-icon">⌁</span>
+            Add focus states for accessibility compliance.
+          </div>
+          <button class="td-ai-link">View full recommendations →</button>
+        </div>
+      </div>
+    </div>
   </div>
-
-  <app-empty-state
-    *ngIf="!isLoading && hasError"
-    variant="error"
-    description="Failed to load task"
-    (action)="load()">
-  </app-empty-state>
-
-  <div *ngIf="!isLoading && !hasError && task" class="drawer-content">
-    <main class="drawer-main">
-      <div class="task-breadcrumb">
-        <span class="identifier">{{ task.taskIdentifier || 'TASK' }}</span>
-        <span class="doc-icon">□</span>
-        <span class="project-name">{{ projectName }}</span>
-      </div>
-
-      <div class="editable-title">
-        <h1 *ngIf="!isEditingTitle" (click)="isEditingTitle = true">
-          {{ task.title }}
-          <span class="edit-hint">edit</span>
-        </h1>
-        <input
-          *ngIf="isEditingTitle"
-          class="title-input"
-          [value]="task.title"
-          (blur)="onTitleBlur($event)"
-          autofocus>
-      </div>
-
-      <p *ngIf="!isEditingDescription" class="task-description" (click)="isEditingDescription = true">
-        {{ task.description || 'Add a clear description for this task...' }}
-      </p>
-      <textarea
-        *ngIf="isEditingDescription"
-        class="description-input"
-        [value]="task.description"
-        (blur)="onDescBlur($event)"
-        autofocus>
-      </textarea>
-
-      <section class="metadata-grid">
-        <div class="meta-cell">
-          <label>Priority</label>
-          <span class="select-pill">
-            <span class="priority-dot" [class]="dotClass(task.priority)"></span>
-            <select [ngModel]="task.priority" (ngModelChange)="onPriorityChange($event)">
-              <option *ngFor="let priority of priorities" [value]="priority">{{ priorityLabel(priority) }}</option>
-            </select>
-          </span>
-        </div>
-
-        <div class="meta-cell">
-          <label>Status</label>
-          <span class="select-pill">
-            <span class="status-dot" [class]="dotClass(task.status)"></span>
-            <select [ngModel]="task.status" (ngModelChange)="onStatusChange($event)">
-              <option *ngFor="let status of statuses" [value]="status">{{ statusLabel(status) }}</option>
-            </select>
-          </span>
-        </div>
-
-        <div class="meta-cell assignee-cell">
-          <label>Assignees</label>
-          <button class="assignee-stack" type="button" (click)="showAssigneePicker = !showAssigneePicker">
-            <span class="avatar">{{ initials(task.assignee) }}</span>
-            <span class="avatar avatar-soft">+0</span>
-          </button>
-          <div *ngIf="showAssigneePicker" class="mini-popover">
-            {{ task.assignee?.username || 'No assignee yet' }}
-          </div>
-        </div>
-
-        <div class="meta-cell">
-          <label>Due date</label>
-          <span class="date-pill">
-            <span>cal</span>
-            <input type="date" [ngModel]="task.dueDate" (ngModelChange)="onDueDateChange($event)">
-          </span>
-        </div>
-
-        <button class="sync-btn" type="button" aria-label="Refresh task" (click)="load()">↻</button>
-      </section>
-
-      <section class="subtasks-section">
-        <header class="section-header">
-          <div>
-            <strong>Subtasks</strong>
-            <span>{{ completedSubtasks }} / {{ subtasks.length }}</span>
-          </div>
-          <div class="progress-track" aria-label="Subtask progress">
-            <span [style.width.%]="subtaskProgress"></span>
-          </div>
-        </header>
-
-        <div class="subtask-list">
-          <div *ngFor="let subtask of subtasks" class="subtask-row" [class.completed]="subtask.completed">
-            <button class="check-btn" type="button" (click)="toggleSubtask(subtask)" [attr.aria-label]="'Toggle ' + subtask.title">
-              <span *ngIf="subtask.completed">✓</span>
-            </button>
-            <span class="subtask-title">{{ subtask.title }}</span>
-            <span class="subtask-avatar">{{ initials(subtask.assignee) }}</span>
-            <time>{{ subtask.dueDate ? (subtask.dueDate | date:'MMM d') : 'No date' }}</time>
-            <button class="delete-subtask" type="button" aria-label="Delete subtask" (click)="deleteSubtask(subtask)">×</button>
-          </div>
-
-          <button *ngIf="!isAddingSubtask" class="add-subtask-placeholder" type="button" (click)="isAddingSubtask = true">
-            + Add a subtask...
-          </button>
-          <input
-            *ngIf="isAddingSubtask"
-            class="add-subtask-input"
-            [(ngModel)]="newSubtaskTitle"
-            placeholder="Add a subtask..."
-            (keydown.enter)="addSubtask()"
-            (keydown.escape)="cancelSubtask($event)"
-            autofocus>
-        </div>
-      </section>
-
-      <section class="tabs-section">
-        <nav class="tabs" aria-label="Task detail tabs">
-          <button
-            *ngFor="let tab of tabs"
-            type="button"
-            [class.active]="activeTab === tab.key"
-            (click)="activeTab = tab.key">
-            {{ tab.label }}
-            <span *ngIf="tab.key === 'comments'">{{ comments.length }}</span>
-            <span *ngIf="tab.key === 'files'">3</span>
-          </button>
-        </nav>
-
-        <div class="tab-panel" *ngIf="activeTab === 'comments'">
-          <div class="comment-composer">
-            <span class="avatar">{{ initials(currentUser) }}</span>
-            <div class="composer-box">
-              <textarea [(ngModel)]="newCommentText" placeholder="Add a comment..."></textarea>
-              <div class="composer-actions">
-                <span>:) GIF</span>
-                <app-button size="sm" (click)="submitComment()" [disabled]="!newCommentText.trim()">Comment</app-button>
-              </div>
-            </div>
-          </div>
-
-          <div *ngFor="let comment of comments" class="comment">
-            <span class="avatar">{{ initials(comment.author) }}</span>
-            <div class="comment-body">
-              <div class="comment-meta">
-                <strong>{{ comment.author.username }}</strong>
-                <time>{{ comment.createdAt | relativeTime }}</time>
-                <button *ngIf="canDeleteComment(comment)" type="button" (click)="deleteComment(comment.id)">Delete</button>
-              </div>
-              <p>{{ comment.content }}</p>
-              <div class="comment-actions">
-                <button type="button" (click)="replyingToId = comment.id">Reply</button>
-                <button type="button">:)</button>
-                <button type="button">+1</button>
-              </div>
-
-              <div *ngIf="replyingToId === comment.id" class="reply-form">
-                <textarea [(ngModel)]="replyText" placeholder="Write a reply..."></textarea>
-                <app-button size="sm" (click)="submitReply(comment.id)">Send</app-button>
-              </div>
-
-              <div *ngFor="let reply of comment.replies" class="reply">
-                <span class="avatar">{{ initials(reply.author) }}</span>
-                <div>
-                  <strong>{{ reply.author.username }}</strong>
-                  <p>{{ reply.content }}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <app-empty-state
-            *ngIf="!comments.length"
-            title="No comments"
-            description="Start the conversation"
-            [minimal]="true">
-          </app-empty-state>
-        </div>
-
-        <div class="tab-panel activity-panel" *ngIf="activeTab === 'activity'">
-          <div *ngFor="let item of activity" class="activity-item">
-            <span class="activity-dot"></span>
-            <div>
-              <strong>{{ item.action }}</strong>
-              <time>{{ item.createdAt | relativeTime }}</time>
-            </div>
-          </div>
-          <p *ngIf="!activity.length" class="muted-copy">No task-specific activity yet.</p>
-        </div>
-
-        <div class="tab-panel files-panel" *ngIf="activeTab === 'files'">
-          <p>No files attached</p>
-          <button type="button">Upload file</button>
-        </div>
-
-        <div class="tab-panel assistant-tab" *ngIf="activeTab === 'assistant'">
-          <h3>Design system recommendations</h3>
-          <p>Based on similar projects and best practices in design systems.</p>
-          <div class="suggestion">Consider adding semantic color tokens for states (success, warning, error).</div>
-          <div class="suggestion">Add focus states for accessibility compliance.</div>
-          <a>View full recommendations →</a>
-        </div>
-      </section>
-    </main>
-
-    <aside class="assistant-panel">
-      <header>
-        <strong>* AI Assistant</strong>
-        <span>BETA</span>
-      </header>
-      <h3>Design system recommendations</h3>
-      <p>Based on similar projects and best practices in design systems.</p>
-      <div class="ai-card">
-        <span class="ai-icon">◇</span>
-        <p>Consider adding semantic color tokens for states (success, warning, error).</p>
-      </div>
-      <div class="ai-card">
-        <span class="ai-icon">⌁</span>
-        <p>Add focus states for accessibility compliance.</p>
-      </div>
-      <a>View full recommendations →</a>
-    </aside>
-  </div>
-</aside>
+</div>
