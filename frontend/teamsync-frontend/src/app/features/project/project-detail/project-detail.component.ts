@@ -92,6 +92,22 @@ type Tab = 'board' | 'analytics' | 'settings';
       background: var(--bg-base);
       color: var(--text-primary);
       overflow: hidden;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Background glow/lightning effect */
+    .pd::before {
+      content: '';
+      position: absolute;
+      top: -250px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 800px;
+      height: 600px;
+      background: radial-gradient(circle, rgba(162, 116, 68, 0.15) 0%, rgba(0, 0, 0, 0) 60%);
+      pointer-events: none;
+      z-index: -1;
     }
 
     /* Skeleton */

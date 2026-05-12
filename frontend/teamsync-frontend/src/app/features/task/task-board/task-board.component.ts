@@ -47,10 +47,9 @@ export default class TaskBoardComponent implements OnInit {
   readonly router = inject(Router);
 
   columns: Column[] = [
-    { status: 'TODO', label: 'To do', tasks: [] },
+    { status: 'TODO', label: 'To Do', tasks: [] },
     { status: 'IN_PROGRESS', label: 'In Progress', tasks: [] },
-    { status: 'IN_REVIEW', label: 'In Review', tasks: [] },
-    { status: 'BLOCKED', label: 'Blocked', tasks: [] },
+    { status: 'IN_REVIEW', label: 'Review', tasks: [] },
     { status: 'DONE', label: 'Done', tasks: [] },
   ];
 
