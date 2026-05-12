@@ -816,6 +816,1601 @@ Also:
 Goal: project is demo-ready, presentable, and CV-ready.
 ```
 
+
+ 
+## PHASE 8 — Angular Frontend Foundation
+ 
+### Task 8.1 — Angular Project Setup ✅
+```
+The frontend is a completely separate project from the backend.
+Repo structure:
+  /backend/    ← Spring Boot (already done)
+  /frontend/   ← Angular app (this phase)
+ 
+Commands:
+  npm install -g @angular/cli
+  cd frontend
+  ng new teamsync-frontend --routing --style=scss --strict --standalone
+  cd teamsync-frontend
+  npm install
+ 
+Additional packages to install:
+  npm install @angular/cdk
+  npm install @ng-icons/core @ng-icons/heroicons
+  npm install ngx-toastr
+  npm install chart.js ng2-charts
+  npm install @angular/animations
+ 
+Angular project folder structure to generate:
+  src/app/
+  ├── core/                          ← singleton services, guards, interceptors
+  │   ├── interceptors/
+  │   │   ├── auth.interceptor.ts    ← attaches JWT to every request
+  │   │   └── error.interceptor.ts  ← handles 401/403/500 globally
+  │   ├── guards/
+  │   │   ├── auth.guard.ts         ← redirects to /login if not authenticated
+  │   │   └── guest.guard.ts        ← redirects to /dashboard if already authenticated
+  │   ├── services/
+  │   │   └── token.service.ts      ← get/set/remove token from localStorage
+  │   └── core.module.ts            ← (if using NgModules) or just barrel exports
+  ├── shared/                        ← reusable components, pipes, directives
+  │   ├── components/
+  │   │   ├── button/
+  │   │   ├── input/
+  │   │   ├── modal/
+  │   │   ├── spinner/
+  │   │   ├── badge/
+  │   │   ├── avatar/
+  │   │   ├── empty-state/
+  │   │   └── confirm-dialog/
+  │   ├── pipes/
+  │   │   ├── relative-time.pipe.ts
+  │   │   └── truncate.pipe.ts
+  │   ├── directives/
+  │   │   └── click-outside.directive.ts
+  │   └── models/                    ← TypeScript interfaces matching backend DTOs
+  │       ├── user.model.ts
+  │       ├── workspace.model.ts
+  │       ├── project.model.ts
+  │       ├── task.model.ts
+  │       ├── comment.model.ts
+  │       ├── notification.model.ts
+  │       ├── activity.model.ts
+  │       └── api-response.model.ts
+  ├── api/                           ← one service per backend resource, nothing else
+  │   ├── auth.service.ts
+  │   ├── workspace.service.ts
+  │   ├── project.service.ts
+  │   ├── task.service.ts
+  │   ├── comment.service.ts
+  │   ├── notification.service.ts
+  │   ├── analytics.service.ts
+  │   └── patterns.service.ts
+  ├── store/                         ← BehaviorSubject-based state management
+  │   ├── auth.store.ts
+  │   ├── workspace.store.ts
+  │   └── notification.store.ts
+  ├── layout/                        ← shell components
+  │   ├── navbar/
+  │   ├── sidebar/
+  │   └── page-wrapper/
+  └── features/                      ← one folder per feature/route
+      ├── auth/
+      │   ├── login/
+      │   └── register/
+      ├── dashboard/
+      ├── workspace/
+      │   ├── workspace-list/
+      │   └── workspace-detail/
+      ├── project/
+      │   ├── project-detail/
+      │   └── project-settings/
+      ├── task/
+      │   ├── task-board/
+      │   ├── task-detail/
+      │   └── task-card/
+      ├── notification/
+      └── patterns/
+ 
+Every feature component is standalone (standalone: true).
+Every feature is lazy-loaded via loadComponent() in the router.
+ 
+Environment files:
+  src/environments/environment.ts:
+    export const environment = {
+      production: false,
+      apiUrl: 'http://localhost:8080'
+    };
+  src/environments/environment.prod.ts:
+    export const environment = {
+      production: true,
+      apiUrl: 'http://localhost:8080'
+    };
+ 
+CORS: backend already allows all origins in dev. Frontend always uses environment.apiUrl.
+ 
+Goal: ng serve starts on port 4200 with no errors. Routing configured. All folders exist.
+Verify: browser opens localhost:4200 with default Angular page. No compilation errors.
+```
+ 
+### Task 8.2 — Models + API Services ☐
+```
+Create ALL TypeScript models in src/app/shared/models/ matching backend DTOs exactly.
+ 
+--- MODELS ---
+ 
+user.model.ts:
+  export type UserRole = 'ADMIN' | 'PROJECT_MANAGER' | 'TEAM_MEMBER';
+  export interface User {
+    id: string;
+    username: string;
+    email: string;
+    role: UserRole;
+    createdAt: string;
+  }
+  export interface LoginRequest { email: string; password: string; }
+  export interface RegisterRequest { username: string; email: string; password: string; role: UserRole; }
+  export interface LoginResponse { token: string; }
+ 
+workspace.model.ts:
+  export interface Workspace {
+    id: string; name: string; description: string;
+    owner: User; members: User[]; createdAt: string;
+  }
+  export interface CreateWorkspaceRequest { name: string; description: string; }
+ 
+project.model.ts:
+  export type ProjectStatus = 'PLANNING' | 'ACTIVE' | 'ON_HOLD' | 'COMPLETED' | 'ARCHIVED';
+  export interface Project {
+    id: string; title: string; description: string;
+    status: ProjectStatus; deadline: string; progress: number;
+    workspace: Workspace; manager: User; createdAt: string;
+  }
+  export interface CreateProjectRequest { title: string; description: string; deadline: string; managerId: string; }
+ 
+task.model.ts:
+  export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'BLOCKED' | 'IN_REVIEW' | 'DONE';
+  export type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  export interface Task {
+    id: string; title: string; description: string;
+    priority: TaskPriority; status: TaskStatus;
+    assignee: User | null; project: Project;
+    dependencies: Task[]; dueDate: string | null;
+    createdAt: string; updatedAt: string;
+  }
+  export interface CreateTaskRequest { title: string; description: string; priority: TaskPriority; dueDate?: string; assigneeId?: string; }
+  export interface ChangeStatusRequest { status: TaskStatus; }
+ 
+comment.model.ts:
+  export interface Comment {
+    id: string; content: string; author: User;
+    taskId: string; parentCommentId: string | null;
+    replies: Comment[]; createdAt: string;
+  }
+ 
+notification.model.ts:
+  export type NotificationType = 'IN_APP' | 'EMAIL';
+  export interface Notification {
+    id: string; type: NotificationType; message: string;
+    recipient: User; readStatus: boolean; createdAt: string;
+  }
+ 
+activity.model.ts:
+  export interface ActivityLog {
+    id: string; action: string; user: User;
+    entityType: string; entityId: string; createdAt: string;
+  }
+ 
+analytics.model.ts:
+  export interface ProjectStats {
+    totalTasks: number; byStatus: Record<TaskStatus, number>;
+    byPriority: Record<TaskPriority, number>; overdueCount: number; completionPercent: number;
+  }
+  export interface TeamWorkload {
+    member: User; activeTaskCount: number; completedTaskCount: number;
+  }
+  export type ProjectHealth = 'ON_TRACK' | 'AT_RISK' | 'DELAYED';
+ 
+pattern.model.ts:
+  export interface Pattern {
+    id: number; name: string; category: string;
+    package: string; keyClasses: string[]; purpose: string;
+  }
+ 
+api-response.model.ts:
+  export interface ApiError {
+    timestamp: string; status: number; error: string; message: string; path: string;
+  }
+ 
+--- API SERVICES (src/app/api/) ---
+ 
+Each service:
+- Is @Injectable({ providedIn: 'root' })
+- Injects HttpClient
+- Uses environment.apiUrl as base
+- Returns Observable<T> from every method
+- Has NO error handling (interceptor handles that globally)
+ 
+auth.service.ts:
+  login(req: LoginRequest): Observable<LoginResponse>  → POST /auth/login
+  register(req: RegisterRequest): Observable<User>     → POST /auth/register
+  getMe(): Observable<User>                            → GET /users/me
+  updateMe(data: Partial<User>): Observable<User>      → PUT /users/me
+ 
+workspace.service.ts:
+  getAll(): Observable<Workspace[]>                                          → GET /workspaces
+  getById(id: string): Observable<Workspace>                                 → GET /workspaces/{id}
+  create(req: CreateWorkspaceRequest): Observable<Workspace>                 → POST /workspaces
+  addMember(id: string, email: string): Observable<Workspace>                → POST /workspaces/{id}/members  body: {email}
+  removeMember(workspaceId: string, userId: string): Observable<void>        → DELETE /workspaces/{id}/members/{userId}
+ 
+project.service.ts:
+  getByWorkspace(workspaceId: string): Observable<Project[]>                 → GET /workspaces/{id}/projects
+  getById(id: string): Observable<Project>                                   → GET /projects/{id}
+  create(workspaceId: string, req: CreateProjectRequest): Observable<Project>→ POST /workspaces/{id}/projects
+  update(id: string, req: Partial<CreateProjectRequest>): Observable<Project>→ PUT /projects/{id}
+  archive(id: string): Observable<Project>                                   → PUT /projects/{id}/archive
+  initialize(data: any): Observable<Project>                                 → POST /projects/initialize
+ 
+task.service.ts:
+  getByProject(projectId: string, filters?: any): Observable<Task[]>         → GET /projects/{id}/tasks
+  getById(id: string): Observable<Task>                                      → GET /tasks/{id}
+  create(projectId: string, req: CreateTaskRequest): Observable<Task>        → POST /projects/{id}/tasks
+  update(id: string, req: Partial<CreateTaskRequest>): Observable<Task>      → PUT /tasks/{id}
+  delete(id: string): Observable<void>                                       → DELETE /tasks/{id}
+  changeStatus(id: string, req: ChangeStatusRequest): Observable<Task>       → PUT /tasks/{id}/status
+  assign(id: string, userId: string): Observable<Task>                       → PUT /tasks/{id}/assign  body: {userId}
+  addDependency(id: string, dependsOnId: string): Observable<Task>           → POST /tasks/{id}/dependencies  body: {dependsOnTaskId}
+  removeDependency(id: string, depId: string): Observable<void>              → DELETE /tasks/{id}/dependencies/{depId}
+  undo(): Observable<void>                                                   → POST /tasks/undo
+  autoAssign(projectId: string, taskId: string, strategy: string): Observable<Task> → POST /projects/{id}/tasks/auto-assign?strategy=
+ 
+comment.service.ts:
+  getByTask(taskId: string): Observable<Comment[]>                           → GET /tasks/{id}/comments
+  add(taskId: string, content: string): Observable<Comment>                  → POST /tasks/{id}/comments  body: {content}
+  reply(commentId: string, content: string): Observable<Comment>             → POST /comments/{id}/replies  body: {content}
+  delete(commentId: string): Observable<void>                                → DELETE /comments/{id}
+ 
+notification.service.ts:
+  getAll(): Observable<Notification[]>                                       → GET /notifications
+  markRead(id: string): Observable<Notification>                             → PUT /notifications/{id}/read
+ 
+analytics.service.ts:
+  getStats(projectId: string): Observable<ProjectStats>                      → GET /analytics/projects/{id}/stats
+  getTeamWorkload(projectId: string): Observable<TeamWorkload[]>             → GET /analytics/projects/{id}/team-workload
+  getHealth(projectId: string): Observable<ProjectHealth>                    → GET /analytics/projects/{id}/health
+ 
+patterns.service.ts:
+  getAll(): Observable<Pattern[]>                                            → GET /patterns
+ 
+Goal: all services compile. No HTTP calls yet — they'll be triggered by components.
+Verify: ng build produces no type errors.
+```
+ 
+### Task 8.3 — Core Module: Interceptors + Guards + Store ☐
+```
+--- INTERCEPTORS (src/app/core/interceptors/) ---
+ 
+auth.interceptor.ts (functional interceptor):
+  import { inject } from '@angular/core';
+  import { HttpInterceptorFn } from '@angular/common/http';
+  import { TokenService } from '../services/token.service';
+ 
+  export const authInterceptor: HttpInterceptorFn = (req, next) => {
+    const token = inject(TokenService).getToken();
+    if (token) {
+      req = req.clone({ setHeaders: { Authorization: `Bearer ${token}` } });
+    }
+    return next(req);
+  };
+ 
+error.interceptor.ts (functional interceptor):
+  Catches HTTP errors:
+  - 401: clear token, navigate to /login, show toast "Session expired"
+  - 403: show toast "You don't have permission to do this"
+  - 404: show toast "Resource not found"
+  - 500: show toast "Server error. Please try again."
+  - Network error: show toast "Cannot connect to server"
+  All errors: re-throw so component can handle if needed.
+  Inject: Router, ToastrService, TokenService
+ 
+Register both interceptors in app.config.ts:
+  provideHttpClient(withInterceptors([authInterceptor, errorInterceptor]))
+ 
+--- TOKEN SERVICE ---
+ 
+core/services/token.service.ts:
+  @Injectable({ providedIn: 'root' })
+  private readonly KEY = 'teamsync_token';
+  getToken(): string | null
+  setToken(token: string): void
+  removeToken(): void
+  hasToken(): boolean
+ 
+--- GUARDS ---
+ 
+core/guards/auth.guard.ts (functional guard):
+  export const authGuard: CanActivateFn = () => {
+    inject(TokenService).hasToken() ? true : inject(Router).createUrlTree(['/login'])
+  };
+ 
+core/guards/guest.guard.ts (functional guard):
+  Opposite: if has token → redirect to /dashboard
+ 
+--- STATE STORES (src/app/store/) ---
+ 
+auth.store.ts:
+  @Injectable({ providedIn: 'root' })
+  export class AuthStore {
+    private userSubject = new BehaviorSubject<User | null>(null);
+    user$ = this.userSubject.asObservable();
+    isAuthenticated$ = this.user$.pipe(map(u => u !== null));
+ 
+    setUser(user: User): void
+    clearUser(): void
+    getUser(): User | null
+ 
+    // On app init: if token exists, call AuthService.getMe() to hydrate user
+    init(): Observable<void>
+  }
+ 
+notification.store.ts:
+  @Injectable({ providedIn: 'root' })
+  export class NotificationStore {
+    private notifications$ = new BehaviorSubject<Notification[]>([]);
+    notifications$ = ...
+    unreadCount$ = this.notifications$.pipe(map(n => n.filter(x => !x.readStatus).length));
+ 
+    load(): void         → calls NotificationService.getAll(), updates subject
+    markRead(id): void   → calls service, updates local state
+    startPolling(): void → setInterval(30000, this.load)
+    stopPolling(): void
+  }
+ 
+--- APP ROUTER (src/app/app.routes.ts) ---
+ 
+export const routes: Routes = [
+  { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
+  { path: 'login',    canActivate: [guestGuard],  loadComponent: () => import('./features/auth/login/login.component') },
+  { path: 'register', canActivate: [guestGuard],  loadComponent: () => import('./features/auth/register/register.component') },
+  {
+    path: '',
+    canActivate: [authGuard],
+    loadComponent: () => import('./layout/page-wrapper/page-wrapper.component'),
+    children: [
+      { path: 'dashboard',             loadComponent: () => import('./features/dashboard/dashboard.component') },
+      { path: 'workspaces',            loadComponent: () => import('./features/workspace/workspace-list/workspace-list.component') },
+      { path: 'workspaces/:id',        loadComponent: () => import('./features/workspace/workspace-detail/workspace-detail.component') },
+      { path: 'projects/:id',          loadComponent: () => import('./features/project/project-detail/project-detail.component') },
+      { path: 'projects/:id/board',    loadComponent: () => import('./features/task/task-board/task-board.component') },
+      { path: 'tasks/:id',             loadComponent: () => import('./features/task/task-detail/task-detail.component') },
+    ]
+  },
+  { path: 'patterns', loadComponent: () => import('./features/patterns/patterns.component') },
+  { path: '**', redirectTo: 'dashboard' }
+];
+ 
+Goal: routing works. Navigating to /dashboard without token redirects to /login.
+Verify: ng build --configuration=production has zero errors.
+```
+ 
+### Task 8.4 — Design System + Shared Components ☐
+```
+--- SCSS DESIGN SYSTEM (src/styles.scss) ---
+ 
+Define CSS custom properties:
+  :root {
+    --color-bg:       #0F1117;
+    --color-surface:  #1A1D27;
+    --color-border:   #2A2D3E;
+    --color-accent:   #6366F1;
+    --color-success:  #22C55E;
+    --color-warning:  #F59E0B;
+    --color-danger:   #EF4444;
+    --color-text:     #F1F5F9;
+    --color-muted:    #64748B;
+    --radius-sm: 6px; --radius-md: 10px; --radius-lg: 16px; --radius-xl: 24px;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.4);
+    --shadow-md: 0 4px 16px rgba(0,0,0,0.5);
+    --shadow-lg: 0 8px 32px rgba(0,0,0,0.6);
+  }
+  body { background: var(--color-bg); color: var(--color-text); font-family: 'Inter', sans-serif; margin: 0; }
+ 
+Add Inter font in index.html:
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+ 
+Create a _mixins.scss partial for reusable patterns:
+  @mixin card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); }
+  @mixin flex-center { display: flex; align-items: center; justify-content: center; }
+  @mixin truncate($lines: 1) { ... }
+ 
+--- SHARED COMPONENTS (src/app/shared/components/) ---
+ 
+Each component is standalone: true. Each has its own .scss file. No inline styles.
+ 
+button/button.component.ts:
+  Inputs: variant: 'primary'|'secondary'|'danger'|'ghost' = 'primary'
+          size: 'sm'|'md'|'lg' = 'md'
+          loading: boolean = false
+          disabled: boolean = false
+          type: string = 'button'
+  Template: <button [class]="classes" [disabled]="disabled || loading" [type]="type">
+              <app-spinner *ngIf="loading" size="sm"></app-spinner>
+              <ng-content *ngIf="!loading"></ng-content>
+            </button>
+ 
+input/input.component.ts:
+  Inputs: label, placeholder, type='text', error='', disabled=false
+  Implements ControlValueAccessor (works with Angular forms)
+  Shows error message below field when error is set
+ 
+modal/modal.component.ts:
+  Inputs: isOpen: boolean, title: string, size: 'sm'|'md'|'lg' = 'md'
+  Outputs: closed: EventEmitter<void>
+  Template: backdrop div + centered panel, ESC key closes, backdrop click closes
+  Uses Angular CDK Overlay or a simple fixed div approach
+ 
+spinner/spinner.component.ts:
+  Input: size: 'sm'|'md'|'lg' = 'md', color = 'accent'
+  Pure CSS animated ring
+ 
+badge/badge.component.ts:
+  Inputs: variant: 'success'|'warning'|'danger'|'info'|'muted', text: string
+  Small pill badge
+ 
+avatar/avatar.component.ts:
+  Input: user: User, size: 'sm'|'md'|'lg' = 'md'
+  Shows initials in colored circle (color derived from username hash)
+ 
+empty-state/empty-state.component.ts:
+  Inputs: icon: string, title: string, description: string, actionLabel?: string
+  Output: action: EventEmitter<void>
+  Centered layout with icon + text + optional CTA button
+ 
+confirm-dialog/confirm-dialog.component.ts:
+  Inputs: isOpen, title, message, confirmLabel='Confirm', danger=false
+  Outputs: confirmed, cancelled
+ 
+--- PIPES (src/app/shared/pipes/) ---
+ 
+relative-time.pipe.ts:
+  transform(dateString: string): string
+  Returns: "just now", "5m ago", "2h ago", "3d ago", "Jan 15"
+ 
+truncate.pipe.ts:
+  transform(value: string, limit: number = 100): string
+ 
+--- DIRECTIVES (src/app/shared/directives/) ---
+ 
+click-outside.directive.ts:
+  @Output() clickOutside = new EventEmitter<void>()
+  HostListener on document:click — emits when click is outside the host element
+  Used for dropdown menus
+ 
+Goal: all shared components compile and render correctly.
+Verify: create a test page that renders each component — all display without errors.
+```
+ 
+---
+ 
+## PHASE 9 — Layout Shell
+ 
+### Task 9.1 — Layout Components ☐
+```
+--- PAGE WRAPPER (src/app/layout/page-wrapper/) ---
+ 
+page-wrapper.component.ts:
+  Standalone. Template is the app shell.
+  Contains: <app-sidebar> + <div class="main"> containing <app-navbar> + <router-outlet>
+  Layout:
+    display: flex; flex-direction: row; height: 100vh; overflow: hidden;
+  Main area: flex: 1; display: flex; flex-direction: column; overflow: hidden;
+  Content area: flex: 1; overflow-y: auto; padding: 2rem;
+ 
+--- SIDEBAR (src/app/layout/sidebar/) ---
+ 
+sidebar.component.ts:
+  Injected: AuthStore, Router
+  Properties: isCollapsed = false (toggle on narrow screens)
+  
+  Nav items (defined as array, not hardcoded in template):
+    [ { label: 'Dashboard', icon: 'heroOutlineHome', route: '/dashboard' },
+      { label: 'Workspaces', icon: 'heroOutlineRectangleStack', route: '/workspaces' },
+      { label: 'My Tasks', icon: 'heroOutlineClipboardDocumentList', route: '/tasks/me' },
+      { label: 'Patterns', icon: 'heroOutlinePuzzlePiece', route: '/patterns' } ]
+ 
+  Template:
+    <aside class="sidebar" [class.collapsed]="isCollapsed">
+      <div class="logo">TS <!-- TeamSync --></div>
+      <nav>
+        <a *ngFor="let item of navItems" [routerLink]="item.route" routerLinkActive="active">
+          <ng-icon [name]="item.icon"></ng-icon>
+          <span *ngIf="!isCollapsed">{{ item.label }}</span>
+        </a>
+      </nav>
+      <div class="sidebar-footer">
+        <app-avatar [user]="(user$ | async)!"></app-avatar>
+        <div *ngIf="!isCollapsed" class="user-info">
+          <span class="username">{{ (user$ | async)?.username }}</span>
+          <app-badge [text]="(user$ | async)?.role"></app-badge>
+        </div>
+      </div>
+    </aside>
+ 
+  SCSS:
+    Width: 240px (full) or 64px (collapsed)
+    Transition: width 0.2s ease
+    Active link: background accent/10, accent color text, left border 3px accent
+ 
+--- NAVBAR (src/app/layout/navbar/) ---
+ 
+navbar.component.ts:
+  Injected: NotificationStore, AuthStore, Router
+  Properties: isNotifOpen = false, isUserMenuOpen = false
+  
+  Template:
+    <nav class="navbar">
+      <div class="navbar-left">
+        <span class="page-title"><!-- dynamic based on route --></span>
+      </div>
+      <div class="navbar-right">
+        <!-- Notification bell -->
+        <div class="notif-trigger" (click)="isNotifOpen = !isNotifOpen" appClickOutside (clickOutside)="isNotifOpen = false">
+          <ng-icon name="heroOutlineBell"></ng-icon>
+          <span class="badge" *ngIf="(unreadCount$ | async)! > 0">{{ unreadCount$ | async }}</span>
+          <!-- Dropdown -->
+          <div class="notif-dropdown" *ngIf="isNotifOpen">
+            <div class="notif-header">
+              Notifications
+              <button (click)="markAllRead()">Mark all read</button>
+            </div>
+            <div *ngFor="let n of (notifications$ | async)" class="notif-item" [class.unread]="!n.readStatus" (click)="markRead(n.id)">
+              <span>{{ n.message }}</span>
+              <span class="time">{{ n.createdAt | relativeTime }}</span>
+            </div>
+            <div *ngIf="!(notifications$ | async)?.length" class="notif-empty">You're all caught up 🎉</div>
+          </div>
+        </div>
+        <!-- User menu -->
+        <div class="user-menu" appClickOutside (clickOutside)="isUserMenuOpen = false">
+          <app-avatar [user]="(user$ | async)!" (click)="isUserMenuOpen = !isUserMenuOpen"></app-avatar>
+          <div class="user-dropdown" *ngIf="isUserMenuOpen">
+            <button routerLink="/profile">Profile</button>
+            <button (click)="logout()" class="danger">Logout</button>
+          </div>
+        </div>
+      </div>
+    </nav>
+ 
+  logout(): calls AuthStore.clearUser(), TokenService.removeToken(), navigate to /login
+ 
+Goal: shell renders correctly. Sidebar navigation highlights active route.
+Verify: logout button clears token and redirects to /login.
+```
+ 
+---
+ 
+## PHASE 10 — Auth Pages
+ 
+### Task 10.1 — Login Page ☐
+```
+src/app/features/auth/login/
+ 
+Files:
+  login.component.ts
+  login.component.html
+  login.component.scss
+ 
+login.component.ts:
+  Standalone. Imports: ReactiveFormsModule, RouterLink, ButtonComponent, InputComponent, SpinnerComponent.
+  Injected: AuthService, AuthStore, TokenService, Router, ToastrService.
+ 
+  Form (FormGroup via FormBuilder):
+    email:    [required, email]
+    password: [required, minLength(6)]
+ 
+  Properties:
+    form: FormGroup
+    isLoading = false
+    showPassword = false
+ 
+  onSubmit():
+    if form invalid → markAllAsTouched(), return
+    isLoading = true
+    AuthService.login(form.value).pipe(
+      switchMap(res => {
+        TokenService.setToken(res.token);
+        return AuthService.getMe();
+      }),
+      finalize(() => isLoading = false)
+    ).subscribe({
+      next: user => { AuthStore.setUser(user); Router.navigate(['/dashboard']); },
+      error: () => {}   // error interceptor shows toast
+    });
+ 
+login.component.html:
+  Full screen: display grid, two columns on desktop (hidden on mobile for left col).
+ 
+  Left column (decorative, hidden <768px):
+    Background gradient using accent color
+    TeamSync logo large
+    Tagline: "Collaborate. Track. Deliver."
+    Decorative grid of dots (pure CSS)
+ 
+  Right column (the form):
+    Centered card (max-width 420px)
+    <h1>Welcome back</h1>
+    <p>Sign in to your account</p>
+    <form [formGroup]="form" (ngSubmit)="onSubmit()">
+      <app-input label="Email" type="email" formControlName="email" [error]="emailError"></app-input>
+      <app-input label="Password" [type]="showPassword ? 'text' : 'password'" formControlName="password" [error]="passwordError">
+        <!-- suffix slot: show/hide toggle icon -->
+      </app-input>
+      <app-button type="submit" [loading]="isLoading" [disabled]="isLoading">Sign In</app-button>
+    </form>
+    <p>Don't have an account? <a routerLink="/register">Register</a></p>
+ 
+Goal: login form works. Correct credentials → redirect to /dashboard. Wrong → error toast.
+Verify: empty submission shows inline validation errors. Loading spinner appears during API call.
+```
+ 
+### Task 10.2 — Register Page ☐
+```
+src/app/features/auth/register/
+ 
+register.component.ts:
+  Standalone. Same structure as login.
+  Injected: AuthService, TokenService, AuthStore, Router, ToastrService.
+ 
+  Form fields:
+    username: [required, minLength(3), maxLength(30)]
+    email:    [required, email]
+    password: [required, minLength(6)]
+    role:     [required] — default 'TEAM_MEMBER'
+ 
+  onSubmit():
+    AuthService.register(form.value).pipe(
+      switchMap(() => AuthService.login({ email, password })),
+      switchMap(res => { TokenService.setToken(res.token); return AuthService.getMe(); }),
+      finalize(() => isLoading = false)
+    ).subscribe({
+      next: user => { AuthStore.setUser(user); Router.navigate(['/dashboard']); }
+    });
+ 
+register.component.html:
+  Same two-column layout as login.
+  Right column form:
+    <h1>Create account</h1>
+    Username input
+    Email input
+    Password input (with show/hide)
+    Role selector (styled <select>):
+      <option value="TEAM_MEMBER">Team Member</option>
+      <option value="PROJECT_MANAGER">Project Manager</option>
+    Submit button
+    "Already have an account? Sign in" link
+ 
+Goal: registration creates account and auto-logs in. Redirects to /dashboard.
+Verify: duplicate email shows error toast from backend.
+```
+ 
+---
+ 
+## PHASE 11 — Dashboard
+ 
+### Task 11.1 — Dashboard Page ☐
+```
+src/app/features/dashboard/
+ 
+Files:
+  dashboard.component.ts
+  dashboard.component.html
+  dashboard.component.scss
+  stats-card/stats-card.component.ts  (nested component for stat cards)
+  workspace-card/workspace-card.component.ts
+ 
+dashboard.component.ts:
+  Standalone. Injected: AuthStore, WorkspaceService, TaskService, ActivityService (via GET /users/me/activity).
+  
+  On init:
+    - Load workspaces: WorkspaceService.getAll()
+    - Load my tasks: TaskService.getByProject() filtered by assignee = me (or dedicated endpoint)
+    - Load activity: GET /users/me/activity
+  
+  Computed properties:
+    activeTaskCount: tasks with status IN_PROGRESS
+    dueTodayCount: tasks where dueDate === today
+    overdueCount: tasks where dueDate < today and status !== DONE
+  
+  Methods:
+    openCreateWorkspaceModal()
+    onWorkspaceCreated(workspace: Workspace): prepend to list
+ 
+dashboard.component.html:
+  Wrapped in PageWrapper (via router-outlet, already handled).
+ 
+  Section 1 — Greeting header:
+    <h1>Good {{ timeOfDay }}, {{ user.username }}</h1>
+    <p>{{ today | date:'EEEE, MMMM d' }}</p>
+ 
+  Section 2 — Stats row:
+    <div class="stats-grid">  (4 columns)
+      <app-stats-card icon="heroOutlineClipboardDocumentList" label="Active Tasks"   [value]="activeTaskCount" color="accent"></app-stats-card>
+      <app-stats-card icon="heroOutlineRectangleStack"        label="My Workspaces" [value]="workspaces.length" color="success"></app-stats-card>
+      <app-stats-card icon="heroOutlineClock"                 label="Due Today"     [value]="dueTodayCount" color="warning"></app-stats-card>
+      <app-stats-card icon="heroOutlineExclamationCircle"     label="Overdue"       [value]="overdueCount" color="danger"></app-stats-card>
+    </div>
+ 
+  Section 3 — Workspaces row:
+    <h2>My Workspaces</h2>
+    <div class="workspace-row">  (horizontal scroll)
+      <app-workspace-card *ngFor="let ws of workspaces" [workspace]="ws" (click)="navigate(ws.id)">
+      </app-workspace-card>
+      <div class="new-workspace-card" (click)="openCreateWorkspaceModal()">
+        <ng-icon name="heroOutlinePlus"></ng-icon>
+        <span>New Workspace</span>
+      </div>
+    </div>
+ 
+  Section 4 — Activity feed (right side, if 2-col layout):
+    <h2>Recent Activity</h2>
+    <div class="activity-list">
+      <div *ngFor="let log of activity" class="activity-item">
+        <app-avatar [user]="log.user" size="sm"></app-avatar>
+        <span>{{ log.action }}</span>
+        <span class="time">{{ log.createdAt | relativeTime }}</span>
+      </div>
+    </div>
+ 
+  Create workspace modal (inline):
+    <app-modal [isOpen]="isCreateModalOpen" title="New Workspace" (closed)="isCreateModalOpen = false">
+      <form [formGroup]="workspaceForm" (ngSubmit)="createWorkspace()">
+        <app-input label="Name" formControlName="name"></app-input>
+        <app-input label="Description" formControlName="description"></app-input>
+        <app-button type="submit" [loading]="isCreating">Create</app-button>
+      </form>
+    </app-modal>
+ 
+  Loading state: show skeleton cards while data loads (use *ngIf="!isLoading" else skeleton template)
+  Empty state for workspaces: <app-empty-state> with "Create your first workspace" CTA
+ 
+Goal: dashboard shows real data. Stat cards reflect actual task counts.
+Verify: creating a workspace from the modal adds it to the list without page reload.
+```
+ 
+---
+ 
+## PHASE 12 — Workspace + Project Pages
+ 
+### Task 12.1 — Workspace List Page ☐
+```
+src/app/features/workspace/workspace-list/
+ 
+workspace-list.component.ts:
+  Standalone. Injected: WorkspaceService, ToastrService.
+  On init: load all workspaces.
+  Method: openCreate(), onCreated(ws): add to list.
+ 
+workspace-list.component.html:
+  Page header: <h1>Workspaces</h1> + <app-button (click)="openCreate()">New Workspace</app-button>
+  
+  Grid (3 cols lg, 2 cols md, 1 col sm):
+    <div class="workspace-grid">
+      <div class="workspace-card" *ngFor="let ws of workspaces" (click)="navigate(ws.id)">
+        <div class="ws-header">
+          <h3>{{ ws.name }}</h3>
+          <app-badge [text]="ws.members.length + ' members'" variant="info"></app-badge>
+        </div>
+        <p class="ws-description">{{ ws.description | truncate:80 }}</p>
+        <div class="ws-footer">
+          <app-avatar [user]="ws.owner" size="sm"></app-avatar>
+          <span class="owner-name">{{ ws.owner.username }}</span>
+          <app-button variant="ghost" size="sm">Open →</app-button>
+        </div>
+      </div>
+    </div>
+ 
+  Empty state: <app-empty-state> when no workspaces
+  Loading state: 3 skeleton cards
+ 
+Goal: workspace list loads and displays correctly.
+```
+ 
+### Task 12.2 — Workspace Detail Page ☐
+```
+src/app/features/workspace/workspace-detail/
+ 
+workspace-detail.component.ts:
+  Standalone. Injected: WorkspaceService, ProjectService, ActivatedRoute, ToastrService.
+  Loads: workspace by id (from route params), projects by workspace id.
+  Methods:
+    openAddMember(), onMemberAdded()
+    openCreateProject(), onProjectCreated(project)
+    removeMember(userId)
+ 
+workspace-detail.component.html:
+  Top section:
+    <div class="ws-hero">
+      <div>
+        <h1>{{ workspace.name }}</h1>
+        <p>{{ workspace.description }}</p>
+      </div>
+      <div class="ws-actions">
+        <app-button variant="secondary" (click)="openAddMember()">Add Member</app-button>
+        <app-button (click)="openCreateProject()">New Project</app-button>
+      </div>
+    </div>
+ 
+  Members strip:
+    <div class="members-strip">
+      <app-avatar *ngFor="let m of workspace.members | slice:0:6" [user]="m" size="sm" [title]="m.username"></app-avatar>
+      <span *ngIf="workspace.members.length > 6" class="more-members">+{{ workspace.members.length - 6 }}</span>
+    </div>
+ 
+  Projects grid:
+    <h2>Projects</h2>
+    <div class="projects-grid">
+      <app-project-card *ngFor="let p of projects" [project]="p" (click)="navigate(p.id)">
+      </app-project-card>
+    </div>
+    <app-empty-state *ngIf="!projects.length" title="No projects yet" description="Create the first project for this workspace" actionLabel="New Project" (action)="openCreateProject()">
+    </app-empty-state>
+ 
+  Add Member Modal:
+    Email input + submit
+ 
+  Create Project Modal:
+    Fields: title, description, deadline (date input), manager (select from workspace.members)
+ 
+src/app/features/project/project-card/project-card.component.ts (shared project card):
+  Input: project: Project
+  Output: clicked: EventEmitter
+  Shows: title, status badge, deadline (red if past), ProgressBar, manager avatar+name
+  Status badge colors:
+    PLANNING → muted, ACTIVE → accent, ON_HOLD → warning, COMPLETED → success, ARCHIVED → muted
+ 
+src/app/shared/components/progress-bar/progress-bar.component.ts:
+  Input: value: number (0-100)
+  Color: green if >70, yellow if 40-70, red if <40
+  Animated width on mount using Angular animations
+ 
+Goal: workspace detail shows projects and members. Can add members and create projects.
+Verify: adding member with non-existent email shows error toast.
+```
+ 
+### Task 12.3 — Project Detail Page ☐
+```
+src/app/features/project/project-detail/
+ 
+project-detail.component.ts:
+  Standalone. Injected: ProjectService, AnalyticsService, ActivatedRoute, Router.
+  On init: load project by id.
+  Properties:
+    activeTab: 'board' | 'list' | 'analytics' | 'settings' = 'board'
+    isEditingTitle = false
+ 
+  Methods:
+    onTitleBlur(newTitle): call ProjectService.update() if changed
+    onTabChange(tab): set activeTab
+    archiveProject(): call ProjectService.archive(), navigate to workspace
+ 
+project-detail.component.html:
+ 
+  <div class="project-header">
+    <!-- Editable title -->
+    <h1 *ngIf="!isEditingTitle" (click)="isEditingTitle = true">{{ project.title }}</h1>
+    <input *ngIf="isEditingTitle" [value]="project.title" (blur)="onTitleBlur($event.target.value)" autofocus>
+    
+    <div class="project-meta">
+      <app-badge [text]="project.status" [variant]="statusVariant"></app-badge>
+      <span class="deadline" [class.overdue]="isOverdue">
+        {{ isOverdue ? 'Overdue' : daysLeft + ' days left' }}
+      </span>
+    </div>
+    
+    <app-button *ngIf="canArchive" variant="danger" size="sm" (click)="archiveProject()">Archive</app-button>
+  </div>
+ 
+  <!-- Tab navigation -->
+  <div class="tab-nav">
+    <button *ngFor="let tab of tabs" [class.active]="activeTab === tab.key" (click)="onTabChange(tab.key)">
+      {{ tab.label }}
+    </button>
+  </div>
+ 
+  <!-- Tab content -->
+  <div class="tab-content">
+    <app-task-board *ngIf="activeTab === 'board'" [projectId]="project.id"></app-task-board>
+    <app-task-list  *ngIf="activeTab === 'list'"  [projectId]="project.id"></app-task-list>
+    <app-project-analytics *ngIf="activeTab === 'analytics'" [projectId]="project.id"></app-project-analytics>
+    <app-project-settings  *ngIf="activeTab === 'settings'"  [project]="project" (updated)="onProjectUpdated($event)"></app-project-settings>
+  </div>
+ 
+Create these as separate child components:
+ 
+project-analytics.component.ts (in project/project-analytics/):
+  Input: projectId: string
+  On init: load stats, workload, health from AnalyticsService
+  Template:
+    Health badge (ON_TRACK=green / AT_RISK=yellow / DELAYED=red)
+    Task status breakdown: horizontal stacked bar (pure CSS flex)
+    Team workload: list of members with progress bar showing their task load
+ 
+project-settings.component.ts (in project/project-settings/):
+  Input: project: Project
+  Output: updated: EventEmitter<Project>
+  Form: title, description, deadline, manager dropdown
+  Danger zone section: Archive button with confirmation
+ 
+Goal: all 4 tabs render. Inline title editing saves to API.
+Verify: TEAM_MEMBER role does not see Archive button (use *ngIf checking user role).
+```
+ 
+---
+ 
+## PHASE 13 — Task Board (Core UI)
+ 
+### Task 13.1 — Kanban Task Board ☐
+```
+src/app/features/task/task-board/
+ 
+task-board.component.ts:
+  Standalone. Input: projectId: string.
+  Injected: TaskService, ToastrService, AuthStore.
+  
+  Properties:
+    columns: { status: TaskStatus; label: string; tasks: Task[] }[] = [
+      { status: 'TODO',        label: 'To Do',      tasks: [] },
+      { status: 'IN_PROGRESS', label: 'In Progress', tasks: [] },
+      { status: 'BLOCKED',     label: 'Blocked',     tasks: [] },
+      { status: 'IN_REVIEW',   label: 'In Review',   tasks: [] },
+      { status: 'DONE',        label: 'Done',        tasks: [] },
+    ]
+    filters: { priority: string; keyword: string; assigneeId: string } = {}
+    isCreateModalOpen = false
+    selectedColumnStatus: TaskStatus = 'TODO'
+    isLoading = true
+ 
+  On init: loadTasks()
+  
+  loadTasks():
+    TaskService.getByProject(this.projectId, this.filters).subscribe(tasks => {
+      this.columns.forEach(col => col.tasks = tasks.filter(t => t.status === col.status));
+      this.isLoading = false;
+    });
+ 
+  onDrop(event: CdkDragDrop<Task[]>):
+    if same container → moveItemInArray (reorder only, no API call)
+    if different container:
+      const task = event.previousContainer.data[event.previousIndex];
+      const newStatus = ... // derive from container id
+      optimistic update: move task in UI immediately
+      TaskService.changeStatus(task.id, { status: newStatus }).subscribe({
+        error: () => { revert move; ToastrService.error('Invalid status transition'); this.loadTasks(); }
+      });
+ 
+  openCreate(status: TaskStatus): selectedColumnStatus = status; isCreateModalOpen = true;
+  
+  onTaskCreated(task: Task): add to correct column without reload.
+  
+  onFiltersChange(): reload tasks with new filters.
+ 
+task-board.component.html:
+  Filter bar:
+    <div class="filter-bar">
+      <input placeholder="Search tasks..." (input)="onKeywordChange($event)">  <!-- debounced 300ms -->
+      <select (change)="onPriorityChange($event)">
+        <option value="">All priorities</option>
+        <option *ngFor="let p of priorities" [value]="p">{{ p }}</option>
+      </select>
+      <button *ngIf="hasFilters" (click)="clearFilters()">Clear</button>
+    </div>
+ 
+  Board (horizontal scroll):
+    <div class="board" cdkDropListGroup>
+      <div *ngFor="let col of columns" class="column">
+        <div class="column-header">
+          <span class="status-dot" [class]="col.status | lowercase"></span>
+          <span class="column-title">{{ col.label }}</span>
+          <span class="task-count">{{ col.tasks.length }}</span>
+          <button class="add-btn" (click)="openCreate(col.status)">+</button>
+        </div>
+        <div class="column-body"
+             cdkDropList
+             [id]="col.status"
+             [cdkDropListData]="col.tasks"
+             (cdkDropListDropped)="onDrop($event)">
+          <app-task-card
+            *ngFor="let task of col.tasks"
+            [task]="task"
+            cdkDrag
+            [cdkDragData]="task"
+            (cardClick)="openTaskDetail(task.id)"
+            (deleted)="onTaskDeleted(task)">
+          </app-task-card>
+          <app-empty-state *ngIf="!col.tasks.length" title="" description="No tasks" [minimal]="true">
+          </app-empty-state>
+        </div>
+      </div>
+    </div>
+ 
+  Import @angular/cdk/drag-drop: DragDropModule
+  Add to angular.json if not already: @angular/cdk
+ 
+  Create Task Modal (inline in template):
+    <app-modal [isOpen]="isCreateModalOpen" title="New Task" (closed)="isCreateModalOpen = false">
+      <form [formGroup]="createForm" (ngSubmit)="createTask()">
+        <app-input label="Title" formControlName="title"></app-input>
+        <app-input label="Description" formControlName="description"></app-input>
+        <select formControlName="priority">CRITICAL/HIGH/MEDIUM/LOW</select>
+        <input type="date" formControlName="dueDate">
+        <select formControlName="assigneeId"><!-- project members --></select>
+        <app-button type="submit" [loading]="isCreating">Create Task</app-button>
+      </form>
+    </app-modal>
+ 
+task-card.component.ts (src/app/features/task/task-card/):
+  Standalone.
+  Inputs: task: Task
+  Outputs: cardClick: EventEmitter<void>, deleted: EventEmitter<void>
+  
+  Template:
+    <div class="task-card" (click)="cardClick.emit()">
+      <div class="card-header">
+        <app-badge [text]="task.priority" [variant]="priorityVariant"></app-badge>
+        <div class="card-actions" (click)="$event.stopPropagation()">
+          <button class="icon-btn" (click)="confirmDelete()">🗑</button>
+        </div>
+      </div>
+      <h4 class="card-title">{{ task.title | truncate:60 }}</h4>
+      <div class="card-footer">
+        <span class="due-date" [class.overdue]="isOverdue" *ngIf="task.dueDate">
+          {{ task.dueDate | date:'MMM d' }}
+        </span>
+        <app-avatar *ngIf="task.assignee" [user]="task.assignee" size="sm"></app-avatar>
+      </div>
+    </div>
+ 
+  Priority variant map:
+    LOW → 'muted', MEDIUM → 'info', HIGH → 'warning', CRITICAL → 'danger'
+ 
+Goal: Kanban board renders. Drag and drop between columns works. Invalid transitions revert.
+Verify: drag DONE → IN_PROGRESS fails with toast "Invalid status transition".
+```
+ 
+### Task 13.2 — Task Detail Drawer ☐
+```
+src/app/features/task/task-detail/
+ 
+task-detail.component.ts:
+  Standalone.
+  Input: taskId: string
+  Output: closed: EventEmitter<void>
+  Injected: TaskService, CommentService, AuthStore, ToastrService.
+ 
+  On init: load task by id, load comments.
+ 
+  Properties:
+    task: Task
+    comments: Comment[]
+    isEditingTitle = false
+    isEditingDescription = false
+    newCommentText = ''
+    replyingToId: string | null = null
+    replyText = ''
+    isLoading = true
+ 
+  Methods:
+    onTitleBlur(val): if changed → TaskService.update()
+    onDescBlur(val): if changed → TaskService.update()
+    onStatusChange(status): TaskService.changeStatus() → update local task
+    onAssigneeChange(userId): TaskService.assign()
+    onPriorityChange(priority): TaskService.update()
+    onDueDateChange(date): TaskService.update()
+    submitComment(): CommentService.add() → prepend to comments list
+    submitReply(commentId): CommentService.reply() → append to comment.replies
+    deleteComment(commentId): CommentService.delete() → remove from list
+    undoLastAction(): TaskService.undo() → reload task
+    deleteTask(): TaskService.delete() → emit closed
+ 
+task-detail.component.html:
+  Drawer: fixed right panel, width 600px, full height, bg-surface, shadow-lg, slide-in animation.
+  Backdrop: fixed inset-0, click closes drawer.
+  
+  Drawer structure:
+    <div class="drawer-header">
+      <button (click)="closed.emit()">✕</button>
+      <div class="drawer-actions">
+        <app-button variant="ghost" size="sm" (click)="undoLastAction()">Undo</app-button>
+        <app-button variant="danger" size="sm" (click)="deleteTask()" *ngIf="canDelete">Delete</app-button>
+      </div>
+    </div>
+ 
+    <div class="drawer-body"> (two columns: main + sidebar)
+ 
+      <!-- Main column -->
+      <div class="drawer-main">
+        <!-- Editable title -->
+        <h2 *ngIf="!isEditingTitle" (click)="isEditingTitle = true" class="task-title">{{ task.title }}</h2>
+        <input *ngIf="isEditingTitle" [value]="task.title" (blur)="onTitleBlur($event.target.value)" autofocus>
+ 
+        <!-- Editable description -->
+        <p *ngIf="!isEditingDescription" (click)="isEditingDescription = true" class="task-desc">
+          {{ task.description || 'Add description...' }}
+        </p>
+        <textarea *ngIf="isEditingDescription" [value]="task.description" (blur)="onDescBlur($event.target.value)" autofocus></textarea>
+ 
+        <!-- Dependencies -->
+        <div class="dependencies-section" *ngIf="task.dependencies.length">
+          <h4>Blocked by</h4>
+          <div *ngFor="let dep of task.dependencies" class="dep-item">
+            <app-badge [text]="dep.status" [variant]="statusVariant(dep.status)"></app-badge>
+            <span>{{ dep.title }}</span>
+          </div>
+        </div>
+ 
+        <!-- Comments -->
+        <div class="comments-section">
+          <h4>Comments ({{ comments.length }})</h4>
+          <div *ngFor="let comment of comments" class="comment">
+            <app-avatar [user]="comment.author" size="sm"></app-avatar>
+            <div class="comment-body">
+              <div class="comment-header">
+                <strong>{{ comment.author.username }}</strong>
+                <span class="time">{{ comment.createdAt | relativeTime }}</span>
+                <button *ngIf="canDeleteComment(comment)" (click)="deleteComment(comment.id)">✕</button>
+              </div>
+              <p>{{ comment.content }}</p>
+              <button (click)="replyingToId = comment.id">Reply</button>
+              <!-- Reply form -->
+              <div *ngIf="replyingToId === comment.id" class="reply-form">
+                <textarea [(ngModel)]="replyText" placeholder="Write a reply..."></textarea>
+                <app-button size="sm" (click)="submitReply(comment.id)">Send</app-button>
+              </div>
+              <!-- Nested replies -->
+              <div *ngFor="let reply of comment.replies" class="reply">
+                <app-avatar [user]="reply.author" size="sm"></app-avatar>
+                <div class="reply-body">
+                  <strong>{{ reply.author.username }}</strong>
+                  <p>{{ reply.content }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- New comment -->
+          <div class="new-comment">
+            <app-avatar [user]="currentUser!" size="sm"></app-avatar>
+            <textarea [(ngModel)]="newCommentText" placeholder="Add a comment..."></textarea>
+            <app-button size="sm" (click)="submitComment()" [disabled]="!newCommentText.trim()">Comment</app-button>
+          </div>
+          <app-empty-state *ngIf="!comments.length" title="No comments" description="Start the conversation" [minimal]="true">
+          </app-empty-state>
+        </div>
+      </div>
+ 
+      <!-- Sidebar column (task metadata) -->
+      <div class="drawer-sidebar">
+        <div class="meta-field">
+          <label>Status</label>
+          <select [ngModel]="task.status" (ngModelChange)="onStatusChange($event)">
+            <option *ngFor="let s of statuses" [value]="s">{{ s }}</option>
+          </select>
+        </div>
+        <div class="meta-field">
+          <label>Priority</label>
+          <select [ngModel]="task.priority" (ngModelChange)="onPriorityChange($event)">
+            <option *ngFor="let p of priorities" [value]="p">{{ p }}</option>
+          </select>
+        </div>
+        <div class="meta-field">
+          <label>Assignee</label>
+          <select [ngModel]="task.assignee?.id" (ngModelChange)="onAssigneeChange($event)">
+            <option value="">Unassigned</option>
+            <option *ngFor="let m of projectMembers" [value]="m.id">{{ m.username }}</option>
+          </select>
+        </div>
+        <div class="meta-field">
+          <label>Due Date</label>
+          <input type="date" [ngModel]="task.dueDate" (ngModelChange)="onDueDateChange($event)">
+        </div>
+        <div class="meta-field">
+          <label>Created</label>
+          <span>{{ task.createdAt | date:'MMM d, y' }}</span>
+        </div>
+      </div>
+    </div>
+ 
+  Slide-in animation using Angular animations:
+    trigger('slideIn', [
+      transition(':enter', [ style({ transform: 'translateX(100%)' }), animate('200ms ease-out', style({ transform: 'translateX(0)' })) ]),
+      transition(':leave', [ animate('200ms ease-in', style({ transform: 'translateX(100%)' })) ])
+    ])
+ 
+Goal: drawer opens on card click, all fields editable inline, comments post correctly.
+Verify: undo button reverts last status change. Deleting a task closes the drawer.
+```
+ 
+---
+ 
+## PHASE 14 — Notifications + Patterns Page
+ 
+### Task 14.1 — Notifications ☐
+```
+Notifications are already partially wired via NotificationStore and Navbar.
+Complete them here.
+ 
+notification.store.ts (finalize):
+  @Injectable({ providedIn: 'root' })
+  private notificationsSubject = new BehaviorSubject<Notification[]>([]);
+  notifications$ = this.notificationsSubject.asObservable();
+  unreadCount$ = this.notifications$.pipe(map(n => n.filter(x => !x.readStatus).length));
+  private pollingInterval: any;
+ 
+  load():
+    this.notificationService.getAll().subscribe(n => this.notificationsSubject.next(n));
+ 
+  markRead(id: string):
+    this.notificationService.markRead(id).subscribe(() => {
+      const updated = this.notificationsSubject.value.map(n =>
+        n.id === id ? { ...n, readStatus: true } : n
+      );
+      this.notificationsSubject.next(updated);
+    });
+ 
+  markAllRead():
+    unread notifications → call markRead for each → update local state
+ 
+  startPolling():
+    this.load();
+    this.pollingInterval = setInterval(() => this.load(), 30000);
+ 
+  stopPolling():
+    clearInterval(this.pollingInterval);
+ 
+In page-wrapper.component.ts:
+  On init: inject NotificationStore, call startPolling()
+  On destroy: call stopPolling()
+ 
+In navbar.component.ts (already uses store):
+  Connect notifications$ and unreadCount$ — already done from Task 9.1.
+  Ensure markRead and markAllRead methods call the store.
+ 
+Goal: bell badge updates every 30 seconds. Marking read updates badge immediately.
+Verify: create a task → status change → within 30s, bell shows unread badge.
+```
+ 
+### Task 14.2 — Patterns Page ☐
+```
+src/app/features/patterns/
+ 
+patterns.component.ts:
+  Standalone. NO layout wrapper (standalone page, public).
+  Injected: PatternsService.
+  On init: load all patterns.
+  Properties:
+    patterns: Pattern[] = []
+    filteredPatterns: Pattern[] = []
+    activeCategory: 'ALL' | 'Creational' | 'Structural' | 'Behavioral' = 'ALL'
+    isLoading = true
+ 
+  onCategoryChange(cat): filteredPatterns = filter by category or show all.
+ 
+patterns.component.html:
+  Standalone page (no sidebar, no navbar — it has its own header).
+  
+  <div class="patterns-page">
+    <header class="patterns-header">
+      <div class="logo">TeamSync</div>
+      <div class="header-content">
+        <h1>Design Patterns</h1>
+        <p>14 GoF Design Patterns implemented across 3 categories</p>
+      </div>
+      <a routerLink="/dashboard" class="back-link">← Back to App</a>
+    </header>
+ 
+    <div class="category-tabs">
+      <button *ngFor="let cat of categories" [class.active]="activeCategory === cat" (click)="onCategoryChange(cat)">
+        {{ cat }}
+      </button>
+    </div>
+ 
+    <div class="patterns-grid">
+      <div *ngFor="let p of filteredPatterns" class="pattern-card">
+        <div class="pattern-card-header">
+          <app-badge [text]="p.category" [variant]="categoryVariant(p.category)"></app-badge>
+          <span class="pattern-number">#{{ p.id }}</span>
+        </div>
+        <h3 class="pattern-name">{{ p.name }}</h3>
+        <p class="pattern-purpose">{{ p.purpose }}</p>
+        <div class="pattern-package">{{ p.package }}</div>
+        <div class="pattern-classes">
+          <span *ngFor="let cls of p.keyClasses" class="class-chip">{{ cls }}</span>
+        </div>
+      </div>
+    </div>
+ 
+    <footer class="patterns-footer">
+      <a href="http://localhost:8080/swagger-ui.html" target="_blank">View API Docs →</a>
+    </footer>
+  </div>
+ 
+  Category badge variants:
+    Creational → 'info' (purple tint)
+    Structural → 'accent' (indigo)
+    Behavioral → 'success' (green)
+ 
+  SCSS: patterns grid = 3 cols lg, 2 cols md, 1 col sm. Cards have hover effect (translateY -4px + shadow).
+ 
+Goal: /patterns loads without auth. All 14 patterns display. Category filter works.
+Verify: page is presentable enough to show during academic defense.
+```
+ 
+---
+ 
+## PHASE 15 — Tests
+ 
+### Task 15.1 — Unit Tests: Services ☐
+```
+Use Angular's default testing setup: Jasmine + Karma (already included in ng new).
+Test files go next to the files they test: auth.service.spec.ts, etc.
+ 
+auth.service.spec.ts:
+  TestBed with HttpClientTestingModule.
+  Test: login() sends POST to /auth/login with correct body.
+  Test: register() sends POST to /auth/register.
+  Test: getMe() sends GET to /users/me.
+  Use HttpTestingController to verify requests and flush mock responses.
+ 
+task.service.spec.ts:
+  Test: getByProject() sends GET /projects/{id}/tasks.
+  Test: changeStatus() sends PUT /tasks/{id}/status with body.
+  Test: undo() sends POST /tasks/undo.
+  Test: getByProject() with filters appends correct query params.
+ 
+workspace.service.spec.ts:
+  Test: getAll() sends GET /workspaces.
+  Test: addMember() sends POST with { email } body.
+  Test: removeMember() sends DELETE to correct URL.
+ 
+auth.store.spec.ts:
+  Test: setUser() updates user$ observable.
+  Test: clearUser() sets user$ to null.
+  Test: isAuthenticated$ emits true when user is set, false when null.
+ 
+token.service.spec.ts:
+  Test: setToken() saves to localStorage.
+  Test: getToken() retrieves from localStorage.
+  Test: removeToken() removes from localStorage.
+  Test: hasToken() returns false when empty.
+  Mock localStorage with jasmine.createSpyObj or spyOn.
+ 
+relative-time.pipe.spec.ts:
+  Test: "just now" for dates < 1 minute ago.
+  Test: "Xm ago" for dates < 1 hour ago.
+  Test: "Xh ago" for dates < 24 hours ago.
+  Test: "Xd ago" for dates < 7 days ago.
+ 
+Run: ng test --no-watch --code-coverage
+Goal: all tests pass. Coverage > 70% for services.
+```
+ 
+### Task 15.2 — Unit Tests: Components ☐
+```
+login.component.spec.ts:
+  TestBed with ReactiveFormsModule, RouterTestingModule, HttpClientTestingModule.
+  Mock AuthService, AuthStore, TokenService, Router, ToastrService.
+  
+  Test: form is invalid when empty → onSubmit() does not call AuthService.login.
+  Test: form is invalid with bad email format.
+  Test: onSubmit() calls AuthService.login() with form values when valid.
+  Test: on successful login → TokenService.setToken called → Router.navigate called with ['/dashboard'].
+  Test: isLoading set to true during submission, false after.
+ 
+task-card.component.spec.ts:
+  Test: renders task title.
+  Test: shows 'overdue' class when dueDate is in the past.
+  Test: cardClick EventEmitter emits on card click.
+  Test: priority badge displays correct text.
+ 
+status-badge.component.spec.ts:
+  Test: each status maps to correct CSS class.
+ 
+task-board.component.spec.ts:
+  Mock TaskService returning Observable<Task[]>.
+  Test: loadTasks() distributes tasks into correct columns by status.
+  Test: onDrop() within same column calls moveItemInArray, not TaskService.changeStatus.
+  Test: onDrop() to different column calls TaskService.changeStatus with correct status.
+  Test: on changeStatus error → reverts task to original column.
+ 
+navbar.component.spec.ts:
+  Mock NotificationStore, AuthStore.
+  Test: unreadCount badge not visible when unreadCount$ = 0.
+  Test: unreadCount badge visible and shows correct number when unreadCount$ > 0.
+  Test: logout() calls AuthStore.clearUser(), TokenService.removeToken(), Router.navigate.
+ 
+Run: ng test --no-watch
+Goal: all component tests pass. No test modifies real localStorage or makes real HTTP calls.
+```
+ 
+### Task 15.3 — Integration Tests: Auth Flow + Task Flow ☐
+```
+Use Angular's TestBed for integration tests (not e2e — no Cypress needed).
+These tests render the full component tree and simulate user interactions.
+ 
+auth-flow.integration.spec.ts:
+  Setup: TestBed with real ReactiveFormsModule, RouterTestingModule, mocked HttpClient.
+  
+  Test — full login flow:
+    Render LoginComponent.
+    Fill email and password inputs (using fixture.debugElement.query).
+    Click submit.
+    Expect HttpClient to have received POST /auth/login.
+    Flush response { token: 'mock-token' }.
+    Expect HttpClient to receive GET /users/me.
+    Flush response { id: '1', username: 'Ahmed', email: 'a@test.com', role: 'TEAM_MEMBER' }.
+    Expect Router.navigate to have been called with ['/dashboard'].
+    Expect TokenService.getToken() to return 'mock-token'.
+ 
+  Test — login with wrong credentials:
+    Flush 401 response.
+    Expect ToastrService.error to have been called.
+    Expect Router.navigate NOT called.
+ 
+  Test — register then auto-login:
+    Fill register form.
+    Submit → flush 201 User response.
+    Expect login request to follow automatically.
+    Flush token → expect getMe → flush user → expect navigate to /dashboard.
+ 
+task-flow.integration.spec.ts:
+  Test — create task and see it in board:
+    Render TaskBoardComponent with projectId.
+    Mock TaskService.getByProject returning [].
+    Expect 5 columns rendered with empty state.
+    Open create modal (click + button on TODO column).
+    Fill title "Test Task", priority "HIGH".
+    Submit → mock TaskService.create returning a Task with status=TODO.
+    Expect task to appear in TODO column without reload.
+ 
+  Test — drag task to new column (status change):
+    Mock 1 task in TODO column.
+    Simulate cdkDropList drop event from TODO to IN_PROGRESS container.
+    Expect TaskService.changeStatus called with correct id and status.
+    Flush success → task stays in IN_PROGRESS column.
+ 
+  Test — invalid status transition reverts:
+    Simulate drop from IN_PROGRESS to DONE.
+    Expect TaskService.changeStatus called.
+    Flush 400 error.
+    Expect task to revert back to IN_PROGRESS column.
+    Expect ToastrService.error called.
+ 
+Run: ng test --no-watch
+Goal: all integration tests pass. They simulate real user flows without a backend.
+```
+ 
+---
+ 
+## PHASE 16 — Final Polish
+ 
+### Task 16.1 — Loading + Empty + Error States ☐
+```
+Go through every page and add proper states.
+ 
+Loading skeleton (create shared skeleton component):
+  src/app/shared/components/skeleton/skeleton.component.ts
+  Input: type: 'card' | 'list-item' | 'text' | 'avatar'
+  Renders animated gray pulse block matching the shape.
+ 
+Pages to audit:
+  dashboard: skeleton stats cards + skeleton workspace cards while loading
+  workspace-list: skeleton workspace cards (3 of them)
+  workspace-detail: skeleton project cards
+  project-detail: skeleton tab content
+  task-board: skeleton task cards in each column (2 per column)
+  task-detail: skeleton for drawer content
+  patterns: skeleton pattern cards (6 of them)
+ 
+Error state component (already exists as app-empty-state with error variant):
+  Add variant: 'error' to empty-state component
+  Shows: red icon + "Something went wrong" + "Retry" button
+  Each page: on API error → show error state with retry button that re-calls the load method.
+ 
+Global 404 page:
+  src/app/features/not-found/not-found.component.ts
+  Shows: large "404", "Page not found", back to dashboard link.
+  Add to router: { path: '**', loadComponent: () => NotFoundComponent }
+ 
+Goal: no blank white screens anywhere. Every loading/empty/error state handled.
+Verify: disconnect from backend → error states appear. Reconnect → retry works.
+```
+ 
+### Task 16.2 — Responsive Layout ☐
+```
+Breakpoints (add to styles.scss):
+  $mobile:  576px;
+  $tablet:  768px;
+  $desktop: 1024px;
+  $wide:    1280px;
+ 
+Sidebar responsive behavior:
+  Desktop (>1024px): full sidebar 240px, always visible
+  Tablet (768-1024px): collapsed sidebar (64px), icons only, tooltips on hover
+  Mobile (<768px): sidebar hidden, hamburger button in navbar opens it as overlay drawer
+ 
+  Add to sidebar.component.ts:
+    @HostListener('window:resize') onResize(): update isCollapsed based on window.innerWidth
+    On mobile: isOverlay = true, shows backdrop behind sidebar when open
+ 
+Task board responsive:
+  Desktop: 5 columns horizontal scroll
+  Mobile: 1 column visible, swipe left/right between columns (use CSS scroll snap)
+    Add scroll snap CSS: scroll-snap-type: x mandatory on board container, scroll-snap-align: start on each column
+ 
+Modals responsive:
+  Mobile (<576px): modal takes full screen width and 90% height, positioned at bottom (bottom sheet)
+  Add to modal.component.scss: @media (max-width: 576px) { panel: width 100%, border-radius top only }
+ 
+Task detail drawer responsive:
+  Desktop: 600px right drawer
+  Mobile: full screen overlay
+ 
+Grid responsive fixes:
+  workspace-list: 1 col mobile, 2 tablet, 3 desktop
+  project cards: 1 col mobile, 2 tablet, 3 desktop
+  dashboard stats: 2 col mobile, 4 desktop
+  patterns grid: 1 col mobile, 2 tablet, 3 desktop
+ 
+Goal: app is fully usable on mobile. No horizontal scroll except the task board.
+Verify: open on 375px viewport — everything readable, interactive, no overflow.
+```
+ 
+### Task 16.3 — Final Cleanup + Build ☐
+```
+Code quality:
+  - Remove all console.log statements
+  - Ensure all Observables are unsubscribed (use takeUntilDestroyed() from @angular/core/rxjs-interop, or AsyncPipe in templates)
+  - No unused imports in any component
+  - All @Input() that are required have required: true in Angular 17+ syntax
+  - All components have OnPush change detection where possible
+ 
+Accessibility:
+  - All interactive elements have aria-label or aria-labelledby
+  - Color is never the only indicator (add icons + text to badges)
+  - Focus visible on all interactive elements (add :focus-visible styles)
+  - Images and avatars have alt text
+ 
+Page titles (add to each route):
+  title: 'Dashboard | TeamSync'
+  title: 'Workspaces | TeamSync'
+  etc.
+  Use Angular router title strategy: providers: [{ provide: TitleStrategy, useClass: AppTitleStrategy }]
+ 
+Environment:
+  Verify environment.ts and environment.prod.ts are correct.
+  ng build --configuration=production must succeed with zero errors and zero warnings.
+ 
+Update root README.md to add frontend section:
+  ## Frontend (Angular)
+  Prerequisites: Node 18+, Angular CLI 17+
+  
+  cd frontend
+  npm install
+  ng serve          → http://localhost:4200
+  ng test           → run all tests
+  ng build --configuration=production → production build
+ 
+Final verification checklist:
+  [ ] ng serve starts with no errors
+  [ ] ng build --configuration=production succeeds
+  [ ] ng test passes all tests
+  [ ] Login → Dashboard → Create workspace → Create project → Create task → Move task → Comment → all work
+  [ ] /patterns page loads without auth and shows all 14 patterns
+  [ ] Notifications bell updates within 30 seconds of an action
+  [ ] Responsive layout works on 375px mobile viewport
+ 
+Goal: production build clean. Full user flow works end-to-end with the Spring Boot backend.
+```
 ---
 
 ## Pattern Checklist
