@@ -1498,7 +1498,7 @@ Verify: duplicate email shows error toast from backend.
  
 ## PHASE 11 — Dashboard
  
-### Task 11.1 — Dashboard Page ☐
+### Task 11.1 — Dashboard Page ✅
 ```
 src/app/features/dashboard/
  
