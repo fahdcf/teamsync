@@ -1678,7 +1678,7 @@ Goal: workspace detail shows projects and members. Can add members and create pr
 Verify: adding member with non-existent email shows error toast.
 ```
  
-### Task 12.3 — Project Detail Page ☐
+### Task 12.3 — Project Detail Page ✅
 ```
 src/app/features/project/project-detail/
  
