@@ -2194,7 +2194,7 @@ Run: ng test --no-watch --code-coverage
 Goal: all tests pass. Coverage > 70% for services.
 ```
  
-### Task 15.2 — Unit Tests: Components ☐
+### Task 15.2 — Unit Tests: Components ✅
 ```
 login.component.spec.ts:
   TestBed with ReactiveFormsModule, RouterTestingModule, HttpClientTestingModule.
