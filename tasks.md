@@ -252,7 +252,7 @@ Verify: Visual check — background is deep near-black, not the old #0F1117.
 Verify: Accent color is warm amber #D4A853, not the old indigo #6366F1.
 ```
 
-### Task R1.2 — Redesign Layout Shell (Sidebar + Navbar) ☐
+### Task R1.2 — Redesign Layout Shell (Sidebar + Navbar) ✅
 ```
 Reference: screenshots 2, 3, 4 — study the sidebar and navbar carefully.
 
