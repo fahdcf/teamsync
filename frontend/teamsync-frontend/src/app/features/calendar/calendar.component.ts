@@ -1,10 +1,13 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { forkJoin, of, switchMap } from 'rxjs';
-import { TaskService } from '../../../api/task.service';
-import { ProjectService } from '../../../api/project.service';
-import { WorkspaceService } from '../../../api/workspace.service';
-import { Task } from '../../../shared/models/task.model';
+import { forkJoin, of } from 'rxjs';
+import { switchMap } from 'rxjs/operators';
+import { TaskService } from '../../api/task.service';
+import { ProjectService } from '../../api/project.service';
+import { WorkspaceService } from '../../api/workspace.service';
+import { Task } from '../../shared/models/task.model';
+import { Workspace } from '../../shared/models/workspace.model';
+import { Project } from '../../shared/models/project.model';
 
 interface CalendarDay { date: Date; isCurrentMonth: boolean; isToday: boolean; tasks: Task[]; }
 
@@ -102,9 +105,21 @@ export default class CalendarComponent implements OnInit {
   get year(): number { return this.viewDate.getFullYear(); }
   ngOnInit(): void {
     this.workspaceService.getAll().pipe(
-      switchMap(ws => ws.length ? forkJoin(ws.map(w => this.projectService.getByWorkspace(w.id))) : of([])),
-      switchMap((pa: any) => { const projects = (pa as any[][]).flat(); return projects.length ? forkJoin(projects.map((p:any) => this.taskService.getByProject(p.id))) : of([]); })
-    ).subscribe({ next: (ta: any) => { this.tasks = (ta as Task[][]).flat().filter(t => t.dueDate); this.buildCalendar(); this.loading = false; }, error: () => { this.loading = false; this.buildCalendar(); } });
+      switchMap((workspaces: Workspace[]) =>
+        workspaces.length ? forkJoin(workspaces.map(ws => this.projectService.getByWorkspace(ws.id))) : of([] as Project[][])
+      ),
+      switchMap((projectArrays: Project[][]) => {
+        const projects = projectArrays.flat();
+        return projects.length ? forkJoin(projects.map(p => this.taskService.getByProject(p.id))) : of([] as Task[][]);
+      })
+    ).subscribe({
+      next: (taskArrays: Task[][]) => {
+        this.tasks = taskArrays.flat().filter(t => !!t.dueDate);
+        this.buildCalendar();
+        this.loading = false;
+      },
+      error: () => { this.loading = false; this.buildCalendar(); }
+    });
   }
   buildCalendar(): void {
     const year = this.viewDate.getFullYear(), month = this.viewDate.getMonth(), today = new Date();
