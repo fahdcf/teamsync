@@ -4,7 +4,6 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { AuthStore } from '../../store/auth.store';
 import { SidebarStateService } from '../../core/services/sidebar-state.service';
-import { AvatarComponent } from '../../shared/components/avatar/avatar.component';
 
 interface NavItem {
   label: string;
@@ -17,7 +16,7 @@ interface NavItem {
 @Component({
   selector: 'app-sidebar',
   standalone: true,
-  imports: [CommonModule, AsyncPipe, RouterLink, RouterLinkActive, AvatarComponent],
+  imports: [CommonModule, AsyncPipe, RouterLink, RouterLinkActive],
   template: `
     <div
       class="overlay-backdrop"

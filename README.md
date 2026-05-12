@@ -73,3 +73,15 @@ ng build --configuration=production  # → production build
 **Tech Stack:** Angular 21, standalone components, CDK Drag-Drop, Vitest
 
 **Features:** Authentication, workspace & project management, Kanban task board with drag-and-drop, real-time notifications, patterns viewer, responsive layout (mobile/tablet/desktop)
+
+## Frontend Design System
+
+- Colors: near-black backgrounds (`#0C0C0E`) with warm amber accent (`#D4A853`)
+- Font: Inter from Google Fonts
+- Component library: custom Angular standalone components
+- Charts: Chart.js with ng2-charts using registered tree-shakeable chart parts
+- Animations: Angular Animations for route fades, drawers, modals, and card reveals
+
+## Screenshots
+
+Placeholder for screenshots after build.
