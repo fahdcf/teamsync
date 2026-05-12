@@ -1,6 +1,7 @@
 import { Component, HostListener, OnInit, inject } from '@angular/core';
 import { AsyncPipe, CommonModule } from '@angular/common';
 import { RouterLink, RouterLinkActive } from '@angular/router';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { AuthStore } from '../../store/auth.store';
 import { SidebarStateService } from '../../core/services/sidebar-state.service';
 import { AvatarComponent } from '../../shared/components/avatar/avatar.component';
@@ -9,6 +10,7 @@ interface NavItem {
   label: string;
   route: string;
   iconPath: string;
+  safeIcon?: SafeHtml;
   count?: number;
 }
 
@@ -58,7 +60,7 @@ interface NavItem {
           [title]="isCollapsed ? item.label : ''"
           (click)="isOverlay && sidebarState.close()"
         >
-          <span class="nav-icon" [innerHTML]="item.iconPath"></span>
+          <span class="nav-icon" [innerHTML]="item.safeIcon"></span>
           <span class="nav-label" *ngIf="!isCollapsed">{{ item.label }}</span>
           <span class="nav-count" *ngIf="!isCollapsed && item.count">{{ item.count }}</span>
         </a>
@@ -66,32 +68,16 @@ interface NavItem {
 
       <div class="separator"></div>
 
-      <div class="sidebar-bottom" *ngIf="(user$ | async) as user">
-        <button class="ai-item" type="button" [title]="isCollapsed ? 'AI Assistant' : ''">
-          <span class="ai-avatar">AI</span>
-          <span class="ai-content" *ngIf="!isCollapsed">
-            <span class="ai-title">AI Assistant</span>
-            <span class="ai-status"><span class="online-dot"></span> Online</span>
-          </span>
-          <span class="ai-plus" *ngIf="!isCollapsed">+</span>
-        </button>
-
-        <div class="trial" *ngIf="!isCollapsed">
-          <div class="trial-row">
-            <span class="trial-label">Trial usage</span>
-            <span class="trial-percent">78%</span>
-          </div>
-          <div class="trial-bar"><span class="trial-fill"></span></div>
-          <a class="trial-link" href="#">Upgrade plan -></a>
-        </div>
-
-        <button class="user-item" type="button" [title]="isCollapsed ? user.username : ''">
-          <app-avatar [user]="user" size="sm"></app-avatar>
+      <div class="sidebar-bottom">
+        <button class="user-item" type="button" [title]="isCollapsed ? 'Alex Johnson' : ''">
+          <img class="user-img" src="https://i.pravatar.cc/150?u=a042581f4e29026704d" alt="Alex Johnson" />
           <span class="user-copy" *ngIf="!isCollapsed">
-            <span class="user-name">{{ user.username }}</span>
-            <span class="user-role">{{ user.role }}</span>
+            <span class="user-name">Alex Johnson</span>
+            <span class="user-role">Product Designer</span>
           </span>
-          <span class="user-chevron" *ngIf="!isCollapsed">v</span>
+          <span class="user-chevron" *ngIf="!isCollapsed">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 6l4 4 4-4" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+          </span>
         </button>
       </div>
     </aside>
@@ -186,21 +172,23 @@ interface NavItem {
         padding: 10px 0;
         display: flex;
         flex-direction: column;
-        gap: 2px;
+        gap: 8px;
       }
 
       .nav-item {
         display: flex;
         align-items: center;
-        gap: 10px;
-        padding: 8px 12px;
+        gap: 12px;
+        height: 40px;
+        padding: 0 12px;
         margin: 0 8px;
         border-radius: var(--radius-md);
         text-decoration: none;
         color: var(--text-tertiary);
-        font-size: 13px;
+        font-size: 14px;
         font-weight: 400;
         line-height: 1;
+        box-sizing: border-box;
       }
 
       .nav-item:hover {
@@ -258,22 +246,24 @@ interface NavItem {
 
       .ai-item,
       .user-item {
-        margin: 0 8px;
-        border: 0;
-        border-radius: var(--radius-md);
-        background: transparent;
+        margin: 0 12px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.02);
         color: inherit;
-        padding: 8px 12px;
+        min-height: 52px;
+        padding: 8px 10px;
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 12px;
         text-align: left;
         cursor: pointer;
+        box-sizing: border-box;
       }
 
       .ai-item:hover,
       .user-item:hover {
-        background: var(--bg-elevated);
+        background: rgba(255, 255, 255, 0.05);
       }
 
       .ai-avatar {
@@ -365,6 +355,14 @@ interface NavItem {
         color: var(--accent-hover);
       }
 
+      .user-img {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        object-fit: cover;
+        flex-shrink: 0;
+      }
+
       .user-copy {
         display: flex;
         flex-direction: column;
@@ -379,26 +377,43 @@ interface NavItem {
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+        font-weight: 500;
       }
 
       .user-role {
         font-size: 11px;
         color: var(--text-secondary);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
 
       .user-chevron {
         color: var(--text-tertiary);
-        font-size: 12px;
+        width: 16px;
+        height: 16px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .user-chevron :is(svg) {
+        width: 14px;
+        height: 14px;
       }
 
       .collapsed .logo {
-        padding: 0 6px;
-        justify-content: space-between;
+        padding: 0;
+        justify-content: center;
+        flex-direction: column;
+        height: auto;
+        padding-top: 12px;
+        gap: 12px;
       }
 
       .collapsed .logo-brand {
-        width: 18px;
-        justify-content: flex-start;
+        width: auto;
+        justify-content: center;
       }
 
       .collapsed .logo-text,
@@ -413,9 +428,19 @@ interface NavItem {
       .collapsed .nav-item,
       .collapsed .ai-item,
       .collapsed .user-item {
-        margin: 0 6px;
-        padding: 8px;
+        margin: 0 8px;
+        padding: 0;
         justify-content: center;
+      }
+
+      .collapsed .nav-icon {
+        width: 20px;
+        height: 20px;
+      }
+
+      .collapsed .nav-icon :is(svg) {
+        width: 20px;
+        height: 20px;
       }
 
       .collapsed .separator {
@@ -427,6 +452,7 @@ interface NavItem {
 export class SidebarComponent implements OnInit {
   readonly authStore = inject(AuthStore);
   readonly sidebarState = inject(SidebarStateService);
+  private readonly sanitizer = inject(DomSanitizer);
   readonly user$ = this.authStore.user$;
 
   isCollapsed = false;
@@ -434,49 +460,64 @@ export class SidebarComponent implements OnInit {
 
   readonly navItems: NavItem[] = [
     {
-      label: 'Dashboard',
+      label: 'Home',
       route: '/dashboard',
       iconPath:
-        '<svg viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="1" width="6" height="6" rx="1"></rect><rect x="9" y="1" width="6" height="6" rx="1"></rect><rect x="1" y="9" width="6" height="6" rx="1"></rect><rect x="9" y="9" width="6" height="6" rx="1"></rect></svg>',
+        '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 2L1 8v7h4v-5h6v5h4V8z" stroke-linejoin="round"></path></svg>',
     },
     {
       label: 'Workspaces',
       route: '/workspaces',
       iconPath:
-        '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 6.2 8 2l6 4.2V14H2V6.2Z"></path><path d="M5.2 8.6h5.6"></path></svg>',
+        '<svg viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="1" width="6" height="6" rx="1"></rect><rect x="9" y="1" width="6" height="6" rx="1"></rect><rect x="1" y="9" width="6" height="6" rx="1"></rect><rect x="9" y="9" width="6" height="6" rx="1"></rect></svg>',
     },
     {
       label: 'Projects',
-      route: '/workspaces',
+      route: '/projects',
       iconPath:
         '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M1.5 4.5A1.5 1.5 0 0 1 3 3h3l1.4 1.8H13a1.5 1.5 0 0 1 1.5 1.5v6.2A1.5 1.5 0 0 1 13 14H3a1.5 1.5 0 0 1-1.5-1.5z"></path></svg>',
     },
     {
       label: 'Tasks',
-      route: '/dashboard',
+      route: '/tasks',
       iconPath:
         '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2" y="2" width="12" height="12" rx="2"></rect><path d="m5 8 2 2 4-4" stroke-linecap="round" stroke-linejoin="round"></path></svg>',
     },
     {
       label: 'Analytics',
-      route: '/dashboard',
+      route: '/analytics',
       iconPath:
         '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 13.5h12"></path><path d="M4 12V8"></path><path d="M8 12V5"></path><path d="M12 12V3"></path></svg>',
     },
     {
-      label: 'Notifications',
-      route: '/dashboard',
+      label: 'Calendar',
+      route: '/calendar',
       iconPath:
-        '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 2.2a4.4 4.4 0 0 0-4.4 4.4v2.8L2.5 11h11L12.4 9.4V6.6A4.4 4.4 0 0 0 8 2.2Z"></path><path d="M6.3 12.6a1.7 1.7 0 0 0 3.4 0"></path></svg>',
+        '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2" y="3" width="12" height="11" rx="1.5"></rect><path d="M4 1.5v3M12 1.5v3M2 7h12"></path></svg>',
+    },
+    {
+      label: 'Messages',
+      route: '/messages',
+      iconPath:
+        '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M3 13.5C2 13.5 1.5 13 1.5 12V4.5C1.5 3.5 2 3 3 3h10c1 0 1.5.5 1.5 1.5v7.5c0 1-.5 1.5-1.5 1.5H10l-2 2-2-2H3z"></path></svg>',
       count: 3,
     },
     {
+      label: 'Files',
+      route: '/files',
+      iconPath:
+        '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M9 2H4a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7z"></path><path d="M9 2v5h5"></path></svg>',
+    },
+    {
       label: 'Settings',
-      route: '/dashboard',
+      route: '/settings',
       iconPath:
         '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="2.1"></circle><path d="M8 1.5v1.7M8 12.8v1.7M1.5 8h1.7M12.8 8h1.7M3.1 3.1l1.2 1.2M11.7 11.7l1.2 1.2M3.1 12.9l1.2-1.2M11.7 4.3l1.2-1.2"></path></svg>',
     },
-  ];
+  ].map((item) => ({
+    ...item,
+    safeIcon: this.sanitizer.bypassSecurityTrustHtml(item.iconPath),
+  }));
 
   ngOnInit(): void {
     this.updateLayout();
