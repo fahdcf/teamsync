@@ -12,8 +12,8 @@
 
 .board {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(4, minmax(280px, 1fr));
+  gap: 16px;
   flex: 1;
   min-height: 0;
   overflow: auto;
@@ -21,8 +21,8 @@
 
 /* Each column card */
 .column {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
+  background: #18181b;
+  border: 1px solid rgba(255,255,255,0.03);
   border-radius: var(--radius-lg);
   display: flex;
   flex-direction: column;
@@ -65,10 +65,9 @@
 }
 
 .add-btn {
-  width: 26px;
-  height: 26px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
+  width: 24px;
+  height: 24px;
+  border: none;
   background: transparent;
   color: var(--text-tertiary);
   cursor: pointer;
@@ -80,9 +79,8 @@
   justify-content: center;
 }
 .add-btn:hover {
-  background: var(--bg-elevated);
-  border-color: var(--border-default);
-  color: var(--accent);
+  background: rgba(255,255,255,0.05);
+  color: var(--text-primary);
 }
 
 .column-body {

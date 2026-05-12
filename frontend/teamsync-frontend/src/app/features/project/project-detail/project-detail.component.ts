@@ -38,18 +38,20 @@ type Tab = 'board' | 'analytics' | 'settings';
 
       <!-- Compact top bar: breadcrumb -->
       <div class="pd-breadcrumb">
-        <span class="crumb link" (click)="router.navigate(['/workspaces'])">{{ project.workspace?.name || 'Workspace' }}</span>
+        <span class="crumb link">Acme Inc. / {{ project.workspace?.name || 'Workspace' }}</span>
         <span class="sep">›</span>
-        <span class="crumb current">{{ project.title }}</span>
       </div>
 
       <!-- Title row -->
       <div class="pd-title-row">
         <div class="pd-title-left">
           <h1 *ngIf="!isEditingTitle" (click)="isEditingTitle = true">{{ project.title }}</h1>
+          <span class="chevron-down" *ngIf="!isEditingTitle">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </span>
+          <span class="star-icon" *ngIf="!isEditingTitle">☆</span>
           <input *ngIf="isEditingTitle" class="title-edit" [value]="project.title"
             (blur)="onTitleBlur($event)" (keydown.enter)="$any($event.target).blur()" autofocus />
-          <span class="pd-status" [class]="project.status.toLowerCase().replace('_','-')">{{ statusLabel(project.status) }}</span>
         </div>
         <div class="pd-title-right" *ngIf="canArchive && project.status !== 'ARCHIVED'">
           <button class="archive-btn" (click)="archiveProject()" type="button">Archive</button>
@@ -131,28 +133,25 @@ type Tab = 'board' | 'analytics' | 'settings';
     .pd-title-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
 
     h1 {
-      font-size: 22px; font-weight: 700; cursor: pointer;
+      font-size: 24px; font-weight: 500; cursor: pointer;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-      transition: color 0.15s; margin: 0;
+      transition: color 0.15s; margin: 0; color: #fff;
     }
-    h1:hover { color: var(--accent); }
+    h1:hover { color: #ccc; }
+
+    .chevron-down {
+      display: inline-flex; align-items: center; color: var(--text-tertiary);
+      margin-left: 4px; cursor: pointer;
+    }
+    .star-icon {
+      color: var(--accent); font-size: 16px; margin-left: 12px; cursor: pointer;
+    }
 
     .title-edit {
-      font-size: 22px; font-weight: 700; background: none; border: none;
+      font-size: 24px; font-weight: 500; background: none; border: none;
       border-bottom: 2px solid var(--accent); color: var(--text-primary);
       outline: none; width: 320px;
     }
-
-    .pd-status {
-      font-size: 11px; font-weight: 600; padding: 2px 10px;
-      border-radius: var(--radius-full); border: 1px solid currentColor;
-      text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; flex-shrink: 0;
-    }
-    .pd-status.planning   { color: var(--info); }
-    .pd-status.active     { color: var(--success); }
-    .pd-status.on-hold    { color: var(--warning); }
-    .pd-status.completed  { color: var(--accent); }
-    .pd-status.archived   { color: var(--text-tertiary); }
 
     .archive-btn {
       height: 30px; padding: 0 14px; font-size: 12px;
@@ -209,7 +208,9 @@ export default class ProjectDetailComponent implements OnInit {
 
   readonly tabs = [
     { key: 'board' as Tab, label: 'Board' },
-    { key: 'analytics' as Tab, label: 'Analytics' },
+    { key: 'timeline' as Tab, label: 'Timeline' },
+    { key: 'overview' as Tab, label: 'Overview' },
+    { key: 'files' as Tab, label: 'Files' },
     { key: 'settings' as Tab, label: 'Settings' },
   ];
 
