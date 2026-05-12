@@ -11,6 +11,9 @@ import { fadeIn } from './app.animations';
 })
 export class App {
   prepareRoute(outlet: RouterOutlet): string {
-    return outlet?.activatedRouteData?.['title'] ?? outlet?.activatedRoute?.snapshot?.routeConfig?.path ?? '';
+    if (!outlet || !outlet.isActivated) {
+      return '';
+    }
+    return outlet.activatedRouteData?.['title'] ?? outlet.activatedRoute?.snapshot?.routeConfig?.path ?? '';
   }
 }

@@ -1,5 +1,13 @@
-:host,
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
 .route-frame {
-  display: block;
-  min-height: 100vh;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }

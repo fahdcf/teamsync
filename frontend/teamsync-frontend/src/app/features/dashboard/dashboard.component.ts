@@ -106,7 +106,7 @@ interface BoardColumn {
             <app-task-card
               *ngFor="let task of column.tasks"
               [task]="task"
-              [commentCount]="task.dependencies.length"
+              [commentCount]="task.dependencies?.length || 0"
               (cardClick)="openTask(task.id)">
             </app-task-card>
             <button class="add-task-row" type="button">+ Add task</button>

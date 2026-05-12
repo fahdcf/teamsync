@@ -92,8 +92,7 @@ interface NavItem {
 
       .sidebar {
         width: 200px;
-        height: 100vh;
-        padding-top: 20px;
+        height: 100%;
         background: var(--bg-surface);
         border-right: 1px solid var(--border-subtle);
         display: flex;

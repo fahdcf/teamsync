@@ -20,21 +20,31 @@ import { NavbarComponent } from '../navbar/navbar.component';
     </div>
   `,
   styles: [`
+    :host {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-height: 0;
+    }
     .shell {
       display: flex;
       flex-direction: row;
-      height: 100vh;
+      flex: 1;
       overflow: hidden;
+      min-height: 0;
     }
     .main {
       flex: 1;
       display: flex;
       flex-direction: column;
       overflow: hidden;
+      min-height: 0;
     }
     .content {
       flex: 1;
       overflow-y: auto;
+      min-height: 0;
     }
   `]
 })
