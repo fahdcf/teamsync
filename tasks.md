@@ -2079,7 +2079,7 @@ Goal: bell badge updates every 30 seconds. Marking read updates badge immediatel
 Verify: create a task → status change → within 30s, bell shows unread badge.
 ```
  
-### Task 14.2 — Patterns Page ☐
+### Task 14.2 — Patterns Page ✅
 ```
 src/app/features/patterns/
  
