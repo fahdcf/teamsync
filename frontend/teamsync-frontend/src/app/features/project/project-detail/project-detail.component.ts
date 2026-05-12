@@ -100,12 +100,12 @@ type Tab = 'board' | 'analytics' | 'settings';
     .pd::before {
       content: '';
       position: absolute;
-      top: -250px;
+      top: -400px;
       left: 50%;
       transform: translateX(-50%);
-      width: 800px;
-      height: 600px;
-      background: radial-gradient(circle, rgba(162, 116, 68, 0.15) 0%, rgba(0, 0, 0, 0) 60%);
+      width: 1400px;
+      height: 900px;
+      background: radial-gradient(circle, rgba(162, 116, 68, 0.18) 0%, rgba(0, 0, 0, 0) 65%);
       pointer-events: none;
       z-index: -1;
     }

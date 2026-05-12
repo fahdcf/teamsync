@@ -41,7 +41,9 @@ import { User } from '../../../shared/models/user.model';
       padding: 16px;
       border: 1px solid rgba(255,255,255,0.03);
       border-radius: var(--radius-lg);
-      background: #242426;
+      background: rgba(36, 36, 38, 0.65);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
       color: var(--text-primary);
       cursor: pointer;
       display: flex;
@@ -51,7 +53,7 @@ import { User } from '../../../shared/models/user.model';
       transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
     }
     .tc:hover {
-      background: #2a2a2d;
+      background: rgba(42, 42, 45, 0.85);
       border-color: rgba(255,255,255,0.06);
       box-shadow: var(--shadow-sm);
     }
