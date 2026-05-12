@@ -1087,7 +1087,7 @@ Goal: all services compile. No HTTP calls yet — they'll be triggered by compon
 Verify: ng build produces no type errors.
 ```
  
-### Task 8.3 — Core Module: Interceptors + Guards + Store ☐
+### Task 8.3 — Core Module: Interceptors + Guards + Store ✅
 ```
 --- INTERCEPTORS (src/app/core/interceptors/) ---
  
