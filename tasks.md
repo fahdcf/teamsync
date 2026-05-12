@@ -374,7 +374,7 @@ Verify: sidebar active item highlighted, all icons render, bottom section shows 
 
 ## PHASE R2 — Landing / Home Page
 
-### Task R2.1 — Backend: Add Public Stats Endpoint ☐
+### Task R2.1 — Backend: Add Public Stats Endpoint ✅
 ```
 The landing page needs real-sounding (but public) stats.
 Add to backend:
