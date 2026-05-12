@@ -1,6 +1,6 @@
 package com.teamsync.presentation.controller;
 
-import com.teamsync.domain.entity.ActivityLog;
+import com.teamsync.presentation.dto.ActivityLogResponseDTO;
 import com.teamsync.service.ActivityLogService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -24,21 +24,21 @@ public class ActivityController {
     @Operation(summary = "Get last 50 activity entries for a project")
     @ApiResponse(responseCode = "200", description = "Activity feed returned")
     @GetMapping("/projects/{id}/activity")
-    public List<ActivityLog> getProjectActivity(@PathVariable UUID id) {
-        return activityLogService.findByEntityId(id);
+    public List<ActivityLogResponseDTO> getProjectActivity(@PathVariable UUID id) {
+        return activityLogService.findDTOsByEntityId(id);
     }
 
     @Operation(summary = "Get last 50 activity entries for a workspace")
     @ApiResponse(responseCode = "200", description = "Activity feed returned")
     @GetMapping("/workspaces/{id}/activity")
-    public List<ActivityLog> getWorkspaceActivity(@PathVariable UUID id) {
-        return activityLogService.findByEntityId(id);
+    public List<ActivityLogResponseDTO> getWorkspaceActivity(@PathVariable UUID id) {
+        return activityLogService.findDTOsByEntityId(id);
     }
 
     @Operation(summary = "Get personal activity feed for the current user")
     @ApiResponse(responseCode = "200", description = "Personal activity feed returned")
     @GetMapping("/users/me/activity")
-    public List<ActivityLog> getMyActivity(Authentication auth) {
-        return activityLogService.findRecent();
+    public List<ActivityLogResponseDTO> getMyActivity(Authentication auth) {
+        return activityLogService.findRecentDTOs();
     }
 }

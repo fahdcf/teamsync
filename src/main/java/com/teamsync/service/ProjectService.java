@@ -1,10 +1,12 @@
 package com.teamsync.service;
 
 import com.teamsync.domain.entity.Project;
+import com.teamsync.domain.entity.Task;
 import com.teamsync.domain.entity.User;
 import com.teamsync.domain.entity.Workspace;
 import com.teamsync.domain.enums.ProjectEventType;
 import com.teamsync.domain.enums.ProjectStatus;
+import com.teamsync.domain.enums.TaskStatus;
 import com.teamsync.patterns.behavioral.observer.ProjectEvent;
 import com.teamsync.patterns.behavioral.observer.ProjectEventPublisher;
 import com.teamsync.patterns.creational.singleton.AppLogger;
@@ -13,11 +15,13 @@ import com.teamsync.presentation.dto.ProjectResponseDTO;
 import com.teamsync.presentation.dto.UserResponseDTO;
 import com.teamsync.repository.ProjectRepository;
 import com.teamsync.repository.ProjectSpecification;
+import com.teamsync.repository.TaskRepository;
 import com.teamsync.repository.UserRepository;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
@@ -28,15 +32,18 @@ public class ProjectService {
 
     private final ProjectRepository projectRepository;
     private final UserRepository userRepository;
+    private final TaskRepository taskRepository;
     private final WorkspaceService workspaceService;
     private final ProjectEventPublisher eventPublisher;
 
     public ProjectService(ProjectRepository projectRepository,
                           UserRepository userRepository,
+                          TaskRepository taskRepository,
                           WorkspaceService workspaceService,
                           @Lazy ProjectEventPublisher eventPublisher) {
         this.projectRepository = projectRepository;
         this.userRepository = userRepository;
+        this.taskRepository = taskRepository;
         this.workspaceService = workspaceService;
         this.eventPublisher = eventPublisher;
     }
@@ -121,6 +128,7 @@ public class ProjectService {
     }
 
     private ProjectResponseDTO toDTO(Project p) {
+        String health = calculateHealth(p);
         return ProjectResponseDTO.builder()
                 .id(p.getId())
                 .title(p.getTitle())
@@ -128,9 +136,36 @@ public class ProjectService {
                 .status(p.getStatus())
                 .deadline(p.getDeadline())
                 .progress(p.getProgress())
+                .health(health)
+                .insight(insightForHealth(health))
                 .workspaceId(p.getWorkspace().getId())
                 .manager(userToDTO(p.getManager()))
                 .createdAt(p.getCreatedAt())
                 .build();
+    }
+
+    private String calculateHealth(Project project) {
+        List<Task> tasks = taskRepository.findByProject(project);
+        long overdue = tasks.stream()
+                .filter(task -> task.getDueDate() != null)
+                .filter(task -> task.getDueDate().isBefore(LocalDate.now()))
+                .filter(task -> task.getStatus() != TaskStatus.DONE)
+                .count();
+
+        if (project.getProgress() >= 70 && overdue == 0) {
+            return "ON_TRACK";
+        }
+        if (project.getProgress() < 40 || overdue >= 3) {
+            return "DELAYED";
+        }
+        return "AT_RISK";
+    }
+
+    private String insightForHealth(String health) {
+        return switch (health) {
+            case "ON_TRACK" -> "Components are ahead of schedule. Consider starting documentation early.";
+            case "AT_RISK" -> "User testing results suggest reviewing the onboarding flow.";
+            default -> "Significant delays detected. Schedule a team sync immediately.";
+        };
     }
 }

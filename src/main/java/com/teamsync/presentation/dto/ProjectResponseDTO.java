@@ -19,6 +19,8 @@ public class ProjectResponseDTO {
     private ProjectStatus status;
     private LocalDate deadline;
     private int progress;
+    private String health;
+    private String insight;
     private UUID workspaceId;
     private UserResponseDTO manager;
     private LocalDateTime createdAt;

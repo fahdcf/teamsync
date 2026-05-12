@@ -812,7 +812,7 @@ Verify: priority dots have correct colors.
 
 ## PHASE R4 — Workspace Detail Redesign
 
-### Task R4.1 — Backend: Project Health + Workspace Activity ☐
+### Task R4.1 — Backend: Project Health + Workspace Activity ✅
 ```
 The workspace detail page needs endpoints the current backend partially has but needs to enhance.
 
