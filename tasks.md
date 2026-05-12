@@ -933,7 +933,7 @@ Goal: ng serve starts on port 4200 with no errors. Routing configured. All folde
 Verify: browser opens localhost:4200 with default Angular page. No compilation errors.
 ```
  
-### Task 8.2 — Models + API Services ☐
+### Task 8.2 — Models + API Services ✅
 ```
 Create ALL TypeScript models in src/app/shared/models/ matching backend DTOs exactly.
  
