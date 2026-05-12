@@ -586,7 +586,7 @@ Add to SecurityConfig: require auth for /dashboard/**.
 Verify: all 3 endpoints return correct data with a valid JWT token.
 ```
 
-### Task R3.2 — Dashboard Page Redesign ☐
+### Task R3.2 — Dashboard Page Redesign ✅
 ```
 Reference: Screenshot 2 : c:\Users\pp\Downloads\ChatGPT Image 12 mai 2026, 17_04_48.png— study every pixel of this dashboard.
 
