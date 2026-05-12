@@ -86,34 +86,38 @@ interface BoardColumn {
         <div class="section-toolbar">
           <div class="toolbar-left">
             <h2>Project Board</h2>
-            <select class="project-select" [(ngModel)]="selectedProjectId" (ngModelChange)="loadProjectTasks($event)" aria-label="Select project">
+            <select [(ngModel)]="selectedProjectId" (ngModelChange)="loadProjectTasks($event)" aria-label="Select project">
               <option *ngFor="let project of projects" [value]="project.id">{{ project.title }}</option>
             </select>
           </div>
           <div class="toolbar-actions">
-            <button class="tb-btn" type="button">⚡ Filter</button>
-            <button class="tb-btn" type="button">↕ Sort</button>
+            <button type="button">Filter</button>
+            <button type="button">Customize</button>
+            <button type="button" aria-label="More">...</button>
           </div>
         </div>
 
         <div class="kanban-board">
-          <article class="kanban-column" [attr.data-status]="column.status" *ngFor="let column of boardColumns">
-            <header class="kc-header">
-              <div class="kc-title-row">
-                <span class="kc-title">{{ column.label }}</span>
-                <span class="kc-count">{{ column.tasks.length }}</span>
+          <article class="kanban-column" *ngFor="let column of boardColumns"
+            [attr.data-status]="column.status">
+            <header class="kanban-col-header">
+              <div class="kanban-col-title-row">
+                <span class="kanban-col-dot" [attr.data-status]="column.status"></span>
+                <h3>{{ column.label }}</h3>
+                <span class="kanban-col-count">{{ column.tasks.length }}</span>
               </div>
-              <button class="kc-add-btn" type="button" aria-label="Add task">+</button>
+              <button class="kanban-col-add" type="button" aria-label="Add task">+</button>
             </header>
-            <div class="kc-body">
+            <div class="kanban-col-body">
               <app-task-card
                 *ngFor="let task of column.tasks"
                 [task]="task"
-                [commentCount]="task.dependencies.length || 0"
+                [commentCount]="task.dependencies?.length || 0"
                 (cardClick)="openTask(task.id)">
               </app-task-card>
-              <div class="kc-empty" *ngIf="!column.tasks.length">No tasks</div>
-              <button class="kc-add-task" type="button">+ Add task</button>
+              <div *ngIf="!column.tasks.length" class="kanban-empty-col">
+                <span>No tasks</span>
+              </div>
             </div>
           </article>
         </div>
@@ -219,100 +223,7 @@ interface BoardColumn {
       </section>
     </div>
   `,
-  styles: [`
-    /* ── Board Section ── */
-    .board-section { margin-bottom: 32px; }
-    .section-toolbar {
-      display: flex; align-items: center; justify-content: space-between;
-      margin-bottom: 16px; gap: 12px;
-    }
-    .toolbar-left { display: flex; align-items: center; gap: 12px; }
-    .toolbar-left h2 { font-size: 16px; font-weight: 600; margin: 0; }
-    .project-select {
-      height: 30px; padding: 0 10px;
-      background: var(--bg-elevated); border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-md); color: var(--text-secondary);
-      font-size: 12px; outline: none; cursor: pointer;
-    }
-    .toolbar-actions { display: flex; gap: 6px; }
-    .tb-btn {
-      height: 30px; padding: 0 12px;
-      background: var(--bg-elevated); border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-md); color: var(--text-secondary);
-      font-size: 12px; cursor: pointer; transition: all 0.15s;
-    }
-    .tb-btn:hover { border-color: var(--border-default); color: var(--text-primary); }
-
-    /* Kanban board */
-    .kanban-board {
-      display: flex; gap: 12px;
-      overflow-x: auto; padding-bottom: 12px;
-    }
-    .kanban-board::-webkit-scrollbar { height: 5px; }
-    .kanban-board::-webkit-scrollbar-thumb { background: var(--border-default); border-radius: 3px; }
-
-    .kanban-column {
-      flex: 0 0 260px; width: 260px;
-      background: var(--bg-surface);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-lg);
-      display: flex; flex-direction: column;
-      overflow: hidden;
-    }
-
-    /* Colored top bars per status */
-    .kanban-column[data-status="TODO"]        { border-top: 2px solid var(--text-tertiary); }
-    .kanban-column[data-status="IN_PROGRESS"] { border-top: 2px solid var(--info); }
-    .kanban-column[data-status="IN_REVIEW"]   { border-top: 2px solid var(--warning); }
-    .kanban-column[data-status="DONE"]        { border-top: 2px solid var(--success); }
-
-    .kc-header {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 12px 14px; border-bottom: 1px solid var(--border-subtle);
-    }
-    .kc-title-row { display: flex; align-items: center; gap: 8px; }
-    .kc-title { font-size: 13px; font-weight: 600; color: var(--text-primary); }
-    .kc-count {
-      min-width: 20px; height: 20px; padding: 0 5px;
-      border-radius: var(--radius-full);
-      background: var(--bg-elevated); border: 1px solid var(--border-subtle);
-      color: var(--text-secondary); font-size: 11px; font-weight: 600;
-      display: inline-flex; align-items: center; justify-content: center;
-    }
-    .kc-add-btn {
-      width: 26px; height: 26px;
-      border: 1px solid var(--border-subtle); border-radius: var(--radius-md);
-      background: transparent; color: var(--text-tertiary);
-      font-size: 18px; cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      transition: all 0.12s;
-    }
-    .kc-add-btn:hover { background: var(--bg-elevated); border-color: var(--accent); color: var(--accent); }
-
-    .kc-body {
-      padding: 10px; display: flex; flex-direction: column;
-      gap: 0; flex: 1; overflow-y: auto; max-height: 480px;
-    }
-    .kc-body::-webkit-scrollbar { width: 3px; }
-    .kc-body::-webkit-scrollbar-thumb { background: var(--border-subtle); }
-
-    .kc-body app-task-card { display: block; margin-bottom: 8px; }
-    .kc-body app-task-card:last-of-type { margin-bottom: 0; }
-
-    .kc-empty {
-      min-height: 60px; border: 1px dashed var(--border-subtle);
-      border-radius: var(--radius-md); color: var(--text-tertiary);
-      display: grid; place-items: center; font-size: 12px; margin-bottom: 8px;
-    }
-
-    .kc-add-task {
-      width: 100%; height: 32px; margin-top: 6px;
-      border: 1px dashed var(--border-subtle); border-radius: var(--radius-md);
-      background: transparent; color: var(--text-tertiary);
-      font-size: 12px; cursor: pointer; transition: all 0.15s;
-    }
-    .kc-add-task:hover { background: rgba(255,255,255,0.02); border-color: var(--border-default); color: var(--text-secondary); }
-  `]
+  styles: [],
 })
 export default class DashboardComponent implements OnInit {
   private readonly authStore = inject(AuthStore);

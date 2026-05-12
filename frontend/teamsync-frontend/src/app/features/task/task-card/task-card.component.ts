@@ -11,168 +11,179 @@ import { User } from '../../../shared/models/user.model';
   template: `
     <button
       type="button"
-      class="tc"
-      [class.tc--done]="task.status === 'DONE'"
+      class="task-card-redesign"
+      [class.selected]="selected"
+      [class.done]="task.status === 'DONE'"
       (click)="cardClick.emit()"
     >
-      <!-- Title -->
-      <p class="tc-title">{{ task.title }}</p>
-
-      <!-- Priority badge -->
-      <div class="tc-priority" [class]="'p-' + task.priority.toLowerCase()">
-        <span class="tc-dot"></span>
-        <span class="tc-prio-label">{{ priorityLabel }}</span>
+      <div class="task-title-row">
+        <span class="done-check" *ngIf="task.status === 'DONE'">✓</span>
+        <strong>{{ task.title }}</strong>
       </div>
 
-      <!-- Footer row: avatar | date | comments -->
-      <div class="tc-footer">
-        <!-- Assignee avatars -->
-        <div class="tc-avatars">
-          <span class="tc-avatar" *ngIf="task.assignee; else noAssignee">
-            {{ initials(task.assignee) }}
-          </span>
-          <ng-template #noAssignee>
-            <span class="tc-avatar tc-avatar--empty">—</span>
-          </ng-template>
-        </div>
+      <div class="priority-row">
+        <span class="priority-dot" [class]="task.priority.toLowerCase()"></span>
+        <span>{{ task.priority | titlecase }}</span>
+      </div>
 
-        <!-- Due date -->
-        <div class="tc-date" [class.tc-date--overdue]="isOverdue" *ngIf="task.dueDate">
-          <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-            <rect x="2" y="3" width="12" height="11" rx="1.5"/>
-            <path d="M4 1.5v3M12 1.5v3M2 7h12"/>
-          </svg>
-          {{ task.dueDate | date:'MMM d' }}
-        </div>
+      <div class="task-footer-row">
+        <span class="avatar-stack" *ngIf="task.assignee; else unassigned">
+          <span>{{ initials(task.assignee) }}</span>
+        </span>
+        <ng-template #unassigned>
+          <span class="unassigned-avatar">+</span>
+        </ng-template>
 
-        <!-- Comment count -->
-        <div class="tc-comments">
-          <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-            <path d="M2 3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H5l-3 2V3Z"/>
-          </svg>
-          {{ commentCount }}
-        </div>
+        <time [class.overdue]="isOverdue" *ngIf="task.dueDate">{{ task.dueDate | date:'MMM d' }}</time>
+        <time *ngIf="!task.dueDate">No date</time>
+
+        <span class="comment-count">◌ {{ commentCount }}</span>
       </div>
     </button>
   `,
-  styles: [`
-    .tc {
-      width: 100%;
-      padding: 12px 14px;
-      background: var(--bg-elevated);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-lg);
-      color: var(--text-primary);
-      cursor: pointer;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      text-align: left;
-      transition: background 0.12s, border-color 0.12s, box-shadow 0.12s;
-    }
+  styles: [
+    `
+      .task-card-redesign {
+        width: 100%;
+        margin-bottom: 8px;
+        padding: 14px 16px;
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-lg);
+        background: var(--bg-elevated);
+        color: var(--text-primary);
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        gap: 11px;
+        text-align: left;
+        transition: background 0.15s, border-color 0.15s;
+      }
 
-    .tc:hover {
-      background: #202024;
-      border-color: var(--border-default);
-      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-    }
+      .task-card-redesign:hover {
+        background: #222228;
+        border-color: var(--border-default);
+      }
 
-    .tc--done { opacity: 0.6; }
+      .task-card-redesign.selected {
+        border-left: 3px solid var(--accent);
+        background: rgba(212, 168, 83, 0.05);
+      }
 
-    /* Title */
-    .tc-title {
-      font-size: 13px;
-      font-weight: 500;
-      color: var(--text-primary);
-      line-height: 1.4;
-      margin: 0;
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-    }
+      .task-card-redesign.done {
+        opacity: 0.7;
+      }
 
-    .tc--done .tc-title {
-      text-decoration: line-through;
-      color: var(--text-tertiary);
-    }
+      .task-title-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+      }
 
-    /* Priority badge */
-    .tc-priority {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 12px;
-      font-weight: 500;
-    }
+      .task-title-row strong {
+        color: var(--text-primary);
+        font-size: 13px;
+        font-weight: 500;
+        line-height: 1.35;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
 
-    .tc-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      flex-shrink: 0;
-    }
+      .done .task-title-row strong {
+        color: var(--text-tertiary);
+        text-decoration: line-through;
+      }
 
-    /* Priority colors */
-    .p-low    { color: var(--success); }
-    .p-low    .tc-dot { background: var(--success); }
-    .p-medium { color: var(--warning); }
-    .p-medium .tc-dot { background: var(--warning); }
-    .p-high   { color: var(--danger); }
-    .p-high   .tc-dot { background: var(--danger); }
-    .p-critical { color: #ff2222; }
-    .p-critical .tc-dot { background: #ff2222; }
+      .done-check {
+        width: 16px;
+        height: 16px;
+        border-radius: var(--radius-full);
+        background: var(--success-dim);
+        color: var(--success);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        flex-shrink: 0;
+      }
 
-    /* Footer row */
-    .tc-footer {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
+      .priority-row {
+        color: var(--text-secondary);
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        font-size: 12px;
+      }
 
-    /* Avatars */
-    .tc-avatars { display: flex; }
-    .tc-avatar {
-      width: 22px;
-      height: 22px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #c18c60, #2f5874);
-      border: 1.5px solid var(--bg-elevated);
-      color: #fff;
-      font-size: 8px;
-      font-weight: 700;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      margin-right: -6px;
-    }
-    .tc-avatar--empty {
-      background: var(--bg-surface);
-      border: 1.5px dashed var(--border-default);
-      color: var(--text-tertiary);
-      font-size: 10px;
-    }
+      .priority-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: var(--radius-full);
+        background: rgba(255, 255, 255, 0.2);
+      }
 
-    /* Date */
-    .tc-date {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      font-size: 11px;
-      color: var(--text-tertiary);
-      margin-left: auto;
-    }
-    .tc-date--overdue { color: var(--danger); }
+      .priority-dot.medium {
+        background: var(--info);
+      }
 
-    /* Comments */
-    .tc-comments {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      font-size: 11px;
-      color: var(--text-tertiary);
-    }
-  `],
+      .priority-dot.high {
+        background: var(--warning);
+      }
+
+      .priority-dot.critical {
+        background: var(--danger);
+      }
+
+      .task-footer-row {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        align-items: center;
+        gap: 8px;
+        color: var(--text-tertiary);
+        font-size: 11px;
+      }
+
+      .avatar-stack {
+        display: flex;
+      }
+
+      .avatar-stack span,
+      .unassigned-avatar {
+        width: 24px;
+        height: 24px;
+        border-radius: var(--radius-full);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 9px;
+        font-weight: 600;
+      }
+
+      .avatar-stack span {
+        border: 1px solid var(--border-default);
+        background: linear-gradient(135deg, #c18c60, #2f5874);
+        color: #fff;
+      }
+
+      .unassigned-avatar {
+        border: 1px dashed var(--border-default);
+        color: var(--text-tertiary);
+      }
+
+      time {
+        justify-self: center;
+      }
+
+      time.overdue {
+        color: var(--danger);
+      }
+
+      .comment-count {
+        justify-self: end;
+      }
+    `,
+  ],
 })
 export class TaskCardComponent {
   @Input({ required: true }) task!: Task;
@@ -184,13 +195,6 @@ export class TaskCardComponent {
   get isOverdue(): boolean {
     if (!this.task.dueDate) return false;
     return new Date(this.task.dueDate) < new Date() && this.task.status !== 'DONE';
-  }
-
-  get priorityLabel(): string {
-    const map: Record<string, string> = {
-      LOW: 'Low', MEDIUM: 'Medium', HIGH: 'High', CRITICAL: 'Critical'
-    };
-    return map[this.task.priority] ?? this.task.priority;
   }
 
   initials(user: User): string {
