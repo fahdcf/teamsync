@@ -3,7 +3,13 @@ import { authGuard } from './core/guards/auth.guard';
 import { guestGuard } from './core/guards/guest.guard';
 
 export const routes: Routes = [
-  { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
+  { path: '', redirectTo: 'home', pathMatch: 'full' },
+  {
+    path: 'home',
+    title: 'TeamSync | Home',
+    canActivate: [guestGuard],
+    loadComponent: () => import('./features/landing/landing.component')
+  },
   {
     path: 'login',
     title: 'Login | TeamSync',

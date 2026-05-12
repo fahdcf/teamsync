@@ -394,7 +394,7 @@ No service needed — return static data directly.
 Verify: curl http://localhost:8080/public/stats returns JSON without token.
 ```
 
-### Task R2.2 — Landing Page (Public Homepage) ☐
+### Task R2.2 — Landing Page (Public Homepage) ✅
 ```
 Reference: c:\Users\pp\Downloads\ChatGPT Image 12 mai 2026, 17_04_11.png — the full marketing landing page.
 
