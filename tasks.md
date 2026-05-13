@@ -182,7 +182,7 @@ Excluded by request:
   Frontend: the page currently loads every workspace, then every project, then every project task; replace this with one paginated task list call.
   Backend: add `GET /tasks` for the authenticated user with filters for status, priority, projectId, workspaceId, assigneeId, keyword, overdue, due date, sort, and pagination.
 
-- [ ] Task UI-AUDIT-071: Add search/sort/date filters to match task-list usage.
+- [x] Task UI-AUDIT-071: Add search/sort/date filters to match task-list usage.
   Frontend: add visible search, due-date, assignee, project, and sort controls for the task list.
   Backend: supported by the new `GET /tasks` endpoint from UI-AUDIT-070.
 

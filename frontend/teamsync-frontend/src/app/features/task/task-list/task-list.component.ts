@@ -2,8 +2,13 @@ import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { debounceTime, distinctUntilChanged, forkJoin, Subject } from 'rxjs';
 import { TaskService } from '../../../api/task.service';
+import { ProjectService } from '../../../api/project.service';
+import { WorkspaceService } from '../../../api/workspace.service';
 import { Task, TaskStatus, TaskPriority } from '../../../shared/models/task.model';
+import { Project } from '../../../shared/models/project.model';
+import { User } from '../../../shared/models/user.model';
 
 @Component({
   selector: 'app-task-list',
@@ -21,6 +26,15 @@ import { Task, TaskStatus, TaskPriority } from '../../../shared/models/task.mode
 
       <!-- Filters -->
       <div class="filters-bar">
+        <div class="search-box">
+          <span>Search</span>
+          <input
+            type="search"
+            placeholder="Search tasks..."
+            [ngModel]="keyword"
+            (ngModelChange)="setKeyword($event)"
+            aria-label="Search tasks">
+        </div>
         <div class="filter-group">
           <span class="filter-label">Status</span>
           <button
@@ -41,6 +55,42 @@ import { Task, TaskStatus, TaskPriority } from '../../../shared/models/task.mode
             type="button"
           >{{ p.label }}</button>
         </div>
+      </div>
+
+      <div class="advanced-filters">
+        <label>
+          <span>Project</span>
+          <select [(ngModel)]="selectedProjectId" (ngModelChange)="loadTasks()">
+            <option value="">All projects</option>
+            <option *ngFor="let project of projects" [value]="project.id">{{ project.title }}</option>
+          </select>
+        </label>
+        <label>
+          <span>Assignee</span>
+          <select [(ngModel)]="selectedAssigneeId" (ngModelChange)="loadTasks()">
+            <option value="">Anyone</option>
+            <option *ngFor="let assignee of assignees" [value]="assignee.id">{{ assignee.username }}</option>
+          </select>
+        </label>
+        <label>
+          <span>Due from</span>
+          <input type="date" [(ngModel)]="dueFrom" (ngModelChange)="loadTasks()">
+        </label>
+        <label>
+          <span>Due to</span>
+          <input type="date" [(ngModel)]="dueTo" (ngModelChange)="loadTasks()">
+        </label>
+        <label>
+          <span>Sort</span>
+          <select [(ngModel)]="sortMode" (ngModelChange)="loadTasks()">
+            <option value="updated">Recently updated</option>
+            <option value="dueDate">Due date</option>
+            <option value="priority">Priority</option>
+            <option value="title">Title</option>
+            <option value="created">Recently created</option>
+          </select>
+        </label>
+        <button class="clear-btn" type="button" (click)="clearFilters()">Clear filters</button>
       </div>
 
       <!-- Loading -->
@@ -162,6 +212,32 @@ import { Task, TaskStatus, TaskPriority } from '../../../shared/models/task.mode
       flex-wrap: wrap;
     }
 
+    .search-box {
+      min-width: min(340px, 100%);
+      height: 40px;
+      padding: 0 14px;
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-surface);
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .search-box input {
+      width: 100%;
+      border: none;
+      outline: none;
+      background: transparent;
+      color: var(--text-primary);
+      font: inherit;
+    }
+
+    .search-box input::placeholder {
+      color: var(--text-tertiary);
+    }
+
     .filter-group {
       display: flex;
       align-items: center;
@@ -195,6 +271,57 @@ import { Task, TaskStatus, TaskPriority } from '../../../shared/models/task.mode
     .filter-pill:hover:not(.active) {
       border-color: var(--border-default);
       color: var(--text-primary);
+    }
+
+    .advanced-filters {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(150px, 1fr)) auto;
+      gap: 12px;
+      align-items: end;
+      margin-bottom: 24px;
+      padding: 14px;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      background: var(--bg-surface);
+    }
+
+    .advanced-filters label {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .advanced-filters label span {
+      font-size: 11px;
+      color: var(--text-tertiary);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .advanced-filters select,
+    .advanced-filters input {
+      height: 36px;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      background: var(--bg-elevated);
+      color: var(--text-primary);
+      padding: 0 10px;
+      outline: none;
+    }
+
+    .clear-btn {
+      height: 36px;
+      padding: 0 14px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-subtle);
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+    }
+
+    .clear-btn:hover {
+      color: var(--text-primary);
+      border-color: var(--border-default);
     }
 
     .loading-row {
@@ -378,17 +505,40 @@ import { Task, TaskStatus, TaskPriority } from '../../../shared/models/task.mode
       color: var(--danger);
       font-weight: 500;
     }
+
+    @media (max-width: 1100px) {
+      .advanced-filters {
+        grid-template-columns: repeat(2, minmax(160px, 1fr));
+      }
+    }
+
+    @media (max-width: 700px) {
+      .tasks-page { padding: 20px; }
+      .advanced-filters { grid-template-columns: 1fr; }
+      .filter-group { flex-wrap: wrap; }
+    }
   `]
 })
 export default class TaskListComponent implements OnInit {
   private readonly taskService = inject(TaskService);
+  private readonly projectService = inject(ProjectService);
+  private readonly workspaceService = inject(WorkspaceService);
   private readonly router = inject(Router);
+  private readonly keywordSubject = new Subject<string>();
 
   tasks: Task[] = [];
+  projects: Project[] = [];
+  assignees: User[] = [];
   totalTasks = 0;
   loading = true;
   activeStatus = 'ALL';
   activePriority = 'ALL';
+  keyword = '';
+  selectedProjectId = '';
+  selectedAssigneeId = '';
+  dueFrom = '';
+  dueTo = '';
+  sortMode = 'updated';
 
   readonly statusFilters = [
     { label: 'All', value: 'ALL' },
@@ -408,6 +558,8 @@ export default class TaskListComponent implements OnInit {
   ];
 
   ngOnInit(): void {
+    this.loadFilterOptions();
+    this.keywordSubject.pipe(debounceTime(300), distinctUntilChanged()).subscribe(() => this.loadTasks());
     this.loadTasks();
   }
 
@@ -416,7 +568,12 @@ export default class TaskListComponent implements OnInit {
     this.taskService.getAll({
       status: this.activeStatus !== 'ALL' ? this.activeStatus as TaskStatus : undefined,
       priority: this.activePriority !== 'ALL' ? this.activePriority as TaskPriority : undefined,
-      sort: 'updated',
+      keyword: this.keyword || undefined,
+      projectId: this.selectedProjectId || undefined,
+      assigneeId: this.selectedAssigneeId || undefined,
+      dueFrom: this.dueFrom || undefined,
+      dueTo: this.dueTo || undefined,
+      sort: this.sortMode,
       page: 0,
       size: 200,
     }).subscribe({
@@ -431,6 +588,23 @@ export default class TaskListComponent implements OnInit {
 
   setStatus(value: string): void {
     this.activeStatus = value;
+    this.loadTasks();
+  }
+
+  setKeyword(value: string): void {
+    this.keyword = value;
+    this.keywordSubject.next(value);
+  }
+
+  clearFilters(): void {
+    this.activeStatus = 'ALL';
+    this.activePriority = 'ALL';
+    this.keyword = '';
+    this.selectedProjectId = '';
+    this.selectedAssigneeId = '';
+    this.dueFrom = '';
+    this.dueTo = '';
+    this.sortMode = 'updated';
     this.loadTasks();
   }
 
@@ -457,5 +631,22 @@ export default class TaskListComponent implements OnInit {
 
   initials(name: string): string {
     return name.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase();
+  }
+
+  private loadFilterOptions(): void {
+    forkJoin({
+      projects: this.projectService.search({ sort: 'title' }),
+      workspaces: this.workspaceService.getAll(),
+    }).subscribe({
+      next: ({ projects, workspaces }) => {
+        this.projects = projects;
+        const users = new Map<string, User>();
+        workspaces.forEach((workspace) => {
+          if (workspace.owner) users.set(workspace.owner.id, workspace.owner);
+          workspace.members?.forEach((member) => users.set(member.id, member));
+        });
+        this.assignees = [...users.values()].sort((a, b) => a.username.localeCompare(b.username));
+      },
+    });
   }
 }
