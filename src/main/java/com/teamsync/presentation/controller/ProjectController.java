@@ -12,9 +12,11 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -54,8 +56,15 @@ public class ProjectController {
     @Operation(summary = "List projects in a workspace")
     @ApiResponse(responseCode = "200", description = "Project list returned")
     @GetMapping("/workspaces/{workspaceId}/projects")
-    public List<ProjectResponseDTO> listByWorkspace(@PathVariable UUID workspaceId) {
-        return projectService.findByWorkspace(workspaceId);
+    public List<ProjectResponseDTO> listByWorkspace(@PathVariable UUID workspaceId,
+                                                    @RequestParam(required = false) ProjectStatus status,
+                                                    @RequestParam(required = false) String health,
+                                                    @RequestParam(required = false) UUID managerId,
+                                                    @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dueFrom,
+                                                    @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dueTo,
+                                                    @RequestParam(required = false) String keyword,
+                                                    @RequestParam(required = false) String sort) {
+        return projectService.findByWorkspace(workspaceId, status, health, managerId, dueFrom, dueTo, keyword, sort);
     }
 
     @Operation(summary = "Get project details by ID")

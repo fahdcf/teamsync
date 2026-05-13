@@ -17,6 +17,7 @@ import com.teamsync.repository.ProjectRepository;
 import com.teamsync.repository.ProjectSpecification;
 import com.teamsync.repository.TaskRepository;
 import com.teamsync.repository.UserRepository;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
@@ -109,9 +110,23 @@ public class ProjectService {
     }
 
     public List<ProjectResponseDTO> findByWorkspace(UUID workspaceId) {
+        return findByWorkspace(workspaceId, null, null, null, null, null, null, null);
+    }
+
+    public List<ProjectResponseDTO> findByWorkspace(UUID workspaceId, ProjectStatus status, String health,
+                                                    UUID managerId, LocalDate dueFrom, LocalDate dueTo,
+                                                    String keyword, String sort) {
         Workspace workspace = workspaceService.getWorkspace(workspaceId);
-        return projectRepository.findByWorkspace(workspace).stream()
+        Specification<Project> spec = Specification.where(ProjectSpecification.hasWorkspace(workspace));
+        if (status != null) spec = spec.and(ProjectSpecification.hasStatus(status));
+        if (managerId != null) spec = spec.and(ProjectSpecification.hasManager(managerId));
+        if (dueFrom != null) spec = spec.and(ProjectSpecification.deadlineFrom(dueFrom));
+        if (dueTo != null) spec = spec.and(ProjectSpecification.deadlineTo(dueTo));
+        if (keyword != null && !keyword.isBlank()) spec = spec.and(ProjectSpecification.hasKeyword(keyword));
+
+        return projectRepository.findAll(spec, sortForWorkspaceProjects(sort)).stream()
                 .map(this::toDTO)
+                .filter(project -> health == null || health.isBlank() || health.equalsIgnoreCase(project.getHealth()))
                 .collect(Collectors.toList());
     }
 
@@ -196,5 +211,18 @@ public class ProjectService {
             case "AT_RISK" -> "User testing results suggest reviewing the onboarding flow.";
             default -> "Significant delays detected. Schedule a team sync immediately.";
         };
+    }
+
+    private Sort sortForWorkspaceProjects(String sort) {
+        if ("deadline".equalsIgnoreCase(sort)) {
+            return Sort.by(Sort.Order.asc("deadline").nullsLast());
+        }
+        if ("progress".equalsIgnoreCase(sort)) {
+            return Sort.by(Sort.Order.desc("progress"));
+        }
+        if ("title".equalsIgnoreCase(sort)) {
+            return Sort.by(Sort.Order.asc("title"));
+        }
+        return Sort.by(Sort.Order.desc("createdAt"));
     }
 }

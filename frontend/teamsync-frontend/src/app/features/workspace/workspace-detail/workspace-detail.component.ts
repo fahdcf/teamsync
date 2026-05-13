@@ -81,10 +81,31 @@ import { SkeletonComponent } from '../../../shared/components/skeleton/skeleton.
               <h2>Projects</h2>
             </div>
             <div class="project-toolbar-right">
-              <button type="button">Filter</button>
-              <button type="button">All projects v</button>
-              <button type="button">Sort: Recent v</button>
+              <button type="button" (click)="isProjectFilterOpen = !isProjectFilterOpen">Filter</button>
+              <select [value]="projectStatusFilter" (change)="setProjectStatus($event)">
+                <option value="">All projects</option>
+                <option value="PLANNING">Planning</option>
+                <option value="ACTIVE">Active</option>
+                <option value="ON_HOLD">On hold</option>
+                <option value="COMPLETED">Completed</option>
+                <option value="ARCHIVED">Archived</option>
+              </select>
+              <select [value]="projectSort" (change)="setProjectSort($event)">
+                <option value="recent">Sort: Recent</option>
+                <option value="deadline">Sort: Due date</option>
+                <option value="progress">Sort: Progress</option>
+                <option value="title">Sort: Title</option>
+              </select>
             </div>
+          </div>
+          <div class="project-filter-row" *ngIf="isProjectFilterOpen">
+            <input
+              type="search"
+              class="field-input"
+              placeholder="Search projects..."
+              [value]="projectKeyword"
+              (input)="setProjectKeyword($event)"
+            />
           </div>
 
           <article
@@ -259,6 +280,10 @@ export default class WorkspaceDetailComponent implements OnInit {
   isAddingMember = false;
   isCreatingProject = false;
   isSavingSettings = false;
+  isProjectFilterOpen = false;
+  projectStatusFilter = '';
+  projectSort = 'recent';
+  projectKeyword = '';
 
   memberForm = this.fb.group({ email: ['', [Validators.required, Validators.email]] });
   settingsForm = this.fb.group({
@@ -301,7 +326,7 @@ export default class WorkspaceDetailComponent implements OnInit {
 
     forkJoin({
       workspace: this.workspaceService.getById(id),
-      projects: this.projectService.getByWorkspace(id),
+      projects: this.projectService.getByWorkspace(id, this.projectFilters()),
       activity: this.workspaceService.getActivity(id),
     }).subscribe({
       next: ({ workspace, projects, activity }) => {
@@ -361,6 +386,37 @@ export default class WorkspaceDetailComponent implements OnInit {
     });
   }
 
+  loadProjects(): void {
+    if (!this.workspace) return;
+    this.projectService.getByWorkspace(this.workspace.id, this.projectFilters()).subscribe({
+      next: (projects) => (this.projects = projects),
+      error: () => (this.projects = []),
+    });
+  }
+
+  setProjectStatus(event: Event): void {
+    this.projectStatusFilter = (event.target as HTMLSelectElement).value;
+    this.loadProjects();
+  }
+
+  setProjectSort(event: Event): void {
+    this.projectSort = (event.target as HTMLSelectElement).value;
+    this.loadProjects();
+  }
+
+  setProjectKeyword(event: Event): void {
+    this.projectKeyword = (event.target as HTMLInputElement).value;
+    this.loadProjects();
+  }
+
+  private projectFilters(): { status?: string; keyword?: string; sort?: string } {
+    return {
+      status: this.projectStatusFilter || undefined,
+      keyword: this.projectKeyword || undefined,
+      sort: this.projectSort,
+    };
+  }
+
   createProject(): void {
     if (!this.projectForm.valid || !this.workspace) return;
     this.isCreatingProject = true;
@@ -371,8 +427,8 @@ export default class WorkspaceDetailComponent implements OnInit {
       deadline: deadline || '',
       managerId: managerId || '',
     }).subscribe({
-      next: (project) => {
-        this.projects = [project, ...this.projects];
+      next: () => {
+        this.loadProjects();
         this.isCreateProjectOpen = false;
         this.projectForm.reset();
         this.isCreatingProject = false;

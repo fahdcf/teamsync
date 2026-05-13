@@ -90,7 +90,7 @@ Excluded by request:
   Frontend: open an edit workspace settings modal/page from `Workspace settings`.
   Backend: add `PUT /workspaces/{id}` for name/description updates and optional workspace preference fields.
 
-- [ ] Task UI-AUDIT-031: Make workspace project toolbar controls work.
+- [x] Task UI-AUDIT-031: Make workspace project toolbar controls work.
   Frontend: wire `Filter`, `All projects`, and `Sort: Recent` to actual filtering/sorting of workspace projects.
   Backend: extend `GET /workspaces/{workspaceId}/projects` with status, health, manager/team, due-date, keyword, and sort query parameters.
 
