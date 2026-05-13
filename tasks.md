@@ -226,7 +226,7 @@ Excluded by request:
   Frontend: stop loading all workspaces/projects/tasks just to render the calendar; query events for the visible month.
   Backend: add `GET /calendar/events?from=&to=&workspaceId=` returning task deadlines and project deadlines visible to the authenticated user.
 
-- [ ] Task UI-AUDIT-092: Add calendar filters.
+- [x] Task UI-AUDIT-092: Add calendar filters.
   Frontend: add workspace/project/member/priority filters for calendar events.
   Backend: support matching query params on the calendar events endpoint.
 

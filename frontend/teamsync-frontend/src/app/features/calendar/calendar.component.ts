@@ -1,14 +1,21 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { CalendarEvent, CalendarService } from '../../api/calendar.service';
+import { ProjectService } from '../../api/project.service';
+import { WorkspaceService } from '../../api/workspace.service';
+import { Project } from '../../shared/models/project.model';
+import { User } from '../../shared/models/user.model';
+import { Workspace } from '../../shared/models/workspace.model';
+import { TaskPriority } from '../../shared/models/task.model';
 
 interface CalendarDay { date: Date; isCurrentMonth: boolean; isToday: boolean; events: CalendarEvent[]; }
 
 @Component({
   selector: 'app-calendar',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   template: `
     <div class="calendar-page">
       <header class="page-header">
@@ -22,6 +29,36 @@ interface CalendarDay { date: Date; isCurrentMonth: boolean; isToday: boolean; e
           <button class="nav-btn" (click)="nextMonth()" type="button">&#8250;</button>
         </div>
       </header>
+      <section class="calendar-filters">
+        <label>
+          <span>Workspace</span>
+          <select [(ngModel)]="selectedWorkspaceId" (ngModelChange)="onWorkspaceChange()">
+            <option value="">All workspaces</option>
+            <option *ngFor="let workspace of workspaces" [value]="workspace.id">{{ workspace.name }}</option>
+          </select>
+        </label>
+        <label>
+          <span>Project</span>
+          <select [(ngModel)]="selectedProjectId" (ngModelChange)="loadEvents()">
+            <option value="">All projects</option>
+            <option *ngFor="let project of projects" [value]="project.id">{{ project.title }}</option>
+          </select>
+        </label>
+        <label>
+          <span>Member</span>
+          <select [(ngModel)]="selectedAssigneeId" (ngModelChange)="loadEvents()">
+            <option value="">Anyone</option>
+            <option *ngFor="let member of members" [value]="member.id">{{ member.username }}</option>
+          </select>
+        </label>
+        <label>
+          <span>Priority</span>
+          <select [(ngModel)]="selectedPriority" (ngModelChange)="loadEvents()">
+            <option value="">All priorities</option>
+            <option *ngFor="let priority of priorities" [value]="priority">{{ priority }}</option>
+          </select>
+        </label>
+      </section>
       <div class="loading-row" *ngIf="loading"><div class="spinner"></div><span>Loading…</span></div>
       <div class="calendar-wrap" *ngIf="!loading">
         <div class="day-headers">
@@ -58,6 +95,10 @@ interface CalendarDay { date: Date; isCurrentMonth: boolean; isToday: boolean; e
     .nav-btn:hover { border-color:var(--border-default); color:var(--text-primary); }
     .today-btn { height:32px; padding:0 14px; border:1px solid var(--border-subtle); border-radius:var(--radius-md); background:var(--bg-surface); color:var(--text-secondary); font-size:13px; cursor:pointer; transition:all 0.15s; }
     .today-btn:hover { border-color:var(--accent); color:var(--accent); }
+    .calendar-filters { display:grid; grid-template-columns:repeat(4,minmax(150px,1fr)); gap:12px; padding:14px; border:1px solid var(--border-subtle); border-radius:var(--radius-lg); background:var(--bg-surface); }
+    .calendar-filters label { display:flex; flex-direction:column; gap:6px; }
+    .calendar-filters span { font-size:11px; color:var(--text-tertiary); text-transform:uppercase; letter-spacing:0.05em; }
+    .calendar-filters select { height:36px; border:1px solid var(--border-subtle); border-radius:var(--radius-md); background:var(--bg-elevated); color:var(--text-primary); padding:0 10px; }
     .loading-row { display:flex; align-items:center; gap:12px; padding:48px 0; justify-content:center; color:var(--text-secondary); }
     .spinner { width:20px; height:20px; border:2px solid var(--border-default); border-top-color:var(--accent); border-radius:50%; animation:spin 0.7s linear infinite; }
     @keyframes spin { to { transform:rotate(360deg); } }
@@ -85,19 +126,32 @@ interface CalendarDay { date: Date; isCurrentMonth: boolean; isToday: boolean; e
     .dot.medium { background:var(--warning); }
     .dot.high { background:var(--danger); }
     .dot.critical { background:#ff3333; }
+    @media (max-width:900px) { .calendar-filters { grid-template-columns:repeat(2,minmax(150px,1fr)); } }
+    @media (max-width:560px) { .calendar-filters { grid-template-columns:1fr; } }
   `]
 })
 export default class CalendarComponent implements OnInit {
   private readonly calendarService = inject(CalendarService);
+  private readonly workspaceService = inject(WorkspaceService);
+  private readonly projectService = inject(ProjectService);
   private readonly router = inject(Router);
   events: CalendarEvent[] = [];
+  workspaces: Workspace[] = [];
+  projects: Project[] = [];
+  members: User[] = [];
+  selectedWorkspaceId = '';
+  selectedProjectId = '';
+  selectedAssigneeId = '';
+  selectedPriority: TaskPriority | '' = '';
   calendarDays: CalendarDay[] = [];
   loading = true;
   viewDate = new Date();
   readonly dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  readonly priorities: TaskPriority[] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
   get monthName(): string { return this.viewDate.toLocaleString('default',{month:'long'}); }
   get year(): number { return this.viewDate.getFullYear(); }
   ngOnInit(): void {
+    this.loadFilterOptions();
     this.loadEvents();
   }
   loadEvents(): void {
@@ -105,7 +159,12 @@ export default class CalendarComponent implements OnInit {
     const year = this.viewDate.getFullYear(), month = this.viewDate.getMonth();
     const from = this.formatDate(new Date(year, month, 1));
     const to = this.formatDate(new Date(year, month + 1, 0));
-    this.calendarService.getEvents(from, to).subscribe({
+    this.calendarService.getEvents(from, to, {
+      workspaceId: this.selectedWorkspaceId || undefined,
+      projectId: this.selectedProjectId || undefined,
+      assigneeId: this.selectedAssigneeId || undefined,
+      priority: this.selectedPriority || undefined,
+    }).subscribe({
       next: (events) => {
         this.events = events;
         this.buildCalendar();
@@ -130,11 +189,43 @@ export default class CalendarComponent implements OnInit {
   prevMonth(): void { this.viewDate = new Date(this.viewDate.getFullYear(), this.viewDate.getMonth()-1, 1); this.loadEvents(); }
   nextMonth(): void { this.viewDate = new Date(this.viewDate.getFullYear(), this.viewDate.getMonth()+1, 1); this.loadEvents(); }
   goToday(): void { this.viewDate = new Date(); this.loadEvents(); }
+  onWorkspaceChange(): void {
+    this.selectedProjectId = '';
+    this.selectedAssigneeId = '';
+    this.refreshProjectOptions();
+    this.refreshMemberOptions();
+    this.loadEvents();
+  }
   openEvent(calendarEvent: CalendarEvent, event: Event): void {
     event.stopPropagation();
     this.router.navigate([calendarEvent.type === 'TASK' ? '/tasks' : '/projects', calendarEvent.id]);
   }
   private formatDate(date: Date): string {
     return date.toISOString().slice(0, 10);
+  }
+  private loadFilterOptions(): void {
+    this.workspaceService.getAll().subscribe({
+      next: (workspaces) => {
+        this.workspaces = workspaces;
+        this.refreshMemberOptions();
+      },
+    });
+    this.refreshProjectOptions();
+  }
+  private refreshProjectOptions(): void {
+    this.projectService.search({ workspaceId: this.selectedWorkspaceId || undefined, sort: 'title' }).subscribe({
+      next: (projects) => (this.projects = projects),
+    });
+  }
+  private refreshMemberOptions(): void {
+    const relevant = this.selectedWorkspaceId
+      ? this.workspaces.filter((workspace) => workspace.id === this.selectedWorkspaceId)
+      : this.workspaces;
+    const users = new Map<string, User>();
+    relevant.forEach((workspace) => {
+      if (workspace.owner) users.set(workspace.owner.id, workspace.owner);
+      workspace.members?.forEach((member) => users.set(member.id, member));
+    });
+    this.members = [...users.values()].sort((a, b) => a.username.localeCompare(b.username));
   }
 }

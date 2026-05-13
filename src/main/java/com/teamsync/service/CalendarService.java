@@ -4,6 +4,7 @@ import com.teamsync.domain.entity.Project;
 import com.teamsync.domain.entity.Task;
 import com.teamsync.domain.entity.User;
 import com.teamsync.domain.entity.Workspace;
+import com.teamsync.domain.enums.TaskPriority;
 import com.teamsync.repository.ProjectRepository;
 import com.teamsync.repository.TaskRepository;
 import com.teamsync.repository.WorkspaceRepository;
@@ -35,7 +36,8 @@ public class CalendarService {
         this.taskRepository = taskRepository;
     }
 
-    public List<Map<String, Object>> getEvents(String userEmail, LocalDate from, LocalDate to, UUID workspaceId) {
+    public List<Map<String, Object>> getEvents(String userEmail, LocalDate from, LocalDate to, UUID workspaceId,
+                                               UUID projectId, UUID assigneeId, TaskPriority priority) {
         User currentUser = userService.findByEmail(userEmail);
         LocalDate start = from != null ? from : LocalDate.now().withDayOfMonth(1);
         LocalDate end = to != null ? to : start.plusMonths(1).minusDays(1);
@@ -53,14 +55,21 @@ public class CalendarService {
         }
 
         Set<Project> visibleProjects = new LinkedHashSet<>(projectRepository.findByWorkspaceIn(workspaces));
+        if (projectId != null) {
+            visibleProjects.removeIf(project -> !project.getId().equals(projectId));
+        }
         List<Map<String, Object>> projectEvents = projectRepository.findByWorkspaceInAndDeadlineBetween(workspaces, start, end)
                 .stream()
+                .filter(project -> projectId == null || project.getId().equals(projectId))
+                .filter(project -> assigneeId == null && priority == null)
                 .map(this::projectEvent)
                 .toList();
         List<Map<String, Object>> taskEvents = visibleProjects.isEmpty()
                 ? List.of()
                 : taskRepository.findByProjectInAndDueDateBetween(visibleProjects, start, end)
                         .stream()
+                        .filter(task -> assigneeId == null || (task.getAssignee() != null && task.getAssignee().getId().equals(assigneeId)))
+                        .filter(task -> priority == null || task.getPriority() == priority)
                         .map(this::taskEvent)
                         .toList();
 

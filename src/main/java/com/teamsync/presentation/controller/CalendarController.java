@@ -1,6 +1,7 @@
 package com.teamsync.presentation.controller;
 
 import com.teamsync.service.CalendarService;
+import com.teamsync.domain.enums.TaskPriority;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -31,7 +32,10 @@ public class CalendarController {
     public List<Map<String, Object>> getEvents(Authentication auth,
                                                @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
                                                @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
-                                               @RequestParam(required = false) UUID workspaceId) {
-        return calendarService.getEvents(auth.getName(), from, to, workspaceId);
+                                               @RequestParam(required = false) UUID workspaceId,
+                                               @RequestParam(required = false) UUID projectId,
+                                               @RequestParam(required = false) UUID assigneeId,
+                                               @RequestParam(required = false) TaskPriority priority) {
+        return calendarService.getEvents(auth.getName(), from, to, workspaceId, projectId, assigneeId, priority);
     }
 }
