@@ -126,7 +126,14 @@ import { SkeletonComponent } from '../../../shared/components/skeleton/skeleton.
                     <h3>{{ project.title }} <button type="button" [attr.aria-label]="favoriteLabel(project)" (click)="toggleFavorite(project, $event)">{{ project.favorite ? '★' : '☆' }}</button></h3>
                     <p>{{ project.description || 'No description provided.' }}</p>
                   </div>
-                  <button type="button" aria-label="Project options" (click)="$event.stopPropagation()">...</button>
+                  <div class="project-row-actions">
+                    <button type="button" aria-label="Project options" (click)="toggleProjectMenu(project.id, $event)">...</button>
+                    <div class="workspace-menu" *ngIf="openProjectMenuId === project.id">
+                      <button type="button" (click)="openProject(project, $event)">Open project</button>
+                      <button type="button" (click)="openEditProject(project, $event)">Edit project</button>
+                      <button type="button" (click)="archiveProject(project, $event)">Archive project</button>
+                    </div>
+                  </div>
                 </div>
 
                 <div class="project-avatar-line">
@@ -261,6 +268,28 @@ import { SkeletonComponent } from '../../../shared/components/skeleton/skeleton.
         </div>
       </form>
     </app-modal>
+
+    <app-modal [isOpen]="!!editingProject" title="Edit Project" (closed)="closeEditProject()">
+      <form [formGroup]="editProjectForm" (ngSubmit)="saveProject()" class="form">
+        <app-input label="Title" placeholder="Project name" formControlName="title"></app-input>
+        <app-input label="Description" placeholder="What is this project about?" formControlName="description"></app-input>
+        <div class="field">
+          <label class="field-label">Deadline</label>
+          <input type="date" class="field-input" formControlName="deadline">
+        </div>
+        <div class="field">
+          <label class="field-label">Manager</label>
+          <select class="field-input" formControlName="managerId">
+            <option value="">Select manager</option>
+            <option *ngFor="let member of workspace?.members" [value]="member.id">{{ member.username }}</option>
+          </select>
+        </div>
+        <div class="form-actions">
+          <app-button variant="secondary" size="sm" (click)="closeEditProject()">Cancel</app-button>
+          <app-button type="submit" size="sm" [loading]="isSavingProject">Save</app-button>
+        </div>
+      </form>
+    </app-modal>
   `,
   styles: [],
 })
@@ -283,6 +312,9 @@ export default class WorkspaceDetailComponent implements OnInit {
   isCreatingProject = false;
   isSavingSettings = false;
   isProjectFilterOpen = false;
+  openProjectMenuId = '';
+  editingProject: Project | null = null;
+  isSavingProject = false;
   projectStatusFilter = '';
   projectSort = 'recent';
   projectKeyword = '';
@@ -293,6 +325,12 @@ export default class WorkspaceDetailComponent implements OnInit {
     description: [''],
   });
   projectForm = this.fb.group({
+    title: ['', Validators.required],
+    description: [''],
+    deadline: [''],
+    managerId: [''],
+  });
+  editProjectForm = this.fb.group({
     title: ['', Validators.required],
     description: [''],
     deadline: [''],
@@ -409,6 +447,59 @@ export default class WorkspaceDetailComponent implements OnInit {
   setProjectKeyword(event: Event): void {
     this.projectKeyword = (event.target as HTMLInputElement).value;
     this.loadProjects();
+  }
+
+  toggleProjectMenu(projectId: string, event: Event): void {
+    event.stopPropagation();
+    this.openProjectMenuId = this.openProjectMenuId === projectId ? '' : projectId;
+  }
+
+  openProject(project: Project, event: Event): void {
+    event.stopPropagation();
+    this.router.navigate(['/projects', project.id]);
+  }
+
+  openEditProject(project: Project, event: Event): void {
+    event.stopPropagation();
+    this.openProjectMenuId = '';
+    this.editingProject = project;
+    this.editProjectForm.reset({
+      title: project.title,
+      description: project.description || '',
+      deadline: project.deadline || '',
+      managerId: project.manager?.id || '',
+    });
+  }
+
+  closeEditProject(): void {
+    this.editingProject = null;
+  }
+
+  saveProject(): void {
+    if (!this.editProjectForm.valid || !this.editingProject) return;
+    this.isSavingProject = true;
+    const { title, description, deadline, managerId } = this.editProjectForm.value;
+    this.projectService.update(this.editingProject.id, {
+      title: title!,
+      description: description || '',
+      deadline: deadline || '',
+      managerId: managerId || '',
+    }).subscribe({
+      next: () => {
+        this.closeEditProject();
+        this.loadProjects();
+        this.isSavingProject = false;
+      },
+      error: () => (this.isSavingProject = false),
+    });
+  }
+
+  archiveProject(project: Project, event: Event): void {
+    event.stopPropagation();
+    this.openProjectMenuId = '';
+    this.projectService.archive(project.id).subscribe({
+      next: () => this.loadProjects(),
+    });
   }
 
   private projectFilters(): { status?: string; keyword?: string; sort?: string } {

@@ -98,7 +98,7 @@ Excluded by request:
   Frontend: clicking the star/favorite controls on workspace project cards should toggle a saved favorite state and update the UI.
   Backend: add a project favorite/watch model or endpoint such as `PUT /projects/{id}/favorite` scoped to the authenticated user.
 
-- [ ] Task UI-AUDIT-033: Make project options menu functional on workspace detail.
+- [x] Task UI-AUDIT-033: Make project options menu functional on workspace detail.
   Frontend: implement the project `...` menu with edit, archive, open board/settings, and delete/archive options based on permissions.
   Backend: existing project update/archive endpoints can be reused; add delete endpoint only if permanent deletion is desired.
 

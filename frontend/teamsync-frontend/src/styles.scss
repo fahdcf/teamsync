@@ -1813,6 +1813,10 @@ $wide:    1280px;
   color: var(--text-primary);
 }
 
+.project-row-actions {
+  position: relative;
+}
+
 .workspace-switcher {
   position: relative;
   z-index: 1;
