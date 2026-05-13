@@ -21,7 +21,7 @@ import {
 } from 'chart.js';
 import { forkJoin, of, switchMap } from 'rxjs';
 import { catchError } from 'rxjs/operators';
-import { AnalyticsFilters, AnalyticsService } from '../../api/analytics.service';
+import { AnalyticsFilters, AnalyticsService, ReportFormat } from '../../api/analytics.service';
 import { ProjectService } from '../../api/project.service';
 import { WorkspaceService } from '../../api/workspace.service';
 import { AnalyticsInsight, ProjectStats, TeamPerformance, TeamWorkload } from '../../shared/models/analytics.model';
@@ -95,6 +95,7 @@ export default class AnalyticsComponent implements OnInit {
     { key: 'thisMonth', label: 'This month' },
     { key: 'next30', label: 'Next 30 days' },
   ];
+  readonly reportFormats: ReportFormat[] = ['json', 'csv', 'pdf'];
 
   sprintChartData: ChartConfiguration<'line'>['data'] = { labels: [], datasets: [] };
   sprintChartOptions: ChartConfiguration<'line'>['options'] = this.lineOptions(40, true);
@@ -278,6 +279,25 @@ export default class AnalyticsComponent implements OnInit {
 
   sendAssistant(): void {
     this.showToast('Coming soon');
+  }
+
+  downloadReport(format: ReportFormat): void {
+    if (!this.selectedProjectId) {
+      this.showToast('Select a project first');
+      return;
+    }
+    this.analyticsService.downloadReport(this.selectedProjectId, format).subscribe({
+      next: (blob) => {
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = `teamsync-${this.currentProject?.title || 'project'}-report.${format}`;
+        anchor.click();
+        URL.revokeObjectURL(url);
+        this.showToast(`${format.toUpperCase()} report downloaded`);
+      },
+      error: () => this.showToast('Report export failed'),
+    });
   }
 
   animatePerformance(target: TeamPerformance): void {

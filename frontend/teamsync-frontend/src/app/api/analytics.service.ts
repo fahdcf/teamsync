@@ -11,6 +11,8 @@ export interface AnalyticsFilters {
   projectId?: string;
 }
 
+export type ReportFormat = 'json' | 'csv' | 'pdf';
+
 @Injectable({ providedIn: 'root' })
 export class AnalyticsService {
   private readonly http = inject(HttpClient);
@@ -30,10 +32,17 @@ export class AnalyticsService {
     return this.http.get<ProjectHealth>(`${this.base}/analytics/projects/${projectId}/health`);
   }
 
-  getReport(projectId: string, format = 'json'): Observable<string> {
+  getReport(projectId: string, format: ReportFormat = 'json'): Observable<string> {
     return this.http.get(`${this.base}/reports/projects/${projectId}`, {
       params: this.params({ format }),
       responseType: 'text',
+    });
+  }
+
+  downloadReport(projectId: string, format: ReportFormat): Observable<Blob> {
+    return this.http.get(`${this.base}/reports/projects/${projectId}`, {
+      params: this.params({ format, download: 'true' }),
+      responseType: 'blob',
     });
   }
 

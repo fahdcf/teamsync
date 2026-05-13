@@ -149,6 +149,11 @@
 
       <div *ngIf="activeView === 'reports'" class="full-panel">
         <p>Live report payload for {{ currentProject?.title || 'the selected project' }}.</p>
+        <div class="header-actions report-actions">
+          <button *ngFor="let format of reportFormats" type="button" (click)="downloadReport(format)">
+            Download {{ format | uppercase }}
+          </button>
+        </div>
         <pre class="report-preview"><code><ng-container *ngFor="let line of reportLines">{{ line }}
 </ng-container></code></pre>
       </div>

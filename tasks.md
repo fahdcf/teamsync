@@ -244,7 +244,7 @@ Excluded by request:
   Frontend: stop using static fallback sprint history and workload distribution when API data is missing; show empty/error states instead.
   Backend: ensure `GET /analytics/projects/{id}/stats` returns `sprintVelocityHistory` and `workloadDistribution` consistently.
 
-- [ ] Task UI-AUDIT-103: Implement analytics report export.
+- [x] Task UI-AUDIT-103: Implement analytics report export.
   Frontend: reports text says JSON/CSV/PDF export is ready, but no export action exists; add export buttons and download handling.
   Backend: `GET /reports/projects/{id}` exists; add CSV/PDF formats or query parameters such as `?format=json|csv|pdf`.
 
