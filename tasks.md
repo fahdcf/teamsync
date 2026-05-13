@@ -262,7 +262,7 @@ Excluded by request:
   Frontend: replace placeholder panels with notification preferences, theme/display preferences, and password/security forms.
   Backend: add user preference endpoints, password change endpoint, and security/session metadata endpoints.
 
-- [ ] Task UI-AUDIT-113: Replace static settings recent activity.
+- [x] Task UI-AUDIT-113: Replace static settings recent activity.
   Frontend: replace hardcoded `Profile updated`, `Logged in from Chrome on macOS`, and `Password changed` rows with real account activity.
   Backend: use `GET /users/me/activity` for product activity and add account/security audit logs if login/password events should be shown.
 

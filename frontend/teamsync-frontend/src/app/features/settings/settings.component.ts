@@ -2,8 +2,10 @@ import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AuthStore } from '../../store/auth.store';
+import { ActivityService } from '../../api/activity.service';
 import { AccountOverview, AuthService, SecurityOverview, UserPreferences } from '../../api/auth.service';
 import { WorkspaceService } from '../../api/workspace.service';
+import { ActivityLog } from '../../shared/models/activity.model';
 import { User, UserRole } from '../../shared/models/user.model';
 import { Workspace } from '../../shared/models/workspace.model';
 
@@ -139,7 +141,8 @@ import { Workspace } from '../../shared/models/workspace.model';
               <p>{{ item.label }}</p>
               <time>{{ item.time }}</time>
             </div>
-            <a href="#">View all activity -></a>
+            <p class="recent-empty" *ngIf="!recentActivity.length">No recent account activity yet.</p>
+            <button type="button" class="activity-refresh" (click)="loadRecentActivity()">Refresh activity -></button>
           </article>
         </aside>
       </div>
@@ -713,9 +716,18 @@ import { Workspace } from '../../shared/models/workspace.model';
       font-size: 13px;
     }
 
-    .recent-card a {
+    .recent-empty {
+      margin: 18px 0 0;
+      color: var(--text-secondary);
+      font-size: 13px;
+    }
+
+    .activity-refresh {
       display: inline-flex;
       margin-top: 24px;
+      padding: 0;
+      border: 0;
+      background: transparent;
       color: var(--accent);
       font-size: 14px;
     }
@@ -759,6 +771,7 @@ import { Workspace } from '../../shared/models/workspace.model';
 })
 export default class SettingsComponent implements OnInit {
   private readonly authStore = inject(AuthStore);
+  private readonly activityService = inject(ActivityService);
   private readonly authService = inject(AuthService);
   private readonly workspaceService = inject(WorkspaceService);
 
@@ -800,12 +813,7 @@ export default class SettingsComponent implements OnInit {
     { id: 'security', label: 'Security', icon: '#' },
   ];
   readonly roleOptions: UserRole[] = ['ADMIN', 'PROJECT_MANAGER', 'TEAM_MEMBER'];
-
-  readonly recentActivity = [
-    { label: 'Profile updated', time: 'Just now' },
-    { label: 'Logged in from Chrome on macOS', time: '2h ago' },
-    { label: 'Password changed', time: '3d ago' },
-  ];
+  recentActivity: Array<{ label: string; time: string }> = [];
 
   ngOnInit(): void {
     this.authStore.user$.subscribe((u) => {
@@ -819,6 +827,7 @@ export default class SettingsComponent implements OnInit {
     this.loadAccountOverview();
     this.loadPreferences();
     this.loadSecurityOverview();
+    this.loadRecentActivity();
   }
 
   get initials(): string {
@@ -956,6 +965,20 @@ export default class SettingsComponent implements OnInit {
     });
   }
 
+  loadRecentActivity(): void {
+    this.activityService.getMyActivity().subscribe({
+      next: (items) => {
+        this.recentActivity = items.slice(0, 5).map((item) => ({
+          label: this.activityLabel(item),
+          time: this.relativeTime(item.createdAt),
+        }));
+      },
+      error: () => {
+        this.recentActivity = [];
+      },
+    });
+  }
+
   private resetProfileForm(): void {
     if (!this.user) return;
     this.profileForm = {
@@ -1000,5 +1023,25 @@ export default class SettingsComponent implements OnInit {
         this.passwordMessage = 'Could not load security details.';
       },
     });
+  }
+
+  private activityLabel(item: ActivityLog): string {
+    const action = item.action || 'Activity recorded';
+    const entity = item.entityType ? item.entityType.toLowerCase() : 'item';
+    return `${action} on ${entity}`;
+  }
+
+  private relativeTime(value?: string): string {
+    if (!value) return '-';
+    const timestamp = new Date(value).getTime();
+    const diffSeconds = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
+    if (diffSeconds < 60) return 'Just now';
+    const diffMinutes = Math.floor(diffSeconds / 60);
+    if (diffMinutes < 60) return `${diffMinutes}m ago`;
+    const diffHours = Math.floor(diffMinutes / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   }
 }
