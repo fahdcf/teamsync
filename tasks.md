@@ -150,7 +150,7 @@ Excluded by request:
   Frontend: clicking the star beside the project title should toggle saved favorite state.
   Backend: same project favorite endpoint as UI-AUDIT-032.
 
-- [ ] Task UI-AUDIT-053: Make project breadcrumb fully dynamic.
+- [x] Task UI-AUDIT-053: Make project breadcrumb fully dynamic.
   Frontend: remove hardcoded `Acme Inc.` and use real workspace/project names with working navigation links.
   Backend: project detail responses already include workspace data; verify DTO includes workspace id/name consistently.
 

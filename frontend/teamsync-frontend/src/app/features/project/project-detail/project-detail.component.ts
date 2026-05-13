@@ -38,9 +38,12 @@ type Tab = 'board' | 'analytics' | 'settings';
     <div class="pd" *ngIf="!isLoading && !hasError && project">
 
       <!-- Compact top bar: breadcrumb -->
-      <div class="pd-breadcrumb">
-        <span class="crumb link">Acme Inc. / {{ project.workspace?.name || 'Workspace' }}</span>
+      <div class="pd-breadcrumb" aria-label="Project breadcrumb">
+        <button class="crumb link" type="button" (click)="goToProjects()">Projects</button>
+        <span class="sep">/</span>
+        <button class="crumb link" type="button" (click)="goToWorkspace()">{{ workspaceName }}</button>
         <span class="sep">›</span>
+        <span class="crumb current">{{ project.title }}</span>
       </div>
 
       <!-- Title row -->
@@ -192,7 +195,14 @@ type Tab = 'board' | 'analytics' | 'settings';
       font-size: 12px; color: var(--text-tertiary);
       margin-bottom: 6px;
     }
-    .crumb.link { cursor: pointer; transition: color 0.15s; }
+    .crumb.link {
+      border: 0;
+      background: transparent;
+      color: inherit;
+      padding: 0;
+      cursor: pointer;
+      transition: color 0.15s;
+    }
     .crumb.link:hover { color: var(--text-secondary); }
     .crumb.current { color: var(--text-secondary); }
     .sep { font-size: 14px; }
@@ -375,6 +385,14 @@ export default class ProjectDetailComponent implements OnInit {
     return this.project?.favorite ? 'Remove project from favorites' : 'Add project to favorites';
   }
 
+  get workspaceName(): string {
+    return this.project?.workspaceName || this.project?.workspace?.name || 'Workspace';
+  }
+
+  get workspaceId(): string | null {
+    return this.project?.workspaceId || this.project?.workspace?.id || null;
+  }
+
   ngOnInit(): void { this.load(); }
 
   load(): void {
@@ -417,6 +435,15 @@ export default class ProjectDetailComponent implements OnInit {
         this.isTogglingFavorite = false;
       },
     });
+  }
+
+  goToProjects(): void {
+    this.router.navigate(['/projects']);
+  }
+
+  goToWorkspace(): void {
+    const id = this.workspaceId;
+    this.router.navigate(id ? ['/workspaces', id] : ['/workspaces']);
   }
 
   toggleBoardPanel(panel: 'filter' | 'sort' | 'more'): void {

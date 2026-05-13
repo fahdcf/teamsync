@@ -167,6 +167,10 @@ public class ProjectService {
         return toDTO(getProject(id));
     }
 
+    public ProjectResponseDTO findById(UUID id, String userEmail) {
+        return toDTO(getProject(id), resolveActor(userEmail, null));
+    }
+
     public ProjectResponseDTO toggleFavorite(UUID id, String userEmail) {
         Project project = getProject(id);
         User user = resolveActor(userEmail, null);

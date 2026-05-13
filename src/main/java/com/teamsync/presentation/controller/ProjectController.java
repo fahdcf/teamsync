@@ -81,8 +81,8 @@ public class ProjectController {
         @ApiResponse(responseCode = "404", description = "Project not found")
     })
     @GetMapping("/projects/{id}")
-    public ProjectResponseDTO getById(@PathVariable UUID id) {
-        return projectService.findById(id);
+    public ProjectResponseDTO getById(@PathVariable UUID id, Authentication auth) {
+        return projectService.findById(id, auth.getName());
     }
 
     @Operation(summary = "Update project fields")
