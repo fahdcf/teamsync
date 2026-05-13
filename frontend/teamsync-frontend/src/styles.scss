@@ -1784,6 +1784,34 @@ $wide:    1280px;
   font-style: normal;
   padding-left: 2px;
 }
+
+.workspace-menu {
+  position: absolute;
+  right: 0;
+  top: 48px;
+  width: 170px;
+  padding: 6px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  box-shadow: 0 18px 38px rgba(0,0,0,0.34);
+  z-index: 4;
+}
+
+.workspace-menu button {
+  width: 100%;
+  border: 0;
+  border-radius: var(--radius-sm);
+  padding: 9px 10px;
+  background: transparent;
+  color: var(--text-secondary);
+  text-align: left;
+}
+
+.workspace-menu button:hover {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
 /* Landing page styles */
 .landing-page {
         color: var(--text-primary);

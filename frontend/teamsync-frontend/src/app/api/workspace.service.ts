@@ -49,6 +49,10 @@ export class WorkspaceService {
     return this.http.post<Workspace>(`${this.base}/workspaces`, req);
   }
 
+  update(id: string, req: CreateWorkspaceRequest): Observable<Workspace> {
+    return this.http.put<Workspace>(`${this.base}/workspaces/${id}`, req);
+  }
+
   addMember(id: string, email: string): Observable<Workspace> {
     return this.http.post<Workspace>(`${this.base}/workspaces/${id}/members`, { email });
   }

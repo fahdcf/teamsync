@@ -69,7 +69,11 @@ import { User } from '../../../shared/models/user.model';
 
             <div class="workspace-card-actions">
               <button class="open-btn" type="button" (click)="openWorkspace(ws.id)">Open -></button>
-              <button class="ghost-icon-btn" type="button" aria-label="Workspace options">...</button>
+              <button class="ghost-icon-btn" type="button" aria-label="Workspace options" (click)="toggleWorkspaceMenu(ws.id)">...</button>
+              <div class="workspace-menu" *ngIf="menuWorkspaceId === ws.id">
+                <button type="button" (click)="openEditWorkspace(ws)">Edit workspace</button>
+                <button type="button" (click)="openInviteWorkspace(ws)">Invite member</button>
+              </div>
             </div>
           </header>
 
@@ -215,6 +219,52 @@ import { User } from '../../../shared/models/user.model';
             <button class="cancel-btn" type="button" (click)="isCreateOpen = false">Cancel</button>
             <button class="submit-btn" type="submit" [disabled]="form.invalid || isCreating">
               {{ isCreating ? 'Creating...' : 'Create Workspace' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="modal-overlay" *ngIf="editingWorkspace as ws" (click)="closeWorkspaceDialogs()">
+      <div class="modal-box" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h3>Edit Workspace</h3>
+          <button class="modal-close" (click)="closeWorkspaceDialogs()" type="button" aria-label="Close">x</button>
+        </div>
+        <form [formGroup]="editForm" (ngSubmit)="saveWorkspace(ws)" class="modal-form">
+          <div class="field-group">
+            <label>Name</label>
+            <input class="field-input" type="text" formControlName="name" />
+          </div>
+          <div class="field-group">
+            <label>Description</label>
+            <input class="field-input" type="text" formControlName="description" />
+          </div>
+          <div class="modal-actions">
+            <button class="cancel-btn" type="button" (click)="closeWorkspaceDialogs()">Cancel</button>
+            <button class="submit-btn" type="submit" [disabled]="editForm.invalid || isSavingWorkspace">
+              {{ isSavingWorkspace ? 'Saving...' : 'Save changes' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="modal-overlay" *ngIf="invitingWorkspace as ws" (click)="closeWorkspaceDialogs()">
+      <div class="modal-box" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h3>Invite Member</h3>
+          <button class="modal-close" (click)="closeWorkspaceDialogs()" type="button" aria-label="Close">x</button>
+        </div>
+        <form [formGroup]="inviteForm" (ngSubmit)="inviteMember(ws)" class="modal-form">
+          <div class="field-group">
+            <label>Email</label>
+            <input class="field-input" type="email" placeholder="member@example.com" formControlName="email" />
+          </div>
+          <div class="modal-actions">
+            <button class="cancel-btn" type="button" (click)="closeWorkspaceDialogs()">Cancel</button>
+            <button class="submit-btn" type="submit" [disabled]="inviteForm.invalid || isInvitingMember">
+              {{ isInvitingMember ? 'Inviting...' : 'Send invite' }}
             </button>
           </div>
         </form>
@@ -416,6 +466,7 @@ import { User } from '../../../shared/models/user.model';
     .workspace-card-actions {
       gap: 14px;
       align-self: flex-start;
+      position: relative;
     }
 
     .open-btn,
@@ -444,7 +495,6 @@ import { User } from '../../../shared/models/user.model';
       background: transparent;
       color: var(--text-primary);
       font-size: 20px;
-      letter-spacing: 2px;
     }
 
     .workspace-description {
@@ -1069,10 +1119,22 @@ export default class WorkspaceListComponent implements OnInit {
   hasError = false;
   isCreateOpen = false;
   isCreating = false;
+  menuWorkspaceId = '';
+  editingWorkspace: Workspace | null = null;
+  invitingWorkspace: Workspace | null = null;
+  isSavingWorkspace = false;
+  isInvitingMember = false;
 
   form = this.fb.group({
     name: ['', Validators.required],
     description: ['']
+  });
+  editForm = this.fb.group({
+    name: ['', Validators.required],
+    description: ['']
+  });
+  inviteForm = this.fb.group({
+    email: ['', [Validators.required, Validators.email]]
   });
 
   ngOnInit(): void { this.load(); }
@@ -1127,6 +1189,58 @@ export default class WorkspaceListComponent implements OnInit {
 
   openWorkspace(id: string): void {
     this.router.navigate(['/workspaces', id]);
+  }
+
+  toggleWorkspaceMenu(id: string): void {
+    this.menuWorkspaceId = this.menuWorkspaceId === id ? '' : id;
+  }
+
+  openEditWorkspace(workspace: Workspace): void {
+    this.menuWorkspaceId = '';
+    this.editingWorkspace = workspace;
+    this.editForm.reset({ name: workspace.name, description: workspace.description || '' });
+  }
+
+  openInviteWorkspace(workspace: Workspace): void {
+    this.menuWorkspaceId = '';
+    this.invitingWorkspace = workspace;
+    this.inviteForm.reset({ email: '' });
+  }
+
+  closeWorkspaceDialogs(): void {
+    this.editingWorkspace = null;
+    this.invitingWorkspace = null;
+  }
+
+  saveWorkspace(workspace: Workspace): void {
+    if (this.editForm.invalid) return;
+    this.isSavingWorkspace = true;
+    const { name, description } = this.editForm.value;
+    this.workspaceService.update(workspace.id, { name: name!, description: description || '' }).subscribe({
+      next: (updated) => {
+        this.workspaces = this.workspaces.map((item) => item.id === updated.id ? updated : item);
+        this.closeWorkspaceDialogs();
+        this.loadActivities([updated]);
+        this.isSavingWorkspace = false;
+      },
+      error: () => (this.isSavingWorkspace = false)
+    });
+  }
+
+  inviteMember(workspace: Workspace): void {
+    if (this.inviteForm.invalid) return;
+    this.isInvitingMember = true;
+    const email = this.inviteForm.value.email!;
+    this.workspaceService.addMember(workspace.id, email).subscribe({
+      next: (updated) => {
+        this.workspaces = this.workspaces.map((item) => item.id === updated.id ? updated : item);
+        this.closeWorkspaceDialogs();
+        this.loadActivities([updated]);
+        this.loadSummaries([updated]);
+        this.isInvitingMember = false;
+      },
+      error: () => (this.isInvitingMember = false)
+    });
   }
 
   firstLetter(value: string): string {

@@ -76,7 +76,7 @@ Excluded by request:
   Frontend: drive `Workspace Progress`, `On Track`, `At Risk`, `Overdue`, `Activity`, `Engagement`, and `Progress` from data rather than fixed `0`/`Low`/`No data` values.
   Backend: add workspace health calculations for project health buckets, activity level, engagement level, and progress status.
 
-- [ ] Task UI-AUDIT-023: Make workspace options menu functional.
+- [x] Task UI-AUDIT-023: Make workspace options menu functional.
   Frontend: implement the `...` workspace menu with edit workspace, invite member, archive/delete if supported, and refresh after actions.
   Backend: add workspace update/archive/delete endpoints if those actions should exist; currently only create, get, add member, and remove member are exposed.
 

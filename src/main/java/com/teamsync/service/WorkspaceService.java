@@ -15,6 +15,7 @@ import com.teamsync.repository.UserRepository;
 import com.teamsync.repository.WorkspaceRepository;
 import com.teamsync.repository.WorkspaceSpecification;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
@@ -66,6 +67,16 @@ public class WorkspaceService {
 
     public WorkspaceResponseDTO findById(UUID id) {
         return toDTO(getWorkspace(id));
+    }
+
+    public WorkspaceResponseDTO update(UUID workspaceId, WorkspaceRequestDTO request, String requesterEmail) {
+        Workspace workspace = getWorkspace(workspaceId);
+        requireOwner(workspace, requesterEmail);
+        workspace.setName(request.getName());
+        workspace.setDescription(request.getDescription());
+        Workspace saved = workspaceRepository.save(workspace);
+        activityLogService.log(findUserByEmail(requesterEmail), "WORKSPACE_UPDATED", "WORKSPACE", saved.getId());
+        return toDTO(saved);
     }
 
     public WorkspaceSummaryResponseDTO getSummary(UUID workspaceId) {
@@ -150,6 +161,12 @@ public class WorkspaceService {
     private User findUserByEmail(String email) {
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found: " + email));
+    }
+
+    private void requireOwner(Workspace workspace, String requesterEmail) {
+        if (workspace.getOwner() == null || !workspace.getOwner().getEmail().equals(requesterEmail)) {
+            throw new AccessDeniedException("Only the workspace owner can update this workspace");
+        }
     }
 
     private UserResponseDTO userToDTO(User u) {

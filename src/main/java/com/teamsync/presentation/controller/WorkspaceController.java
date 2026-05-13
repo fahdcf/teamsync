@@ -57,6 +57,19 @@ public class WorkspaceController {
         return workspaceService.findById(id);
     }
 
+    @Operation(summary = "Update workspace details")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Workspace updated"),
+        @ApiResponse(responseCode = "403", description = "Only workspace owner can update"),
+        @ApiResponse(responseCode = "404", description = "Workspace not found")
+    })
+    @PutMapping("/{id}")
+    public WorkspaceResponseDTO update(@PathVariable UUID id,
+                                       @Valid @RequestBody WorkspaceRequestDTO request,
+                                       Authentication auth) {
+        return workspaceService.update(id, request, auth.getName());
+    }
+
     @Operation(summary = "Get workspace summary counts")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Workspace summary returned"),
