@@ -17,4 +17,10 @@ public class WorkspaceSummaryResponseDTO {
     private long completedTaskCount;
     private long overdueCount;
     private int averageProgress;
+    private long onTrackCount;
+    private long atRiskCount;
+    private long overdueProjectCount;
+    private String activityLevel;
+    private String engagementLevel;
+    private String progressStatus;
 }

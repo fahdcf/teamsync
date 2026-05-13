@@ -123,9 +123,9 @@ import { User } from '../../../shared/models/user.model';
                     <strong>{{ summaryFor(ws).averageProgress }}%</strong>
                   </div>
                   <div class="progress-legend">
-                    <span><i class="ok"></i> On Track <b>0</b></span>
-                    <span><i class="warn"></i> At Risk <b>0</b></span>
-                    <span><i class="bad"></i> Overdue <b>0</b></span>
+                    <span><i class="ok"></i> On Track <b>{{ summaryFor(ws).onTrackCount }}</b></span>
+                    <span><i class="warn"></i> At Risk <b>{{ summaryFor(ws).atRiskCount }}</b></span>
+                    <span><i class="bad"></i> Overdue <b>{{ summaryFor(ws).overdueProjectCount }}</b></span>
                   </div>
                 </div>
               </section>
@@ -135,17 +135,17 @@ import { User } from '../../../shared/models/user.model';
                 <div class="health-row">
                   <span class="health-icon">~</span>
                   <strong>Activity</strong>
-                  <em class="low">Low</em>
+                  <em [ngClass]="healthClass(summaryFor(ws).activityLevel)">{{ summaryFor(ws).activityLevel }}</em>
                 </div>
                 <div class="health-row">
                   <span class="health-icon">oo</span>
                   <strong>Engagement</strong>
-                  <em class="low">Low</em>
+                  <em [ngClass]="healthClass(summaryFor(ws).engagementLevel)">{{ summaryFor(ws).engagementLevel }}</em>
                 </div>
                 <div class="health-row">
                   <span class="health-icon">o</span>
                   <strong>Progress</strong>
-                  <em class="none">No data</em>
+                  <em [ngClass]="healthClass(summaryFor(ws).progressStatus)">{{ summaryFor(ws).progressStatus }}</em>
                 </div>
               </section>
             </div>
@@ -1207,6 +1207,12 @@ export default class WorkspaceListComponent implements OnInit {
       completedTaskCount: 0,
       overdueCount: 0,
       averageProgress: 0,
+      onTrackCount: 0,
+      atRiskCount: 0,
+      overdueProjectCount: 0,
+      activityLevel: 'Low',
+      engagementLevel: 'Low',
+      progressStatus: 'No data',
     };
   }
 
@@ -1220,5 +1226,13 @@ export default class WorkspaceListComponent implements OnInit {
       .replace(/_/g, ' ')
       .toLowerCase()
       .replace(/^\w/, (letter) => letter.toUpperCase());
+  }
+
+  healthClass(value: string | null | undefined): string {
+    const normalized = (value || '').toLowerCase();
+    if (normalized.includes('no data')) return 'none';
+    if (normalized.includes('risk') || normalized.includes('low')) return 'none';
+    if (normalized.includes('medium') || normalized.includes('steady')) return 'medium';
+    return 'high';
   }
 }

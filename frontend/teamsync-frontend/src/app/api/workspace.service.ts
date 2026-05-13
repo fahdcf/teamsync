@@ -20,6 +20,12 @@ export interface WorkspaceSummary {
   completedTaskCount: number;
   overdueCount: number;
   averageProgress: number;
+  onTrackCount: number;
+  atRiskCount: number;
+  overdueProjectCount: number;
+  activityLevel: string;
+  engagementLevel: string;
+  progressStatus: string;
 }
 
 @Injectable({ providedIn: 'root' })

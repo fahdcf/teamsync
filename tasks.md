@@ -72,7 +72,7 @@ Excluded by request:
   Frontend: remove generated rows like `owner joined this workspace` when they are not from the database and render actual activity data.
   Backend: ensure `GET /workspaces/{id}/activity` logs workspace creation, member add/remove, project creation/update, and task activity with actor and timestamp.
 
-- [ ] Task UI-AUDIT-022: Make workspace health/progress panels real.
+- [x] Task UI-AUDIT-022: Make workspace health/progress panels real.
   Frontend: drive `Workspace Progress`, `On Track`, `At Risk`, `Overdue`, `Activity`, `Engagement`, and `Progress` from data rather than fixed `0`/`Low`/`No data` values.
   Backend: add workspace health calculations for project health buckets, activity level, engagement level, and progress status.
 

@@ -19,6 +19,7 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -83,6 +84,11 @@ public class WorkspaceService {
         int averageProgress = projects.isEmpty()
                 ? 0
                 : (int) Math.round(projects.stream().mapToInt(Project::getProgress).average().orElse(0));
+        HealthBuckets healthBuckets = calculateHealthBuckets(projects);
+        long recentActivityCount = activityLogService.findWorkspaceActivityDTOs(workspaceId).stream()
+                .filter(activity -> activity.getCreatedAt() != null)
+                .filter(activity -> activity.getCreatedAt().isAfter(LocalDateTime.now().minusDays(14)))
+                .count();
 
         return WorkspaceSummaryResponseDTO.builder()
                 .projectCount(projects.size())
@@ -90,6 +96,12 @@ public class WorkspaceService {
                 .completedTaskCount(completedTaskCount)
                 .overdueCount(overdueCount)
                 .averageProgress(averageProgress)
+                .onTrackCount(healthBuckets.onTrack())
+                .atRiskCount(healthBuckets.atRisk())
+                .overdueProjectCount(healthBuckets.overdue())
+                .activityLevel(levelFromCount(recentActivityCount, 8, 3))
+                .engagementLevel(levelFromCount(memberCount(workspace) + activeTaskCount, 8, 3))
+                .progressStatus(progressStatus(projects.size(), averageProgress, overdueCount))
                 .build();
     }
 
@@ -160,4 +172,54 @@ public class WorkspaceService {
                 .createdAt(w.getCreatedAt())
                 .build();
     }
+
+    private HealthBuckets calculateHealthBuckets(List<Project> projects) {
+        long onTrack = 0;
+        long atRisk = 0;
+        long overdue = 0;
+        LocalDate today = LocalDate.now();
+
+        for (Project project : projects) {
+            long overdueTasks = taskRepository.findByProject(project).stream()
+                    .filter(task -> task.getDueDate() != null)
+                    .filter(task -> task.getDueDate().isBefore(today))
+                    .filter(task -> task.getStatus() != TaskStatus.DONE)
+                    .count();
+            boolean projectOverdue = overdueTasks > 0
+                    || (project.getDeadline() != null && project.getDeadline().isBefore(today) && project.getProgress() < 100);
+
+            if (projectOverdue || project.getProgress() < 40) {
+                overdue++;
+            } else if (project.getProgress() >= 70) {
+                onTrack++;
+            } else {
+                atRisk++;
+            }
+        }
+
+        return new HealthBuckets(onTrack, atRisk, overdue);
+    }
+
+    private long memberCount(Workspace workspace) {
+        Set<UUID> memberIds = new LinkedHashSet<>(workspace.getMembers().stream().map(User::getId).toList());
+        if (workspace.getOwner() != null) {
+            memberIds.add(workspace.getOwner().getId());
+        }
+        return memberIds.size();
+    }
+
+    private String levelFromCount(long count, long highThreshold, long mediumThreshold) {
+        if (count >= highThreshold) return "High";
+        if (count >= mediumThreshold) return "Medium";
+        return "Low";
+    }
+
+    private String progressStatus(long projectCount, int averageProgress, long overdueCount) {
+        if (projectCount == 0) return "No data";
+        if (overdueCount > 0 || averageProgress < 40) return "At risk";
+        if (averageProgress >= 70) return "On track";
+        return "Steady";
+    }
+
+    private record HealthBuckets(long onTrack, long atRisk, long overdue) {}
 }
