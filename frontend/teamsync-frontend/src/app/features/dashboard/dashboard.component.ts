@@ -33,7 +33,7 @@ import { Workspace } from '../../shared/models/workspace.model';
         <article class="ai-insight-card">
           <strong>⚡ AI Insight</strong>
           <p>You're on track to complete 91% of your tasks this week.</p>
-          <a href="#">View details -></a>
+          <button class="link-button" type="button" (click)="openAnalytics()">View details -></button>
         </article>
       </section>
 
@@ -160,7 +160,7 @@ import { Workspace } from '../../shared/models/workspace.model';
       <section class="dashboard-bottom">
         <div class="left-stack">
           <article class="dash-card activity-card">
-            <header><h2>Recent Activity</h2><a href="#">View all activity -></a></header>
+            <header><h2>Recent Activity</h2><button class="link-button" type="button" (click)="openActivityFeed()">View all activity -></button></header>
             <div
               class="activity-row"
               *ngFor="let activity of recentActivity"
@@ -176,7 +176,7 @@ import { Workspace } from '../../shared/models/workspace.model';
           </article>
 
           <article class="dash-card deadline-card">
-            <header><h2>Upcoming Deadlines</h2><a href="#">View calendar -></a></header>
+            <header><h2>Upcoming Deadlines</h2><button class="link-button" type="button" (click)="openCalendar()">View calendar -></button></header>
             <div class="deadline-row" *ngFor="let deadline of deadlines">
               <span>□</span>
               <strong>{{ deadline.title }}</strong>
@@ -191,13 +191,13 @@ import { Workspace } from '../../shared/models/workspace.model';
           <article class="dash-card assistant-card">
             <header><h2>⚡ AI Assistant</h2></header>
             <p>Here are some suggestions to boost your productivity</p>
-            <div class="insight-row danger"><i></i><span>2 tasks are at risk of being overdue</span><a href="#">Review now -></a></div>
-            <div class="insight-row warning"><i></i><span>You can complete 5 more tasks this week</span><a href="#">View tasks -></a></div>
-            <div class="insight-row success"><i></i><span>Team workload is perfectly balanced</span><a href="#">Great job! -></a></div>
+            <div class="insight-row danger"><i></i><span>2 tasks are at risk of being overdue</span><button class="link-button" type="button" (click)="openTasks()">Review now -></button></div>
+            <div class="insight-row warning"><i></i><span>You can complete 5 more tasks this week</span><button class="link-button" type="button" (click)="openTasks()">View tasks -></button></div>
+            <div class="insight-row success"><i></i><span>Team workload is perfectly balanced</span><button class="link-button" type="button" (click)="openProjects()">Great job! -></button></div>
           </article>
 
           <article class="dash-card members-card">
-            <header><h2>Team Members</h2><a href="#">View all -></a></header>
+            <header><h2>Team Members</h2><button class="link-button" type="button" (click)="openActivityFeed()">View all -></button></header>
             <div class="member-row" *ngFor="let summary of teamWorkSummaries">
               <span>{{ initials(summary.user) }}</span>
               <div><strong>{{ summary.user.username }}</strong><small>{{ summary.user.role }}</small></div>
@@ -206,7 +206,7 @@ import { Workspace } from '../../shared/models/workspace.model';
           </article>
 
           <article class="dash-card projects-card">
-            <header><h2>Projects Overview</h2><a href="#">View all projects -></a></header>
+            <header><h2>Projects Overview</h2><button class="link-button" type="button" (click)="openProjects()">View all projects -></button></header>
             <div class="project-row" *ngFor="let project of overviewProjects">
               <span>▣</span>
               <strong>{{ project.title }}</strong>
@@ -218,7 +218,17 @@ import { Workspace } from '../../shared/models/workspace.model';
       </section>
     </div>
   `,
-  styles: [],
+  styles: [`
+    .link-button {
+      border: 0;
+      background: transparent;
+      color: var(--accent);
+      font: inherit;
+      font-size: 12px;
+      padding: 0;
+      text-align: left;
+    }
+  `],
 })
 export default class DashboardComponent implements OnInit {
   private readonly authStore = inject(AuthStore);
@@ -488,6 +498,27 @@ export default class DashboardComponent implements OnInit {
 
   openTask(id: string): void {
     this.router.navigate(['/tasks', id]);
+  }
+
+  openAnalytics(): void {
+    this.router.navigate(['/analytics']);
+  }
+
+  openCalendar(): void {
+    this.router.navigate(['/calendar']);
+  }
+
+  openProjects(): void {
+    this.router.navigate(['/projects']);
+  }
+
+  openTasks(): void {
+    this.router.navigate(['/tasks']);
+  }
+
+  openActivityFeed(): void {
+    const workspaceId = this.workspaces[0]?.id;
+    this.router.navigate(workspaceId ? ['/workspaces', workspaceId] : ['/workspaces']);
   }
 
   openActivity(activity: ActivityLog): void {

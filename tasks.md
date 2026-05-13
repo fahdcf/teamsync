@@ -54,7 +54,7 @@ Excluded by request:
   Frontend: replace `Working on {{ firstTaskTitle }}` repeated for every member with each member's current active task or workload summary.
   Backend: add a per-member current work endpoint or extend dashboard/team workload data with each member's current task titles/counts.
 
-- [ ] Task UI-AUDIT-015: Make dashboard links navigate.
+- [x] Task UI-AUDIT-015: Make dashboard links navigate.
   Frontend: wire `View all activity`, `View calendar`, and `View all projects` to real routes instead of `href="#"`.
   Backend: no backend required unless adding a dedicated full activity page endpoint beyond `GET /users/me/activity`.
 
