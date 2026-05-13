@@ -64,7 +64,7 @@ Excluded by request:
 
 ## Workspaces Page
 
-- [ ] Task UI-AUDIT-020: Replace workspace overview placeholders with real counts.
+- [x] Task UI-AUDIT-020: Replace workspace overview placeholders with real counts.
   Frontend: replace `Projects -`, `Active Tasks 0`, and progress `0%` placeholders with API values.
   Backend: add a workspace summary endpoint such as `GET /workspaces/{id}/summary` returning project count, active task count, completed task count, overdue count, and average progress.
 

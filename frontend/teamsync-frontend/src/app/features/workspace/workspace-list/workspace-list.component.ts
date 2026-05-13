@@ -2,7 +2,8 @@ import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
-import { WorkspaceService } from '../../../api/workspace.service';
+import { catchError, forkJoin, map, of } from 'rxjs';
+import { WorkspaceService, WorkspaceSummary } from '../../../api/workspace.service';
 import { Workspace } from '../../../shared/models/workspace.model';
 import { User } from '../../../shared/models/user.model';
 
@@ -88,7 +89,7 @@ interface WorkspaceActivityItem {
                 </div>
                 <i></i>
                 <div>
-                  <strong>-</strong>
+                  <strong>{{ summaryFor(ws).projectCount }}</strong>
                   <span>Projects</span>
                 </div>
               </div>
@@ -118,12 +119,12 @@ interface WorkspaceActivityItem {
               <section class="progress-panel">
                 <h3>Workspace Progress</h3>
                 <div class="progress-content">
-                  <div class="progress-ring" aria-label="Workspace progress 0 percent">
+                  <div class="progress-ring" [attr.aria-label]="'Workspace progress ' + summaryFor(ws).averageProgress + ' percent'">
                     <svg viewBox="0 0 120 120">
                       <circle cx="60" cy="60" r="45"></circle>
-                      <circle cx="60" cy="60" r="45"></circle>
+                      <circle cx="60" cy="60" r="45" [style.stroke-dasharray]="progressDash(summaryFor(ws).averageProgress)"></circle>
                     </svg>
-                    <strong>0%</strong>
+                    <strong>{{ summaryFor(ws).averageProgress }}%</strong>
                   </div>
                   <div class="progress-legend">
                     <span><i class="ok"></i> On Track <b>0</b></span>
@@ -166,7 +167,7 @@ interface WorkspaceActivityItem {
               <span class="metric-icon projects" aria-hidden="true"></span>
               <div>
                 <small>Total Projects</small>
-                <strong>-</strong>
+                <strong>{{ summaryFor(ws).projectCount }}</strong>
               </div>
             </div>
 
@@ -174,7 +175,7 @@ interface WorkspaceActivityItem {
               <span class="metric-icon tasks" aria-hidden="true"></span>
               <div>
                 <small>Active Tasks</small>
-                <strong>0</strong>
+                <strong>{{ summaryFor(ws).activeTaskCount }}</strong>
               </div>
             </div>
 
@@ -1066,6 +1067,7 @@ export default class WorkspaceListComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
 
   workspaces: Workspace[] = [];
+  workspaceSummaries: Record<string, WorkspaceSummary> = {};
   isLoading = true;
   hasError = false;
   isCreateOpen = false;
@@ -1095,7 +1097,11 @@ export default class WorkspaceListComponent implements OnInit {
     this.isLoading = true;
     this.hasError = false;
     this.workspaceService.getAll().subscribe({
-      next: ws => { this.workspaces = ws; this.isLoading = false; },
+      next: ws => {
+        this.workspaces = ws;
+        this.loadSummaries(ws);
+        this.isLoading = false;
+      },
       error: () => { this.hasError = true; this.isLoading = false; }
     });
   }
@@ -1107,6 +1113,11 @@ export default class WorkspaceListComponent implements OnInit {
     this.workspaceService.create({ name: name!, description: description || '' }).subscribe({
       next: ws => {
         this.workspaces = [ws, ...this.workspaces];
+        this.workspaceSummaries = {
+          ...this.workspaceSummaries,
+          [ws.id]: this.emptySummary(),
+        };
+        this.loadSummaries([ws]);
         this.isCreateOpen = false;
         this.form.reset();
         this.isCreating = false;
@@ -1137,6 +1148,46 @@ export default class WorkspaceListComponent implements OnInit {
     const ids = new Set(workspace.members.map((member) => member.id));
     if (workspace.owner) ids.add(workspace.owner.id);
     return ids.size;
+  }
+
+  summaryFor(workspace: Workspace): WorkspaceSummary {
+    return this.workspaceSummaries[workspace.id] ?? this.emptySummary();
+  }
+
+  progressDash(progress: number): string {
+    const bounded = Math.max(0, Math.min(100, progress));
+    return `${(bounded / 100) * 283} 283`;
+  }
+
+  private loadSummaries(workspaces: Workspace[]): void {
+    if (!workspaces.length) {
+      this.workspaceSummaries = {};
+      return;
+    }
+
+    forkJoin(
+      workspaces.map((workspace) =>
+        this.workspaceService.getSummary(workspace.id).pipe(
+          catchError(() => of(this.emptySummary())),
+          map((summary) => [workspace.id, summary] as const)
+        )
+      )
+    ).subscribe((entries) => {
+      this.workspaceSummaries = {
+        ...this.workspaceSummaries,
+        ...Object.fromEntries(entries),
+      };
+    });
+  }
+
+  private emptySummary(): WorkspaceSummary {
+    return {
+      projectCount: 0,
+      activeTaskCount: 0,
+      completedTaskCount: 0,
+      overdueCount: 0,
+      averageProgress: 0,
+    };
   }
 
   activityRows(workspace: Workspace): WorkspaceActivityItem[] {

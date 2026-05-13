@@ -3,6 +3,7 @@ package com.teamsync.presentation.controller;
 import com.teamsync.presentation.dto.AddMemberRequestDTO;
 import com.teamsync.presentation.dto.WorkspaceRequestDTO;
 import com.teamsync.presentation.dto.WorkspaceResponseDTO;
+import com.teamsync.presentation.dto.WorkspaceSummaryResponseDTO;
 import com.teamsync.service.WorkspaceService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -54,6 +55,16 @@ public class WorkspaceController {
     @GetMapping("/{id}")
     public WorkspaceResponseDTO getById(@PathVariable UUID id) {
         return workspaceService.findById(id);
+    }
+
+    @Operation(summary = "Get workspace summary counts")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Workspace summary returned"),
+        @ApiResponse(responseCode = "404", description = "Workspace not found")
+    })
+    @GetMapping("/{id}/summary")
+    public WorkspaceSummaryResponseDTO getSummary(@PathVariable UUID id) {
+        return workspaceService.getSummary(id);
     }
 
     @Operation(summary = "Add a member to a workspace by email")

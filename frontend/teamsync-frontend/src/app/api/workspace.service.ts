@@ -14,6 +14,14 @@ export interface WorkspaceActivity {
   createdAt: string;
 }
 
+export interface WorkspaceSummary {
+  projectCount: number;
+  activeTaskCount: number;
+  completedTaskCount: number;
+  overdueCount: number;
+  averageProgress: number;
+}
+
 @Injectable({ providedIn: 'root' })
 export class WorkspaceService {
   private readonly http = inject(HttpClient);
@@ -25,6 +33,10 @@ export class WorkspaceService {
 
   getById(id: string): Observable<Workspace> {
     return this.http.get<Workspace>(`${this.base}/workspaces/${id}`);
+  }
+
+  getSummary(id: string): Observable<WorkspaceSummary> {
+    return this.http.get<WorkspaceSummary>(`${this.base}/workspaces/${id}/summary`);
   }
 
   create(req: CreateWorkspaceRequest): Observable<Workspace> {

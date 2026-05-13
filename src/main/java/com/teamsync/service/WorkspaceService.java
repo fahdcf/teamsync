@@ -1,11 +1,16 @@
 package com.teamsync.service;
 
+import com.teamsync.domain.entity.Project;
 import com.teamsync.domain.entity.User;
 import com.teamsync.domain.entity.Workspace;
+import com.teamsync.domain.enums.TaskStatus;
 import com.teamsync.patterns.creational.singleton.AppLogger;
 import com.teamsync.presentation.dto.UserResponseDTO;
 import com.teamsync.presentation.dto.WorkspaceRequestDTO;
 import com.teamsync.presentation.dto.WorkspaceResponseDTO;
+import com.teamsync.presentation.dto.WorkspaceSummaryResponseDTO;
+import com.teamsync.repository.ProjectRepository;
+import com.teamsync.repository.TaskRepository;
 import com.teamsync.repository.UserRepository;
 import com.teamsync.repository.WorkspaceRepository;
 import com.teamsync.repository.WorkspaceSpecification;
@@ -13,6 +18,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -27,10 +33,17 @@ public class WorkspaceService {
 
     private final WorkspaceRepository workspaceRepository;
     private final UserRepository userRepository;
+    private final ProjectRepository projectRepository;
+    private final TaskRepository taskRepository;
 
-    public WorkspaceService(WorkspaceRepository workspaceRepository, UserRepository userRepository) {
+    public WorkspaceService(WorkspaceRepository workspaceRepository,
+                            UserRepository userRepository,
+                            ProjectRepository projectRepository,
+                            TaskRepository taskRepository) {
         this.workspaceRepository = workspaceRepository;
         this.userRepository = userRepository;
+        this.projectRepository = projectRepository;
+        this.taskRepository = taskRepository;
     }
 
     public WorkspaceResponseDTO create(WorkspaceRequestDTO request, String ownerEmail) {
@@ -47,6 +60,32 @@ public class WorkspaceService {
 
     public WorkspaceResponseDTO findById(UUID id) {
         return toDTO(getWorkspace(id));
+    }
+
+    public WorkspaceSummaryResponseDTO getSummary(UUID workspaceId) {
+        Workspace workspace = getWorkspace(workspaceId);
+        List<Project> projects = projectRepository.findByWorkspace(workspace);
+        Set<Project> projectSet = new LinkedHashSet<>(projects);
+        long activeTaskCount = projectSet.isEmpty()
+                ? 0
+                : taskRepository.countByProjectInAndStatusNot(projectSet, TaskStatus.DONE);
+        long completedTaskCount = projectSet.isEmpty()
+                ? 0
+                : taskRepository.countByProjectInAndStatus(projectSet, TaskStatus.DONE);
+        long overdueCount = projectSet.isEmpty()
+                ? 0
+                : taskRepository.countByProjectInAndStatusNotAndDueDateBefore(projectSet, TaskStatus.DONE, LocalDate.now());
+        int averageProgress = projects.isEmpty()
+                ? 0
+                : (int) Math.round(projects.stream().mapToInt(Project::getProgress).average().orElse(0));
+
+        return WorkspaceSummaryResponseDTO.builder()
+                .projectCount(projects.size())
+                .activeTaskCount(activeTaskCount)
+                .completedTaskCount(completedTaskCount)
+                .overdueCount(overdueCount)
+                .averageProgress(averageProgress)
+                .build();
     }
 
     public List<WorkspaceResponseDTO> getMyWorkspaces(String email, String keyword) {

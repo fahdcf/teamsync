@@ -15,5 +15,6 @@ public interface ProjectRepository extends JpaRepository<Project, UUID>, JpaSpec
     List<Project> findByWorkspace(Workspace workspace);
     List<Project> findByWorkspaceIn(Set<Workspace> workspaces);
     List<Project> findByWorkspaceInAndDeadlineBetween(Set<Workspace> workspaces, LocalDate start, LocalDate end);
+    long countByWorkspace(Workspace workspace);
     List<Project> findByManager(User manager);
 }
