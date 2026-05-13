@@ -68,7 +68,7 @@ import { SkeletonComponent } from '../../../shared/components/skeleton/skeleton.
               <button type="button" class="invite-btn" (click)="isAddMemberOpen = true">
                 <span aria-hidden="true">+</span> Invite members
               </button>
-              <button type="button" class="settings-btn">
+              <button type="button" class="settings-btn" (click)="openSettings()">
                 <span aria-hidden="true">o</span> Workspace settings
               </button>
             </div>
@@ -206,6 +206,17 @@ import { SkeletonComponent } from '../../../shared/components/skeleton/skeleton.
       </form>
     </app-modal>
 
+    <app-modal [isOpen]="isSettingsOpen" title="Workspace Settings" size="sm" (closed)="isSettingsOpen = false">
+      <form [formGroup]="settingsForm" (ngSubmit)="saveSettings()" class="form">
+        <app-input label="Name" placeholder="Workspace name" formControlName="name"></app-input>
+        <app-input label="Description" placeholder="Workspace description" formControlName="description"></app-input>
+        <div class="form-actions">
+          <app-button variant="secondary" size="sm" (click)="isSettingsOpen = false">Cancel</app-button>
+          <app-button type="submit" size="sm" [loading]="isSavingSettings">Save</app-button>
+        </div>
+      </form>
+    </app-modal>
+
     <app-modal [isOpen]="isCreateProjectOpen" title="New Project" (closed)="isCreateProjectOpen = false">
       <form [formGroup]="projectForm" (ngSubmit)="createProject()" class="form">
         <app-input label="Title" placeholder="Project name" formControlName="title"></app-input>
@@ -244,10 +255,16 @@ export default class WorkspaceDetailComponent implements OnInit {
   hasError = false;
   isAddMemberOpen = false;
   isCreateProjectOpen = false;
+  isSettingsOpen = false;
   isAddingMember = false;
   isCreatingProject = false;
+  isSavingSettings = false;
 
   memberForm = this.fb.group({ email: ['', [Validators.required, Validators.email]] });
+  settingsForm = this.fb.group({
+    name: ['', Validators.required],
+    description: [''],
+  });
   projectForm = this.fb.group({
     title: ['', Validators.required],
     description: [''],
@@ -311,6 +328,36 @@ export default class WorkspaceDetailComponent implements OnInit {
         this.isAddingMember = false;
       },
       error: () => (this.isAddingMember = false),
+    });
+  }
+
+  openSettings(): void {
+    if (!this.workspace) return;
+    this.settingsForm.reset({
+      name: this.workspace.name,
+      description: this.workspace.description || '',
+    });
+    this.isSettingsOpen = true;
+  }
+
+  saveSettings(): void {
+    if (!this.settingsForm.valid || !this.workspace) return;
+    this.isSavingSettings = true;
+    const { name, description } = this.settingsForm.value;
+    this.workspaceService.update(this.workspace.id, {
+      name: name!,
+      description: description || '',
+    }).subscribe({
+      next: (workspace) => {
+        this.workspace = workspace;
+        this.isSettingsOpen = false;
+        this.isSavingSettings = false;
+        this.workspaceService.getActivity(workspace.id).subscribe({
+          next: (activity) => (this.activity = activity),
+          error: () => undefined,
+        });
+      },
+      error: () => (this.isSavingSettings = false),
     });
   }
 

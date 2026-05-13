@@ -86,7 +86,7 @@ Excluded by request:
 
 ## Workspace Detail Page
 
-- [ ] Task UI-AUDIT-030: Make workspace settings button functional.
+- [x] Task UI-AUDIT-030: Make workspace settings button functional.
   Frontend: open an edit workspace settings modal/page from `Workspace settings`.
   Backend: add `PUT /workspaces/{id}` for name/description updates and optional workspace preference fields.
 
