@@ -1,6 +1,7 @@
 package com.teamsync.presentation.dto;
 
 import com.teamsync.domain.enums.TaskPriority;
+import com.teamsync.domain.enums.TaskStatus;
 import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 
@@ -19,6 +20,8 @@ public class TaskRequestDTO {
     private String description;
 
     private TaskPriority priority;
+
+    private TaskStatus status;
 
     private UUID assigneeId;
 

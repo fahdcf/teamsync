@@ -78,6 +78,7 @@ public class TaskService implements com.teamsync.patterns.structural.proxy.TaskS
                 .description(request.getDescription())
                 .taskIdentifier(generateTaskIdentifier(project))
                 .priority(request.getPriority() != null ? request.getPriority() : TaskPriority.MEDIUM)
+                .status(request.getStatus() != null ? request.getStatus() : TaskStatus.TODO)
                 .project(project)
                 .assignee(assignee)
                 .dueDate(request.getDueDate())

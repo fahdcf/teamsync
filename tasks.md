@@ -156,7 +156,7 @@ Excluded by request:
 
 ## Task Board Page
 
-- [ ] Task UI-AUDIT-060: Preserve task status when creating from a board column.
+- [x] Task UI-AUDIT-060: Preserve task status when creating from a board column.
   Frontend: creating a task from `In Progress`, `Review`, or `Done` should place it in that selected column, not default to TODO.
   Backend: either allow initial `status` in `TaskRequestDTO` with state-machine validation or have the frontend create then call the status transition endpoint when valid.
 

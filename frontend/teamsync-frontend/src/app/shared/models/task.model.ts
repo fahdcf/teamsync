@@ -38,6 +38,7 @@ export interface CreateTaskRequest {
   title: string;
   description: string;
   priority: TaskPriority;
+  status?: TaskStatus;
   dueDate?: string;
   assigneeId?: string;
 }

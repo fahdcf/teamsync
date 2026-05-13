@@ -185,6 +185,7 @@ export default class TaskBoardComponent implements OnInit, OnChanges {
         title: title!,
         description: description || '',
         priority: priority as TaskPriority,
+        status: this.selectedStatus,
         dueDate: dueDate || undefined,
       })
       .subscribe({
