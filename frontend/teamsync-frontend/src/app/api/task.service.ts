@@ -27,6 +27,14 @@ export interface TaskPage {
   size: number;
 }
 
+export interface SaveTaskTemplateRequest {
+  templateName: string;
+  title: string;
+  description?: string;
+  priority?: TaskPriority;
+  defaultDueDays?: number;
+}
+
 @Injectable({ providedIn: 'root' })
 export class TaskService {
   private readonly http = inject(HttpClient);
@@ -91,6 +99,10 @@ export class TaskService {
 
   addDependency(id: string, dependsOnId: string): Observable<Task> {
     return this.http.post<Task>(`${this.base}/tasks/${id}/dependencies`, { dependsOnTaskId: dependsOnId });
+  }
+
+  saveTemplate(projectId: string, req: SaveTaskTemplateRequest): Observable<unknown> {
+    return this.http.post(`${this.base}/projects/${projectId}/templates`, req);
   }
 
   removeDependency(id: string, depId: string): Observable<void> {

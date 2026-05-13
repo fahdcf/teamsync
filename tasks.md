@@ -192,7 +192,7 @@ Excluded by request:
   Frontend: the expand icon should switch between modal/drawer and full-page task detail, or be removed.
   Backend: no backend required.
 
-- [ ] Task UI-AUDIT-081: Make task options menu functional.
+- [x] Task UI-AUDIT-081: Make task options menu functional.
   Frontend: implement the `...` task options menu with delete, duplicate/from-template, add dependency, save as template, and undo where permissions allow.
   Backend: existing delete, dependency, undo, template, and create-from-template endpoints exist; add duplicate endpoint only if needed.
 

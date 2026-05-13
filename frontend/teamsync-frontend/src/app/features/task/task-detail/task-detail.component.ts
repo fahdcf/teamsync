@@ -53,6 +53,9 @@ export default class TaskDetailComponent implements OnInit {
   replyingToId: string | null = null;
   replyText = '';
   showAssigneePicker = false;
+  showOptionsMenu = false;
+  dependencyTaskId = '';
+  actionMessage = '';
 
   readonly statuses: TaskStatus[] = ['TODO', 'IN_PROGRESS', 'BLOCKED', 'IN_REVIEW', 'DONE'];
   readonly priorities: TaskPriority[] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
@@ -118,6 +121,11 @@ export default class TaskDetailComponent implements OnInit {
     if (!this.task) return;
     this.closed.emit();
     this.router.navigate(['/tasks', this.task.id]);
+  }
+
+  toggleOptionsMenu(): void {
+    this.showOptionsMenu = !this.showOptionsMenu;
+    this.actionMessage = '';
   }
 
   loadProject(task: Task): void {
@@ -274,6 +282,7 @@ export default class TaskDetailComponent implements OnInit {
     this.taskService.undo().subscribe({
       next: () => {
         this.taskService.getById(this.task!.id).subscribe({ next: (task) => (this.task = task) });
+        this.showOptionsMenu = false;
       },
     });
   }
@@ -285,6 +294,57 @@ export default class TaskDetailComponent implements OnInit {
 
   copyLink(): void {
     navigator.clipboard?.writeText(window.location.href);
+  }
+
+  duplicateTask(): void {
+    if (!this.task) return;
+    const projectId = this.task.projectId || this.task.project?.id;
+    if (!projectId) return;
+
+    this.taskService.create(projectId, {
+      title: `${this.task.title} copy`,
+      description: this.task.description || '',
+      priority: this.task.priority,
+      status: this.task.status,
+      dueDate: this.task.dueDate || undefined,
+      assigneeId: this.task.assignee?.id,
+    }).subscribe({
+      next: (task) => {
+        this.showOptionsMenu = false;
+        this.router.navigate(['/tasks', task.id]);
+      },
+    });
+  }
+
+  saveTaskAsTemplate(): void {
+    if (!this.task) return;
+    const projectId = this.task.projectId || this.task.project?.id;
+    if (!projectId) return;
+
+    this.taskService.saveTemplate(projectId, {
+      templateName: `${this.task.title} template`,
+      title: this.task.title,
+      description: this.task.description || '',
+      priority: this.task.priority,
+      defaultDueDays: 7,
+    }).subscribe({
+      next: () => {
+        this.actionMessage = 'Template saved';
+      },
+    });
+  }
+
+  addDependencyFromMenu(): void {
+    const dependsOnId = this.dependencyTaskId.trim();
+    if (!this.task || !dependsOnId) return;
+
+    this.taskService.addDependency(this.task.id, dependsOnId).subscribe({
+      next: () => {
+        this.dependencyTaskId = '';
+        this.actionMessage = 'Dependency added';
+        this.taskService.getById(this.task!.id).subscribe({ next: (task) => (this.task = task) });
+      },
+    });
   }
 
   statusLabel(status: TaskStatus): string {

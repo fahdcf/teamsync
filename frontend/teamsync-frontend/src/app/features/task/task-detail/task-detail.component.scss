@@ -3,3 +3,64 @@
   width: 100%;
   height: 100%;
 }
+
+.td-options-wrap {
+  position: relative;
+}
+
+.td-options-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 20;
+  width: 230px;
+  padding: 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.td-options-menu button {
+  min-height: 34px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  text-align: left;
+  padding: 0 10px;
+  cursor: pointer;
+}
+
+.td-options-menu button:hover {
+  border-color: var(--border-default);
+}
+
+.td-options-menu button.danger {
+  color: var(--danger);
+}
+
+.td-options-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.td-options-field span,
+.td-options-menu small {
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+
+.td-options-field input {
+  height: 34px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-base);
+  color: var(--text-primary);
+  padding: 0 10px;
+  outline: none;
+}

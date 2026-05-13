@@ -20,7 +20,21 @@
       <button class="td-icon-btn" type="button" aria-label="Copy task link" (click)="copyLink()">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
       </button>
-      <button class="td-icon-btn" type="button" aria-label="Task options">...</button>
+      <div class="td-options-wrap">
+        <button class="td-icon-btn" type="button" aria-label="Task options" (click)="toggleOptionsMenu()">...</button>
+        <div class="td-options-menu" *ngIf="showOptionsMenu">
+          <button type="button" (click)="duplicateTask()">Duplicate task</button>
+          <button type="button" (click)="saveTaskAsTemplate()">Save as template</button>
+          <label class="td-options-field">
+            <span>Dependency task ID</span>
+            <input [(ngModel)]="dependencyTaskId" placeholder="Paste task ID">
+          </label>
+          <button type="button" (click)="addDependencyFromMenu()">Add dependency</button>
+          <button type="button" (click)="undoLastAction()">Undo last action</button>
+          <button *ngIf="canDelete" class="danger" type="button" (click)="deleteTask()">Delete task</button>
+          <small *ngIf="actionMessage">{{ actionMessage }}</small>
+        </div>
+      </div>
     </div>
     <div class="td-header-right">
       <button class="td-create-btn" type="button">Create</button>
