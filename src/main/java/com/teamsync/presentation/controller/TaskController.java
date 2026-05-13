@@ -58,8 +58,10 @@ public class TaskController {
     @PostMapping("/projects/{projectId}/tasks")
     @ResponseStatus(HttpStatus.CREATED)
     public TaskResponseDTO create(@PathVariable UUID projectId,
-                                   @Valid @RequestBody TaskRequestDTO request) {
-        return taskService.create(projectId, request);
+                                   @Valid @RequestBody TaskRequestDTO request,
+                                   Authentication auth) {
+        User currentUser = userService.findByEmail(auth.getName());
+        return taskService.create(projectId, request, currentUser.getId());
     }
 
     @Operation(summary = "List tasks in a project with optional filters (status, priority, assigneeId, keyword, overdue)")
@@ -91,8 +93,10 @@ public class TaskController {
     })
     @PutMapping("/tasks/{id}")
     public TaskResponseDTO update(@PathVariable UUID id,
-                                   @Valid @RequestBody TaskRequestDTO request) {
-        return taskService.update(id, request);
+                                   @Valid @RequestBody TaskRequestDTO request,
+                                   Authentication auth) {
+        User currentUser = userService.findByEmail(auth.getName());
+        return taskService.update(id, request, currentUser.getId());
     }
 
     @Operation(summary = "Delete a task (ADMIN or PROJECT_MANAGER only, action is undoable)")

@@ -12,7 +12,9 @@ import java.util.UUID;
 
 public interface TaskService {
     TaskResponseDTO create(UUID projectId, TaskRequestDTO request);
+    TaskResponseDTO create(UUID projectId, TaskRequestDTO request, UUID userId);
     TaskResponseDTO update(UUID id, TaskRequestDTO request);
+    TaskResponseDTO update(UUID id, TaskRequestDTO request, UUID userId);
     void delete(UUID id, UUID userId);
     TaskResponseDTO assign(UUID id, UUID assigneeId, UUID userId);
     TaskResponseDTO autoAssign(UUID projectId, UUID taskId, String strategyName);

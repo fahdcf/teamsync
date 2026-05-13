@@ -68,7 +68,7 @@ Excluded by request:
   Frontend: replace `Projects -`, `Active Tasks 0`, and progress `0%` placeholders with API values.
   Backend: add a workspace summary endpoint such as `GET /workspaces/{id}/summary` returning project count, active task count, completed task count, overdue count, and average progress.
 
-- [ ] Task UI-AUDIT-021: Replace synthetic workspace list activity rows.
+- [x] Task UI-AUDIT-021: Replace synthetic workspace list activity rows.
   Frontend: remove generated rows like `owner joined this workspace` when they are not from the database and render actual activity data.
   Backend: ensure `GET /workspaces/{id}/activity` logs workspace creation, member add/remove, project creation/update, and task activity with actor and timestamp.
 

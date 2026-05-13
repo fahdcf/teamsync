@@ -35,15 +35,18 @@ public class WorkspaceService {
     private final UserRepository userRepository;
     private final ProjectRepository projectRepository;
     private final TaskRepository taskRepository;
+    private final ActivityLogService activityLogService;
 
     public WorkspaceService(WorkspaceRepository workspaceRepository,
                             UserRepository userRepository,
                             ProjectRepository projectRepository,
-                            TaskRepository taskRepository) {
+                            TaskRepository taskRepository,
+                            ActivityLogService activityLogService) {
         this.workspaceRepository = workspaceRepository;
         this.userRepository = userRepository;
         this.projectRepository = projectRepository;
         this.taskRepository = taskRepository;
+        this.activityLogService = activityLogService;
     }
 
     public WorkspaceResponseDTO create(WorkspaceRequestDTO request, String ownerEmail) {
@@ -53,7 +56,9 @@ public class WorkspaceService {
                 .description(request.getDescription())
                 .owner(owner)
                 .build();
-        WorkspaceResponseDTO dto = toDTO(workspaceRepository.save(workspace));
+        Workspace saved = workspaceRepository.save(workspace);
+        WorkspaceResponseDTO dto = toDTO(saved);
+        activityLogService.log(owner, "WORKSPACE_CREATED", "WORKSPACE", saved.getId());
         AppLogger.getInstance().info("Workspace created: " + workspace.getName());
         return dto;
     }
@@ -113,13 +118,16 @@ public class WorkspaceService {
         Workspace workspace = getWorkspace(workspaceId);
         User member = findUserByEmail(memberEmail);
         workspace.getMembers().add(member);
-        return toDTO(workspaceRepository.save(workspace));
+        Workspace saved = workspaceRepository.save(workspace);
+        activityLogService.log(findUserByEmail(requesterEmail), "WORKSPACE_MEMBER_ADDED", "WORKSPACE", saved.getId());
+        return toDTO(saved);
     }
 
     public void removeMember(UUID workspaceId, UUID userId, String requesterEmail) {
         Workspace workspace = getWorkspace(workspaceId);
         workspace.getMembers().removeIf(u -> u.getId().equals(userId));
         workspaceRepository.save(workspace);
+        activityLogService.log(findUserByEmail(requesterEmail), "WORKSPACE_MEMBER_REMOVED", "WORKSPACE", workspace.getId());
     }
 
     public Workspace getWorkspace(UUID id) {

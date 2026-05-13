@@ -36,8 +36,18 @@ public class TaskServiceProxy implements TaskService {
     }
 
     @Override
+    public TaskResponseDTO create(UUID projectId, TaskRequestDTO request, UUID userId) {
+        return delegate.create(projectId, request, userId);
+    }
+
+    @Override
     public TaskResponseDTO update(UUID id, TaskRequestDTO request) {
         return delegate.update(id, request);
+    }
+
+    @Override
+    public TaskResponseDTO update(UUID id, TaskRequestDTO request, UUID userId) {
+        return delegate.update(id, request, userId);
     }
 
     @Override

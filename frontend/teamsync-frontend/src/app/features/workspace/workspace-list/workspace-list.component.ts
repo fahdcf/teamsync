@@ -3,14 +3,9 @@ import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { catchError, forkJoin, map, of } from 'rxjs';
-import { WorkspaceService, WorkspaceSummary } from '../../../api/workspace.service';
+import { WorkspaceActivity, WorkspaceService, WorkspaceSummary } from '../../../api/workspace.service';
 import { Workspace } from '../../../shared/models/workspace.model';
 import { User } from '../../../shared/models/user.model';
-
-interface WorkspaceActivityItem {
-  label: string;
-  user: User | null;
-}
 
 @Component({
   selector: 'app-workspace-list',
@@ -109,9 +104,10 @@ interface WorkspaceActivityItem {
                 <h3>Recent Activity</h3>
                 <div class="activity-row" *ngFor="let activity of activityRows(ws)">
                   <div class="mini-avatar">{{ initials(activity.user) }}</div>
-                  <span>{{ activity.label }}</span>
-                  <time>Just now</time>
+                  <span>{{ readableActivity(activity.action) }}</span>
+                  <time>{{ activity.createdAt | date:'short' }}</time>
                 </div>
+                <p class="activity-empty" *ngIf="!activityRows(ws).length">No recent activity yet.</p>
               </section>
             </div>
 
@@ -326,7 +322,6 @@ interface WorkspaceActivityItem {
 
     .workspace-feature-card,
     .side-card,
-    .modal-box,
     .modal-box {
       border: 1px solid var(--border-default);
       border-radius: var(--radius-xl);
@@ -580,6 +575,7 @@ interface WorkspaceActivityItem {
 
     .activity-row time {
       font-size: 12px;
+      color: var(--text-secondary);
     }
 
     .feature-right {
@@ -1068,6 +1064,7 @@ export default class WorkspaceListComponent implements OnInit {
 
   workspaces: Workspace[] = [];
   workspaceSummaries: Record<string, WorkspaceSummary> = {};
+  workspaceActivities: Record<string, WorkspaceActivity[]> = {};
   isLoading = true;
   hasError = false;
   isCreateOpen = false;
@@ -1100,6 +1097,7 @@ export default class WorkspaceListComponent implements OnInit {
       next: ws => {
         this.workspaces = ws;
         this.loadSummaries(ws);
+        this.loadActivities(ws);
         this.isLoading = false;
       },
       error: () => { this.hasError = true; this.isLoading = false; }
@@ -1118,6 +1116,7 @@ export default class WorkspaceListComponent implements OnInit {
           [ws.id]: this.emptySummary(),
         };
         this.loadSummaries([ws]);
+        this.loadActivities([ws]);
         this.isCreateOpen = false;
         this.form.reset();
         this.isCreating = false;
@@ -1180,6 +1179,27 @@ export default class WorkspaceListComponent implements OnInit {
     });
   }
 
+  private loadActivities(workspaces: Workspace[]): void {
+    if (!workspaces.length) {
+      this.workspaceActivities = {};
+      return;
+    }
+
+    forkJoin(
+      workspaces.map((workspace) =>
+        this.workspaceService.getActivity(workspace.id).pipe(
+          catchError(() => of([] as WorkspaceActivity[])),
+          map((activity) => [workspace.id, activity] as const)
+        )
+      )
+    ).subscribe((entries) => {
+      this.workspaceActivities = {
+        ...this.workspaceActivities,
+        ...Object.fromEntries(entries),
+      };
+    });
+  }
+
   private emptySummary(): WorkspaceSummary {
     return {
       projectCount: 0,
@@ -1190,11 +1210,15 @@ export default class WorkspaceListComponent implements OnInit {
     };
   }
 
-  activityRows(workspace: Workspace): WorkspaceActivityItem[] {
-    return [
-      { user: workspace.owner, label: `${workspace.owner.username} joined this workspace` },
-      { user: workspace.owner, label: `${workspace.owner.username} created this workspace` },
-      { user: workspace.owner, label: `${workspace.owner.username} updated workspace details` },
-    ];
+  activityRows(workspace: Workspace): WorkspaceActivity[] {
+    return this.workspaceActivities[workspace.id] ?? [];
+  }
+
+  readableActivity(action: string | null | undefined): string {
+    if (!action) return 'Recorded an activity';
+    return action
+      .replace(/_/g, ' ')
+      .toLowerCase()
+      .replace(/^\w/, (letter) => letter.toUpperCase());
   }
 }

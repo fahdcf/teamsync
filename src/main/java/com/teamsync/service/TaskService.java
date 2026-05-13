@@ -42,6 +42,7 @@ public class TaskService implements com.teamsync.patterns.structural.proxy.TaskS
     private final ProjectEventPublisher eventPublisher;
     private final TaskCommandInvoker commandInvoker;
     private final ValidationChainFactory validationChainFactory;
+    private final ActivityLogService activityLogService;
 
     public TaskService(TaskRepository taskRepository,
                        ProjectService projectService,
@@ -50,7 +51,8 @@ public class TaskService implements com.teamsync.patterns.structural.proxy.TaskS
                        TaskAssignmentService assignmentService,
                        ProjectEventPublisher eventPublisher,
                        TaskCommandInvoker commandInvoker,
-                       ValidationChainFactory validationChainFactory) {
+                       ValidationChainFactory validationChainFactory,
+                       ActivityLogService activityLogService) {
         this.taskRepository = taskRepository;
         this.projectService = projectService;
         this.userRepository = userRepository;
@@ -59,9 +61,14 @@ public class TaskService implements com.teamsync.patterns.structural.proxy.TaskS
         this.eventPublisher = eventPublisher;
         this.commandInvoker = commandInvoker;
         this.validationChainFactory = validationChainFactory;
+        this.activityLogService = activityLogService;
     }
 
     public TaskResponseDTO create(UUID projectId, TaskRequestDTO request) {
+        return create(projectId, request, null);
+    }
+
+    public TaskResponseDTO create(UUID projectId, TaskRequestDTO request, UUID userId) {
         Project project = projectService.getProject(projectId);
         validationChainFactory.buildChain().validate(request, project);
         User assignee = resolveUser(request.getAssigneeId());
@@ -77,11 +84,16 @@ public class TaskService implements com.teamsync.patterns.structural.proxy.TaskS
                 .build();
 
         Task saved = taskRepository.save(task);
+        activityLogService.log(resolveActor(userId, assignee), "TASK_CREATED", "TASK", saved.getId());
         eventPublisher.publish(new ProjectEvent(ProjectEventType.TASK_CREATED, saved.getTitle(), null));
         return toDTO(saved);
     }
 
     public TaskResponseDTO update(UUID id, TaskRequestDTO request) {
+        return update(id, request, null);
+    }
+
+    public TaskResponseDTO update(UUID id, TaskRequestDTO request, UUID userId) {
         Task task = getTask(id);
 
         task.setTitle(request.getTitle());
@@ -90,7 +102,9 @@ public class TaskService implements com.teamsync.patterns.structural.proxy.TaskS
         if (request.getDueDate() != null) task.setDueDate(request.getDueDate());
         if (request.getAssigneeId() != null) task.setAssignee(resolveUser(request.getAssigneeId()));
 
-        return toDTO(taskRepository.save(task));
+        Task saved = taskRepository.save(task);
+        activityLogService.log(resolveActor(userId, saved.getAssignee()), "TASK_UPDATED", "TASK", saved.getId());
+        return toDTO(saved);
     }
 
     public void delete(UUID id, UUID userId) {
@@ -103,6 +117,7 @@ public class TaskService implements com.teamsync.patterns.structural.proxy.TaskS
         User assignee = userRepository.findById(assigneeId)
                 .orElseThrow(() -> new NoSuchElementException("User not found: " + assigneeId));
         commandInvoker.execute(userId, new AssignTaskCommand(task, assignee, taskRepository));
+        activityLogService.log(resolveUser(userId), "TASK_ASSIGNED", "TASK", task.getId());
         eventPublisher.publish(new ProjectEvent(ProjectEventType.TASK_ASSIGNED,
                 task.getTitle() + " → " + assignee.getUsername(), assignee));
         return toDTO(taskRepository.findById(id).orElse(task));
@@ -128,6 +143,7 @@ public class TaskService implements com.teamsync.patterns.structural.proxy.TaskS
     public TaskResponseDTO changeStatus(UUID id, TaskStatus targetStatus, UUID userId) {
         Task task = getTask(id);
         commandInvoker.execute(userId, new ChangeStatusCommand(task, targetStatus, stateMachine, taskRepository));
+        activityLogService.log(resolveUser(userId), "TASK_STATUS_CHANGED", "TASK", task.getId());
         eventPublisher.publish(new ProjectEvent(ProjectEventType.TASK_STATUS_CHANGED,
                 task.getTitle() + " → " + targetStatus, task.getAssignee()));
         return toDTO(taskRepository.findById(id).orElseThrow());
@@ -166,6 +182,11 @@ public class TaskService implements com.teamsync.patterns.structural.proxy.TaskS
         if (userId == null) return null;
         return userRepository.findById(userId)
                 .orElseThrow(() -> new NoSuchElementException("User not found: " + userId));
+    }
+
+    private User resolveActor(UUID userId, User fallback) {
+        if (userId == null) return fallback;
+        return resolveUser(userId);
     }
 
     private UserResponseDTO userToDTO(User u) {

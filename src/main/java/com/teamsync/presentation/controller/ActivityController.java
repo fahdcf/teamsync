@@ -32,7 +32,7 @@ public class ActivityController {
     @ApiResponse(responseCode = "200", description = "Activity feed returned")
     @GetMapping("/workspaces/{id}/activity")
     public List<ActivityLogResponseDTO> getWorkspaceActivity(@PathVariable UUID id) {
-        return activityLogService.findDTOsByEntityId(id);
+        return activityLogService.findWorkspaceActivityDTOs(id);
     }
 
     @Operation(summary = "Get personal activity feed for the current user")

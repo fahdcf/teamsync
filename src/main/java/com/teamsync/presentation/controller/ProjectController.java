@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -45,8 +46,9 @@ public class ProjectController {
     @PostMapping("/workspaces/{workspaceId}/projects")
     @ResponseStatus(HttpStatus.CREATED)
     public ProjectResponseDTO create(@PathVariable UUID workspaceId,
-                                     @Valid @RequestBody ProjectRequestDTO request) {
-        return projectService.create(workspaceId, request);
+                                     @Valid @RequestBody ProjectRequestDTO request,
+                                     Authentication auth) {
+        return projectService.create(workspaceId, request, auth.getName());
     }
 
     @Operation(summary = "List projects in a workspace")
@@ -73,8 +75,9 @@ public class ProjectController {
     })
     @PutMapping("/projects/{id}")
     public ProjectResponseDTO update(@PathVariable UUID id,
-                                     @Valid @RequestBody ProjectRequestDTO request) {
-        return projectService.update(id, request);
+                                     @Valid @RequestBody ProjectRequestDTO request,
+                                     Authentication auth) {
+        return projectService.update(id, request, auth.getName());
     }
 
     @Operation(summary = "Archive a project (ADMIN or PROJECT_MANAGER)")
@@ -84,8 +87,8 @@ public class ProjectController {
         @ApiResponse(responseCode = "404", description = "Project not found")
     })
     @PutMapping("/projects/{id}/archive")
-    public ProjectResponseDTO archive(@PathVariable UUID id) {
-        return projectService.archive(id);
+    public ProjectResponseDTO archive(@PathVariable UUID id, Authentication auth) {
+        return projectService.archive(id, auth.getName());
     }
 
     @Operation(summary = "Initialize a project via Facade pattern (validate workspace, create project, assign manager)")

@@ -35,20 +35,27 @@ public class ProjectService {
     private final TaskRepository taskRepository;
     private final WorkspaceService workspaceService;
     private final ProjectEventPublisher eventPublisher;
+    private final ActivityLogService activityLogService;
 
     public ProjectService(ProjectRepository projectRepository,
                           UserRepository userRepository,
                           TaskRepository taskRepository,
                           WorkspaceService workspaceService,
-                          @Lazy ProjectEventPublisher eventPublisher) {
+                          @Lazy ProjectEventPublisher eventPublisher,
+                          ActivityLogService activityLogService) {
         this.projectRepository = projectRepository;
         this.userRepository = userRepository;
         this.taskRepository = taskRepository;
         this.workspaceService = workspaceService;
         this.eventPublisher = eventPublisher;
+        this.activityLogService = activityLogService;
     }
 
     public ProjectResponseDTO create(UUID workspaceId, ProjectRequestDTO request) {
+        return create(workspaceId, request, null);
+    }
+
+    public ProjectResponseDTO create(UUID workspaceId, ProjectRequestDTO request, String actorEmail) {
         Workspace workspace = workspaceService.getWorkspace(workspaceId);
         User manager = resolveManager(request.getManagerId());
 
@@ -61,12 +68,18 @@ public class ProjectService {
                 .manager(manager)
                 .build();
 
-        ProjectResponseDTO dto = toDTO(projectRepository.save(project));
+        Project saved = projectRepository.save(project);
+        ProjectResponseDTO dto = toDTO(saved);
+        activityLogService.log(resolveActor(actorEmail, manager), "PROJECT_CREATED", "PROJECT", saved.getId());
         AppLogger.getInstance().info("Project created: " + project.getTitle());
         return dto;
     }
 
     public ProjectResponseDTO update(UUID id, ProjectRequestDTO request) {
+        return update(id, request, null);
+    }
+
+    public ProjectResponseDTO update(UUID id, ProjectRequestDTO request, String actorEmail) {
         Project project = getProject(id);
 
         project.setTitle(request.getTitle());
@@ -75,16 +88,24 @@ public class ProjectService {
         if (request.getProgress() != null) project.setProgress(request.getProgress());
         if (request.getManagerId() != null) project.setManager(resolveManager(request.getManagerId()));
 
-        ProjectResponseDTO dto = toDTO(projectRepository.save(project));
+        Project saved = projectRepository.save(project);
+        ProjectResponseDTO dto = toDTO(saved);
+        activityLogService.log(resolveActor(actorEmail, saved.getManager()), "PROJECT_UPDATED", "PROJECT", saved.getId());
         AppLogger.getInstance().info("Project updated: " + project.getTitle());
         eventPublisher.publish(new ProjectEvent(ProjectEventType.PROJECT_UPDATED, project.getTitle(), null));
         return dto;
     }
 
     public ProjectResponseDTO archive(UUID id) {
+        return archive(id, null);
+    }
+
+    public ProjectResponseDTO archive(UUID id, String actorEmail) {
         Project project = getProject(id);
         project.setStatus(ProjectStatus.ARCHIVED);
-        return toDTO(projectRepository.save(project));
+        Project saved = projectRepository.save(project);
+        activityLogService.log(resolveActor(actorEmail, saved.getManager()), "PROJECT_ARCHIVED", "PROJECT", saved.getId());
+        return toDTO(saved);
     }
 
     public List<ProjectResponseDTO> findByWorkspace(UUID workspaceId) {
@@ -114,6 +135,13 @@ public class ProjectService {
         if (managerId == null) return null;
         return userRepository.findById(managerId)
                 .orElseThrow(() -> new NoSuchElementException("User not found: " + managerId));
+    }
+
+    private User resolveActor(String actorEmail, User fallback) {
+        if (actorEmail == null || actorEmail.isBlank()) {
+            return fallback;
+        }
+        return userRepository.findByEmail(actorEmail).orElse(fallback);
     }
 
     private UserResponseDTO userToDTO(User u) {
