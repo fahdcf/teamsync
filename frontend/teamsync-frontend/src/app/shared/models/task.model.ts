@@ -11,6 +11,7 @@ export interface Task {
   description: string;
   priority: TaskPriority;
   status: TaskStatus;
+  position?: number;
   assignee: User | null;
   project: Project;
   projectId?: string;

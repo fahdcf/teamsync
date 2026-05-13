@@ -20,6 +20,7 @@ public interface TaskRepository extends JpaRepository<Task, UUID>, JpaSpecificat
     List<Task> findByProjectAndStatus(Project project, TaskStatus status);
     List<Task> findByDependenciesContaining(Task task);
     long countByProject(Project project);
+    Task findTopByProjectOrderByPositionDesc(Project project);
     long countByAssignee(User assignee);
     long countByAssigneeAndStatus(User assignee, TaskStatus status);
     long countByAssigneeAndUpdatedAtBetween(User assignee, LocalDateTime start, LocalDateTime end);

@@ -45,6 +45,8 @@ public class Task {
     @Builder.Default
     private TaskStatus status = TaskStatus.TODO;
 
+    private Integer position;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "assignee_id")
     private User assignee;

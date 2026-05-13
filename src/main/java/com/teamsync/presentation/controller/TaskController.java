@@ -8,6 +8,7 @@ import com.teamsync.patterns.creational.prototype.TaskTemplateService;
 import com.teamsync.presentation.dto.AddDependencyRequestDTO;
 import com.teamsync.presentation.dto.AssignTaskRequestDTO;
 import com.teamsync.presentation.dto.AutoAssignRequestDTO;
+import com.teamsync.presentation.dto.ReorderTasksRequestDTO;
 import com.teamsync.presentation.dto.SaveTemplateRequestDTO;
 import com.teamsync.presentation.dto.SubtaskRequestDTO;
 import com.teamsync.presentation.dto.SubtaskResponseDTO;
@@ -75,6 +76,18 @@ public class TaskController {
                                                 @RequestParam(required = false) String keyword,
                                                 @RequestParam(required = false) Boolean overdue) {
         return taskService.findByProject(projectId, status, priority, assigneeId, keyword, overdue);
+    }
+
+    @Operation(summary = "Persist task order inside a project board")
+    @ApiResponses({
+        @ApiResponse(responseCode = "204", description = "Task order saved"),
+        @ApiResponse(responseCode = "400", description = "Task does not belong to project")
+    })
+    @PutMapping("/projects/{projectId}/tasks/reorder")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void reorder(@PathVariable UUID projectId,
+                        @Valid @RequestBody ReorderTasksRequestDTO request) {
+        taskService.reorder(projectId, request.getTaskIds());
     }
 
     @Operation(summary = "Get task details by ID")

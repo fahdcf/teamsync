@@ -41,6 +41,10 @@ export class TaskService {
     return this.http.put<Task>(`${this.base}/tasks/${id}/status`, req);
   }
 
+  reorder(projectId: string, taskIds: string[]): Observable<void> {
+    return this.http.put<void>(`${this.base}/projects/${projectId}/tasks/reorder`, { taskIds });
+  }
+
   assign(id: string, userId: string): Observable<Task> {
     return this.http.put<Task>(`${this.base}/tasks/${id}/assign`, { userId });
   }

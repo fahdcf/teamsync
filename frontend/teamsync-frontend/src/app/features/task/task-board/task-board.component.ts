@@ -26,7 +26,7 @@ export interface TaskBoardFilters {
   overdue?: boolean;
 }
 
-export type TaskBoardSort = 'updated' | 'dueDate' | 'priority' | 'title';
+export type TaskBoardSort = 'position' | 'updated' | 'dueDate' | 'priority' | 'title';
 export type TaskBoardGroup = 'status' | 'priority';
 
 @Component({
@@ -50,7 +50,7 @@ export type TaskBoardGroup = 'status' | 'priority';
 export default class TaskBoardComponent implements OnInit, OnChanges {
   @Input() projectId = '';
   @Input() externalFilters: TaskBoardFilters = {};
-  @Input() sortMode: TaskBoardSort = 'updated';
+  @Input() sortMode: TaskBoardSort = 'position';
   @Input() groupMode: TaskBoardGroup = 'status';
   @Input() refreshToken = 0;
 
@@ -154,6 +154,7 @@ export default class TaskBoardComponent implements OnInit, OnChanges {
   onDrop(event: CdkDragDrop<Task[]>): void {
     if (event.previousContainer === event.container) {
       moveItemInArray(event.container.data, event.previousIndex, event.currentIndex);
+      this.persistColumnOrder(event.container.data);
       return;
     }
 
@@ -261,6 +262,9 @@ export default class TaskBoardComponent implements OnInit, OnChanges {
   }
 
   private compareTasks(a: Task, b: Task): number {
+    if (this.sortMode === 'position') {
+      return (a.position ?? Number.MAX_SAFE_INTEGER) - (b.position ?? Number.MAX_SAFE_INTEGER);
+    }
     if (this.sortMode === 'dueDate') {
       return this.dateValue(a.dueDate, Number.MAX_SAFE_INTEGER) - this.dateValue(b.dueDate, Number.MAX_SAFE_INTEGER);
     }
@@ -279,5 +283,12 @@ export default class TaskBoardComponent implements OnInit, OnChanges {
 
   private dateValue(value: string | null | undefined, fallback: number): number {
     return value ? new Date(value).getTime() : fallback;
+  }
+
+  private persistColumnOrder(tasks: Task[]): void {
+    tasks.forEach((task, index) => (task.position = index));
+    this.taskService.reorder(this.projectId, tasks.map((task) => task.id)).subscribe({
+      error: () => this.loadTasks(),
+    });
   }
 }

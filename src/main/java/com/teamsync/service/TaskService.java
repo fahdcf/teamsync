@@ -83,6 +83,7 @@ public class TaskService implements com.teamsync.patterns.structural.proxy.TaskS
                 .taskIdentifier(generateTaskIdentifier(project))
                 .priority(request.getPriority() != null ? request.getPriority() : TaskPriority.MEDIUM)
                 .status(request.getStatus() != null ? request.getStatus() : TaskStatus.TODO)
+                .position(nextPosition(project))
                 .project(project)
                 .assignee(assignee)
                 .dueDate(request.getDueDate())
@@ -154,6 +155,18 @@ public class TaskService implements com.teamsync.patterns.structural.proxy.TaskS
         return toDTO(taskRepository.findById(id).orElseThrow());
     }
 
+    public void reorder(UUID projectId, List<UUID> taskIds) {
+        Project project = projectService.getProject(projectId);
+        for (int i = 0; i < taskIds.size(); i++) {
+            Task task = getTask(taskIds.get(i));
+            if (!task.getProject().getId().equals(project.getId())) {
+                throw new IllegalArgumentException("Task does not belong to project: " + task.getId());
+            }
+            task.setPosition(i);
+            taskRepository.save(task);
+        }
+    }
+
     public void undo(UUID userId) {
         commandInvoker.undo(userId);
     }
@@ -216,6 +229,14 @@ public class TaskService implements com.teamsync.patterns.structural.proxy.TaskS
         return prefix + "-" + nextNumber;
     }
 
+    private int nextPosition(Project project) {
+        Task last = taskRepository.findTopByProjectOrderByPositionDesc(project);
+        if (last == null || last.getPosition() == null) {
+            return (int) taskRepository.countByProject(project);
+        }
+        return last.getPosition() + 1;
+    }
+
     public TaskResponseDTO toDTO(Task t) {
         return TaskResponseDTO.builder()
                 .id(t.getId())
@@ -224,6 +245,7 @@ public class TaskService implements com.teamsync.patterns.structural.proxy.TaskS
                 .description(t.getDescription())
                 .priority(t.getPriority())
                 .status(t.getStatus())
+                .position(t.getPosition())
                 .assignee(userToDTO(t.getAssignee()))
                 .projectId(t.getProject().getId())
                 .projectTitle(t.getProject().getTitle())

@@ -21,6 +21,7 @@ public class TaskResponseDTO {
     private String description;
     private TaskPriority priority;
     private TaskStatus status;
+    private Integer position;
     private UserResponseDTO assignee;
     private UUID projectId;
     private String projectTitle;

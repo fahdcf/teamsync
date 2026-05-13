@@ -19,6 +19,7 @@ public interface TaskService {
     TaskResponseDTO assign(UUID id, UUID assigneeId, UUID userId);
     TaskResponseDTO autoAssign(UUID projectId, UUID taskId, String strategyName);
     TaskResponseDTO changeStatus(UUID id, TaskStatus targetStatus, UUID userId);
+    void reorder(UUID projectId, List<UUID> taskIds);
     void undo(UUID userId);
     List<TaskResponseDTO> findByProject(UUID projectId, TaskStatus status, TaskPriority priority,
                                         UUID assigneeId, String keyword, Boolean overdue);

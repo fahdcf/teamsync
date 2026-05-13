@@ -112,6 +112,7 @@ type Tab = 'board' | 'analytics' | 'settings';
         <label>
           <span>Sort tasks by</span>
           <select [ngModel]="boardSortMode" (ngModelChange)="setBoardSort($event)">
+            <option value="position">Manual order</option>
             <option value="updated">Recently updated</option>
             <option value="dueDate">Due date</option>
             <option value="priority">Priority</option>
@@ -366,7 +367,7 @@ export default class ProjectDetailComponent implements OnInit {
   activeTab: Tab = 'board';
   openBoardPanel: 'filter' | 'sort' | 'more' | null = null;
   boardFilters: TaskBoardFilters = {};
-  boardSortMode: TaskBoardSort = 'updated';
+  boardSortMode: TaskBoardSort = 'position';
   boardGroupMode: TaskBoardGroup = 'status';
   boardRefreshToken = 0;
 
@@ -477,7 +478,7 @@ export default class ProjectDetailComponent implements OnInit {
 
   clearBoardControls(): void {
     this.boardFilters = {};
-    this.boardSortMode = 'updated';
+    this.boardSortMode = 'position';
     this.boardGroupMode = 'status';
     this.boardRefreshToken += 1;
     this.openBoardPanel = null;

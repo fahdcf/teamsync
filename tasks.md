@@ -168,7 +168,7 @@ Excluded by request:
   Frontend: stop using dependency count as `commentCountFor(task)` and show actual comment counts.
   Backend: include `commentCount` in `TaskResponseDTO` or add a batch counts endpoint for task cards.
 
-- [ ] Task UI-AUDIT-063: Persist task order inside each board column.
+- [x] Task UI-AUDIT-063: Persist task order inside each board column.
   Frontend: same-column drag/drop currently only reorders locally; persist the order and reload it consistently.
   Backend: add a `position` field on tasks and an endpoint such as `PUT /projects/{projectId}/tasks/reorder`.
 

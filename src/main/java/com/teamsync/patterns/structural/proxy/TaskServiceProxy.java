@@ -85,6 +85,11 @@ public class TaskServiceProxy implements TaskService {
     }
 
     @Override
+    public void reorder(UUID projectId, List<UUID> taskIds) {
+        delegate.reorder(projectId, taskIds);
+    }
+
+    @Override
     public void undo(UUID userId) {
         delegate.undo(userId);
     }
