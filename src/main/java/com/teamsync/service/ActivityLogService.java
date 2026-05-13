@@ -48,6 +48,12 @@ public class ActivityLogService {
                 .toList();
     }
 
+    public List<ActivityLogResponseDTO> findRecentDTOsByUserEmail(String email) {
+        return activityLogRepository.findTop50ByUserEmailOrderByCreatedAtDesc(email).stream()
+                .map(this::toDTO)
+                .toList();
+    }
+
     public List<ActivityLog> findRecent() {
         return activityLogRepository.findTop50ByOrderByCreatedAtDesc();
     }

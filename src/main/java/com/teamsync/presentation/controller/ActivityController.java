@@ -39,6 +39,6 @@ public class ActivityController {
     @ApiResponse(responseCode = "200", description = "Personal activity feed returned")
     @GetMapping("/users/me/activity")
     public List<ActivityLogResponseDTO> getMyActivity(Authentication auth) {
-        return activityLogService.findRecentDTOs();
+        return activityLogService.findRecentDTOsByUserEmail(auth.getName());
     }
 }

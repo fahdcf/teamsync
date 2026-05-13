@@ -34,7 +34,7 @@ Excluded by request:
 
 ## Dashboard Page
 
-- [ ] Task UI-AUDIT-010: Replace static dashboard recent activity with persisted activity logs.
+- [x] Task UI-AUDIT-010: Replace static dashboard recent activity with persisted activity logs.
   Frontend: load recent activity from a service instead of the hardcoded `recentActivity` array, show real actor/action/time, and link each activity to its entity.
   Backend: `GET /users/me/activity` exists; verify it returns authenticated-user-scoped activity, entity type/id, actor, and timestamps for dashboard rendering.
 

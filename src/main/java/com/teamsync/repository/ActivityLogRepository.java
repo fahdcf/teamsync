@@ -9,4 +9,5 @@ import java.util.UUID;
 public interface ActivityLogRepository extends JpaRepository<ActivityLog, UUID> {
     List<ActivityLog> findByEntityId(UUID entityId);
     List<ActivityLog> findTop50ByOrderByCreatedAtDesc();
+    List<ActivityLog> findTop50ByUserEmailOrderByCreatedAtDesc(String email);
 }

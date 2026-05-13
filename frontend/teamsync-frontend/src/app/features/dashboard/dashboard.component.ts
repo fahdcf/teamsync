@@ -3,11 +3,13 @@ import { CommonModule, DatePipe } from '@angular/common';
 import { Router } from '@angular/router';
 import { forkJoin, of, switchMap } from 'rxjs';
 import { AuthStore } from '../../store/auth.store';
+import { ActivityService } from '../../api/activity.service';
 import { DashboardDeadline, DashboardProjectOverview, DashboardService, DashboardStats } from '../../api/dashboard.service';
 import { ProjectService } from '../../api/project.service';
 import { TaskService } from '../../api/task.service';
 import { WorkspaceService } from '../../api/workspace.service';
 import { Project } from '../../shared/models/project.model';
+import { ActivityLog } from '../../shared/models/activity.model';
 import { Task } from '../../shared/models/task.model';
 import { User } from '../../shared/models/user.model';
 import { Workspace } from '../../shared/models/workspace.model';
@@ -164,11 +166,18 @@ import { Workspace } from '../../shared/models/workspace.model';
         <div class="left-stack">
           <article class="dash-card activity-card">
             <header><h2>Recent Activity</h2><a href="#">View all activity -></a></header>
-            <div class="activity-row" *ngFor="let activity of recentActivity">
-              <span>{{ activity.initials }}</span>
-              <p><strong>{{ activity.name }}</strong> {{ activity.action }}</p>
-              <time>{{ activity.time }}</time>
+            <div
+              class="activity-row"
+              *ngFor="let activity of recentActivity"
+              (click)="openActivity(activity)"
+              tabindex="0"
+              (keydown.enter)="openActivity(activity)"
+            >
+              <span>{{ initials(activity.user) }}</span>
+              <p><strong>{{ activity.user?.username || 'System' }}</strong> {{ readableActivity(activity.action) }}</p>
+              <time>{{ activity.createdAt | date:'short' }}</time>
             </div>
+            <p class="empty-copy" *ngIf="!recentActivity.length">No recent activity yet.</p>
           </article>
 
           <article class="dash-card deadline-card">
@@ -218,6 +227,7 @@ import { Workspace } from '../../shared/models/workspace.model';
 })
 export default class DashboardComponent implements OnInit {
   private readonly authStore = inject(AuthStore);
+  private readonly activityService = inject(ActivityService);
   private readonly dashboardService = inject(DashboardService);
   private readonly projectService = inject(ProjectService);
   private readonly taskService = inject(TaskService);
@@ -241,20 +251,13 @@ export default class DashboardComponent implements OnInit {
   projects: Project[] = [];
   workspaces: Workspace[] = [];
   tasks: Task[] = [];
+  recentActivity: ActivityLog[] = [];
   selectedProjectId = '';
   dashboardCalendarDate = new Date();
 
   readonly bars = [20, 34, 28, 40, 18, 36, 25, 31];
   readonly days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
   readonly calendarWeekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
-  readonly recentActivity = [
-    { initials: 'EW', name: 'Emma Wilson', action: 'completed Homepage design', time: '2m ago' },
-    { initials: 'MJ', name: 'Mike Johnson', action: 'commented on UI kit review', time: '15m ago' },
-    { initials: 'SC', name: 'Sarah Chen', action: 'moved task to In Progress', time: '1h ago' },
-    { initials: 'AI', name: 'AI Assistant', action: 'generated 3 task suggestions', time: '2h ago' },
-    { initials: 'DS', name: 'Design System', action: 'was updated', time: '3h ago' },
-  ];
 
   ngOnInit(): void {
     this.authStore.user$.subscribe((user) => (this.currentUser = user));
@@ -346,6 +349,7 @@ export default class DashboardComponent implements OnInit {
       deadlines: this.dashboardService.getUpcomingDeadlines(),
       overview: this.dashboardService.getProjectsOverview(),
       workspaces: this.workspaceService.getAll(),
+      activity: this.activityService.getMyActivity(),
     })
       .pipe(
         switchMap((data) => {
@@ -354,6 +358,7 @@ export default class DashboardComponent implements OnInit {
           this.deadlines = data.deadlines;
           this.overviewProjects = data.overview;
           this.workspaces = data.workspaces;
+          this.recentActivity = data.activity;
           const workspaceId = data.workspaces[0]?.id;
           if (!workspaceId) return of([] as Project[]);
           return this.projectService.getByWorkspace(workspaceId);
@@ -443,6 +448,28 @@ export default class DashboardComponent implements OnInit {
 
   openTask(id: string): void {
     this.router.navigate(['/tasks', id]);
+  }
+
+  openActivity(activity: ActivityLog): void {
+    const entityType = activity.entityType?.toUpperCase();
+    if (entityType === 'TASK') {
+      this.router.navigate(['/tasks', activity.entityId]);
+      return;
+    }
+    if (entityType === 'PROJECT') {
+      this.router.navigate(['/projects', activity.entityId]);
+      return;
+    }
+    if (entityType === 'WORKSPACE') {
+      this.router.navigate(['/workspaces', activity.entityId]);
+    }
+  }
+
+  readableActivity(action: string | null | undefined): string {
+    if (!action) return 'recorded an activity';
+    return action
+      .replace(/_/g, ' ')
+      .toLowerCase();
   }
 
   trendText(value: number | undefined): string {
