@@ -14,7 +14,7 @@ import { SkeletonComponent } from '../../../shared/components/skeleton/skeleton.
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { slideInRight } from '../../../app.animations';
 
-type TaskDetailTab = 'comments' | 'activity' | 'files' | 'assistant';
+type TaskDetailTab = 'comments' | 'activity' | 'assistant';
 
 @Component({
   selector: 'app-task-detail',
@@ -63,7 +63,6 @@ export default class TaskDetailComponent implements OnInit {
   readonly tabs: { key: TaskDetailTab; label: string }[] = [
     { key: 'comments', label: 'Comments' },
     { key: 'activity', label: 'Activity' },
-    { key: 'files', label: 'Files' },
     { key: 'assistant', label: 'AI Assistant' },
   ];
 

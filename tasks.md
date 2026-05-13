@@ -208,7 +208,7 @@ Excluded by request:
   Frontend: the `Reply` button sets `replyingToId`, but no reply input is rendered; add reply editor, submit/cancel, and nested reply display.
   Backend: `POST /comments/{id}/replies` exists; verify response includes the new reply and nested replies are returned by `GET /tasks/{id}/comments`.
 
-- [ ] Task UI-AUDIT-085: Replace static task Files tab with real attachments or hide it.
+- [x] Task UI-AUDIT-085: Replace static task Files tab with real attachments or hide it.
   Frontend: the Files tab lists fake files; either remove the tab or implement upload/list/delete/download attachments.
   Backend: add attachment entity and endpoints such as `GET/POST/DELETE /tasks/{id}/attachments` with file storage.
 

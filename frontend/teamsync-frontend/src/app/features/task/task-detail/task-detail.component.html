@@ -154,7 +154,7 @@
       <div class="td-bottom-left td-card">
         <div class="td-tabs">
           <button *ngFor="let tab of tabs" class="td-tab" type="button" [class.active]="activeTab === tab.key" (click)="activeTab = tab.key">
-            {{ tab.label }} <span *ngIf="tab.key === 'comments'">{{ comments.length }}</span><span *ngIf="tab.key === 'files'">3</span>
+            {{ tab.label }} <span *ngIf="tab.key === 'comments'">{{ comments.length }}</span>
           </button>
         </div>
 
@@ -207,12 +207,6 @@
               <div><strong>{{ item.action }}</strong><small>{{ item.createdAt | date:'medium' }}</small></div>
             </div>
             <p class="td-empty-copy" *ngIf="!activity.length">No activity recorded for this task yet.</p>
-          </div>
-
-          <div *ngSwitchCase="'files'" class="td-tab-panel td-files-panel">
-            <article><strong>Design brief.pdf</strong><span>Attached to this task</span></article>
-            <article><strong>Wireframe.png</strong><span>Reference asset</span></article>
-            <article><strong>Notes.md</strong><span>Project notes</span></article>
           </div>
 
           <div *ngSwitchCase="'assistant'" class="td-tab-panel">
