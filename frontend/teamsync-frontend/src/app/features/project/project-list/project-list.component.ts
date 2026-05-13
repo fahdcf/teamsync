@@ -9,6 +9,7 @@ import { WorkspaceContextService } from '../../../core/services/workspace-contex
 import { Project, ProjectStatus } from '../../../shared/models/project.model';
 import { Workspace } from '../../../shared/models/workspace.model';
 import { User } from '../../../shared/models/user.model';
+import { AuthStore } from '../../../store/auth.store';
 
 @Component({
   selector: 'app-project-list',
@@ -116,7 +117,15 @@ import { User } from '../../../shared/models/user.model';
 
           <div class="grid-item-title">
             <h2>{{ project.title }}</h2>
-            <button class="project-more-btn" type="button" aria-label="Project options" (click)="$event.stopPropagation()">...</button>
+            <div class="project-options-wrapper">
+              <button class="project-more-btn" type="button" aria-label="Project options" (click)="toggleProjectMenu(project.id, $event)">...</button>
+              <div class="project-options-menu" *ngIf="openProjectMenuId === project.id">
+                <button type="button" (click)="openProjectFromMenu(project, $event)">Open project</button>
+                <button type="button" (click)="openEditProject(project, $event)" [disabled]="!canManageProject(project)">Edit project</button>
+                <button type="button" (click)="duplicateProject(project, $event)" [disabled]="!canManageProject(project)">Duplicate</button>
+                <button type="button" (click)="archiveProject(project, $event)" [disabled]="!canManageProject(project) || project.status === 'ARCHIVED'">Archive</button>
+              </div>
+            </div>
           </div>
 
           <p>{{ project.description || 'No description provided.' }}</p>
@@ -202,7 +211,15 @@ import { User } from '../../../shared/models/user.model';
             <small *ngIf="project.lastActivityAt">{{ project.lastActivityAt | date:'short' }}</small>
           </div>
 
-          <button class="project-more-btn" type="button" aria-label="Project options" (click)="$event.stopPropagation()">⋮</button>
+          <div class="project-options-wrapper">
+            <button class="project-more-btn" type="button" aria-label="Project options" (click)="toggleProjectMenu(project.id, $event)">...</button>
+            <div class="project-options-menu" *ngIf="openProjectMenuId === project.id">
+              <button type="button" (click)="openProjectFromMenu(project, $event)">Open project</button>
+              <button type="button" (click)="openEditProject(project, $event)" [disabled]="!canManageProject(project)">Edit project</button>
+              <button type="button" (click)="duplicateProject(project, $event)" [disabled]="!canManageProject(project)">Duplicate</button>
+              <button type="button" (click)="archiveProject(project, $event)" [disabled]="!canManageProject(project) || project.status === 'ARCHIVED'">Archive</button>
+            </div>
+          </div>
         </article>
 
         <footer>Showing {{ filtered.length }} of {{ projects.length }} project{{ projects.length === 1 ? '' : 's' }}</footer>
@@ -265,6 +282,53 @@ import { User } from '../../../shared/models/user.model';
               <button class="cancel-btn" type="button" (click)="closeCreateModal()">Cancel</button>
               <button class="submit-btn" type="submit" [disabled]="createProjectForm.invalid || isCreating || !workspaces.length">
                 {{ isCreating ? 'Creating...' : 'Create project' }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+      <div class="modal-overlay" *ngIf="editingProject" (click)="closeEditProject()">
+        <div class="modal-box project-create-modal" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <div>
+              <span>Edit project</span>
+              <h2>Update project</h2>
+            </div>
+            <button class="modal-close" type="button" aria-label="Close" (click)="closeEditProject()">x</button>
+          </div>
+
+          <form [formGroup]="editProjectForm" (ngSubmit)="saveEditProject()" class="modal-form">
+            <div class="field-group">
+              <label for="edit-project-title">Project name</label>
+              <input id="edit-project-title" type="text" formControlName="title" />
+            </div>
+
+            <div class="field-group">
+              <label for="edit-project-description">Description</label>
+              <textarea id="edit-project-description" rows="3" formControlName="description"></textarea>
+            </div>
+
+            <div class="modal-grid">
+              <div class="field-group">
+                <label for="edit-project-manager">Manager</label>
+                <select id="edit-project-manager" formControlName="managerId">
+                  <option value="">No manager</option>
+                  <option *ngFor="let member of editProjectMembers" [value]="member.id">{{ member.username }}</option>
+                </select>
+              </div>
+
+              <div class="field-group">
+                <label for="edit-project-deadline">Due date</label>
+                <input id="edit-project-deadline" type="date" formControlName="deadline" />
+              </div>
+            </div>
+
+            <p class="modal-error" *ngIf="projectActionError">{{ projectActionError }}</p>
+
+            <div class="modal-actions">
+              <button class="cancel-btn" type="button" (click)="closeEditProject()">Cancel</button>
+              <button class="submit-btn" type="submit" [disabled]="editProjectForm.invalid || isProjectActionLoading">
+                {{ isProjectActionLoading ? 'Saving...' : 'Save changes' }}
               </button>
             </div>
           </form>
@@ -718,6 +782,7 @@ export default class ProjectListComponent implements OnInit, OnDestroy {
   private readonly projectService = inject(ProjectService);
   private readonly workspaceService = inject(WorkspaceService);
   private readonly workspaceContext = inject(WorkspaceContextService);
+  private readonly authStore = inject(AuthStore);
   private readonly router = inject(Router);
   private readonly fb = inject(FormBuilder);
   private readonly destroy$ = new Subject<void>();
@@ -737,9 +802,20 @@ export default class ProjectListComponent implements OnInit, OnDestroy {
   dueFrom = '';
   dueTo = '';
   sortOrder = 'recent';
+  openProjectMenuId: string | null = null;
+  editingProject: Project | null = null;
+  isProjectActionLoading = false;
+  projectActionError = '';
 
   readonly createProjectForm = this.fb.nonNullable.group({
     workspaceId: ['', Validators.required],
+    title: ['', [Validators.required, Validators.maxLength(120)]],
+    description: [''],
+    deadline: [''],
+    managerId: [''],
+  });
+
+  readonly editProjectForm = this.fb.nonNullable.group({
     title: ['', [Validators.required, Validators.maxLength(120)]],
     description: [''],
     deadline: [''],
@@ -850,6 +926,17 @@ export default class ProjectListComponent implements OnInit, OnDestroy {
     (workspace.members || []).forEach((member) => users.set(member.id, member));
     return Array.from(users.values());
   }
+  get editProjectMembers(): User[] {
+    const workspaceId = this.editingProject?.workspaceId || this.editingProject?.workspace?.id || this.currentWorkspaceId || '';
+    const workspace = this.workspaces.find((candidate) => candidate.id === workspaceId);
+    const users = new Map<string, User>();
+
+    if (workspace?.owner) users.set(workspace.owner.id, workspace.owner);
+    (workspace?.members || []).forEach((member) => users.set(member.id, member));
+    if (this.editingProject?.manager) users.set(this.editingProject.manager.id, this.editingProject.manager);
+
+    return Array.from(users.values());
+  }
 
   openCreateModal(): void {
     const workspaceId = this.currentWorkspaceId || this.workspaceContext.selectedWorkspaceId || this.workspaces[0]?.id || '';
@@ -911,6 +998,133 @@ export default class ProjectListComponent implements OnInit, OnDestroy {
     const workspace = this.workspaces.find((candidate) => candidate.id === workspaceId);
     if (!workspace) return '';
     return workspace.owner?.id || workspace.members?.[0]?.id || '';
+  }
+
+  toggleProjectMenu(projectId: string, event: Event): void {
+    event.stopPropagation();
+    this.projectActionError = '';
+    this.openProjectMenuId = this.openProjectMenuId === projectId ? null : projectId;
+  }
+
+  openProjectFromMenu(project: Project, event: Event): void {
+    event.stopPropagation();
+    this.openProjectMenuId = null;
+    this.open(project.id);
+  }
+
+  openEditProject(project: Project, event: Event): void {
+    event.stopPropagation();
+    if (!this.canManageProject(project)) return;
+
+    this.openProjectMenuId = null;
+    this.projectActionError = '';
+    this.editingProject = project;
+    this.editProjectForm.reset({
+      title: project.title,
+      description: project.description || '',
+      deadline: project.deadline || '',
+      managerId: project.manager?.id || '',
+    });
+  }
+
+  closeEditProject(): void {
+    if (this.isProjectActionLoading) return;
+    this.editingProject = null;
+    this.projectActionError = '';
+  }
+
+  saveEditProject(): void {
+    if (!this.editingProject) return;
+    if (this.editProjectForm.invalid) {
+      this.editProjectForm.markAllAsTouched();
+      return;
+    }
+
+    const { title, description, deadline, managerId } = this.editProjectForm.getRawValue();
+    this.isProjectActionLoading = true;
+    this.projectActionError = '';
+
+    this.projectService.update(this.editingProject.id, {
+      title,
+      description: description || '',
+      deadline: deadline || undefined,
+      managerId: managerId || undefined,
+    })
+      .pipe(
+        finalize(() => (this.isProjectActionLoading = false)),
+        takeUntil(this.destroy$),
+      )
+      .subscribe({
+        next: () => {
+          this.editingProject = null;
+          this.refreshProjects();
+        },
+        error: () => {
+          this.projectActionError = 'Project could not be updated. Please check the fields and try again.';
+        },
+      });
+  }
+
+  duplicateProject(project: Project, event: Event): void {
+    event.stopPropagation();
+    if (!this.canManageProject(project)) return;
+
+    const workspaceId = project.workspaceId || project.workspace?.id || this.currentWorkspaceId;
+    this.openProjectMenuId = null;
+    this.projectActionError = '';
+
+    if (!workspaceId) {
+      this.projectActionError = 'Project workspace is missing.';
+      return;
+    }
+
+    this.isProjectActionLoading = true;
+    this.projectService.create(workspaceId, {
+      title: `${project.title} Copy`,
+      description: project.description || '',
+      deadline: project.deadline || undefined,
+      managerId: project.manager?.id || undefined,
+    })
+      .pipe(
+        finalize(() => (this.isProjectActionLoading = false)),
+        takeUntil(this.destroy$),
+      )
+      .subscribe({
+        next: () => this.refreshProjects(),
+        error: () => {
+          this.projectActionError = 'Project could not be duplicated.';
+        },
+      });
+  }
+
+  archiveProject(project: Project, event: Event): void {
+    event.stopPropagation();
+    if (!this.canManageProject(project) || project.status === 'ARCHIVED') return;
+
+    this.openProjectMenuId = null;
+    this.projectActionError = '';
+    this.isProjectActionLoading = true;
+
+    this.projectService.archive(project.id)
+      .pipe(
+        finalize(() => (this.isProjectActionLoading = false)),
+        takeUntil(this.destroy$),
+      )
+      .subscribe({
+        next: () => this.refreshProjects(),
+        error: () => {
+          this.projectActionError = 'Project could not be archived.';
+        },
+      });
+  }
+
+  canManageProject(project: Project): boolean {
+    const user = this.authStore.getUser();
+    if (!user) return true;
+    return user.role === 'ADMIN'
+      || user.role === 'PROJECT_MANAGER'
+      || project.manager?.id === user.id
+      || project.workspace?.owner?.id === user.id;
   }
 
   onFilterControlsChanged(): void {

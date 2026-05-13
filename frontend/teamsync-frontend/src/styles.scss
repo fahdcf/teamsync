@@ -4433,3 +4433,43 @@ $wide:    1280px;
   font-size: 12px;
   text-align: center;
 }
+/* Projects page row action menu. */
+.redesigned-projects-page .project-options-wrapper {
+  position: relative;
+  justify-self: end;
+}
+
+.redesigned-projects-page .project-options-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 30;
+  min-width: 156px;
+  padding: 6px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: #151518;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  display: grid;
+  gap: 2px;
+}
+
+.redesigned-projects-page .project-options-menu button {
+  min-height: 34px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-primary);
+  text-align: left;
+  padding: 0 10px;
+  font-size: 13px;
+}
+
+.redesigned-projects-page .project-options-menu button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.redesigned-projects-page .project-options-menu button:disabled {
+  color: var(--text-tertiary);
+  opacity: 0.55;
+}

@@ -132,7 +132,7 @@ Excluded by request:
   Frontend: remove `Just now` from every project row and render the last activity timestamp/action.
   Backend: include last activity metadata in project list responses or add `GET /projects/{id}/activity` usage for project rows.
 
-- [ ] Task UI-AUDIT-045: Make project row options menu functional.
+- [x] Task UI-AUDIT-045: Make project row options menu functional.
   Frontend: implement the `...` menu with open, edit, archive, duplicate/template, and permission-aware actions.
   Backend: reuse project update/archive endpoints; add duplicate/clone endpoint only if duplicate is part of the menu.
 
