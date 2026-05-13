@@ -6,6 +6,7 @@ import { Pattern } from '../../shared/models/pattern.model';
 import { BadgeComponent } from '../../shared/components/badge/badge.component';
 import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.component';
 import { EmptyStateComponent } from '../../shared/components/empty-state/empty-state.component';
+import { environment } from '../../../environments/environment';
 
 type Category = 'ALL' | 'Creational' | 'Structural' | 'Behavioral';
 type BadgeVariant = 'info' | 'accent' | 'success' | 'muted' | 'warning' | 'danger';
@@ -64,7 +65,7 @@ type BadgeVariant = 'info' | 'accent' | 'success' | 'muted' | 'warning' | 'dange
       </div>
 
       <footer class="patterns-footer">
-        <a href="http://localhost:8080/swagger-ui.html" target="_blank" rel="noopener">View API Docs →</a>
+        <a [href]="apiDocsUrl" target="_blank" rel="noopener">View API Docs →</a>
       </footer>
     </div>
   `,
@@ -134,6 +135,7 @@ type BadgeVariant = 'info' | 'accent' | 'success' | 'muted' | 'warning' | 'dange
 })
 export default class PatternsComponent implements OnInit {
   private readonly patternsService = inject(PatternsService);
+  readonly apiDocsUrl = environment.apiDocsUrl;
 
   patterns: Pattern[] = [];
   filteredPatterns: Pattern[] = [];

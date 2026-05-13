@@ -282,6 +282,6 @@ Excluded by request:
 
 ## Patterns Page
 
-- [ ] Task UI-AUDIT-130: Remove hardcoded Swagger URL.
+- [x] Task UI-AUDIT-130: Remove hardcoded Swagger URL.
   Frontend: replace `http://localhost:8080/swagger-ui.html` with an environment-based API docs URL.
   Backend: no backend change required; ensure Swagger remains exposed in configured environments.
