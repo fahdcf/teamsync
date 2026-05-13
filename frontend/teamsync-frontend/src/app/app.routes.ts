@@ -38,7 +38,6 @@ export const routes: Routes = [
       { path: 'analytics', title: 'Analytics | TeamSync', loadComponent: () => import('./features/analytics/analytics.component') },
       { path: 'calendar', title: 'Calendar | TeamSync', loadComponent: () => import('./features/calendar/calendar.component') },
       { path: 'messages', title: 'Messages | TeamSync', loadComponent: () => import('./features/messages/messages.component') },
-      { path: 'files', title: 'Files | TeamSync', loadComponent: () => import('./features/files/files.component') },
       { path: 'settings', title: 'Settings | TeamSync', loadComponent: () => import('./features/settings/settings.component') },
     ]
   },

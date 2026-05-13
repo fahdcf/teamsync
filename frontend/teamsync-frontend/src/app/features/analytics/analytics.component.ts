@@ -186,16 +186,6 @@ export default class AnalyticsComponent implements OnInit {
     ];
   }
 
-  get bottomStats() {
-    const performance = this.animatedPerformance ?? this.performance;
-    return [
-      { title: 'Team Productivity', label: 'Tasks completed', value: `${performance?.teamProductivity.tasksCompleted ?? 0}`, trend: performance?.teamProductivity.trend ?? 0 },
-      { title: 'Focus Time', label: 'Deep work hours', value: `${performance?.focusTime.hours ?? 0}h`, trend: performance?.focusTime.trend ?? 0 },
-      { title: 'Cycle Time', label: 'Average cycle time', value: `${performance?.cycleTime.days ?? 0} days`, trend: performance?.cycleTime.trend ?? 0 },
-      { title: 'On-Time Delivery', label: 'On-time completion', value: `${performance?.onTimeDelivery.percent ?? 0}%`, trend: performance?.onTimeDelivery.trend ?? 0 },
-    ];
-  }
-
   setQuestion(question: string): void {
     this.assistantQuestion = question;
   }

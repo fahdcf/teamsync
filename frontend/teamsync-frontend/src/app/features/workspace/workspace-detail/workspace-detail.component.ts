@@ -39,34 +39,46 @@ import { SkeletonComponent } from '../../../shared/components/skeleton/skeleton.
       (action)="load()">
     </app-empty-state>
 
-    <div *ngIf="!isLoading && !hasError && workspace" class="workspace-detail-page">
+    <div *ngIf="!isLoading && !hasError && workspace" class="workspace-detail-page refined">
       <main class="workspace-main">
-        <section class="workspace-hero">
-          <span class="workspace-kicker">✦ WORKSPACE</span>
-          <h1>{{ workspace.name }}</h1>
-          <p>{{ workspace.description }}</p>
-
-          <div class="workspace-member-row">
-            <div class="workspace-members">
-              <span *ngFor="let member of workspace.members | slice:0:5">{{ initials(member) }}</span>
-              <button type="button" (click)="isAddMemberOpen = true">+</button>
-              <em>{{ workspace.members.length }} members</em>
-              <strong><i></i>{{ activeMembersCount }} active</strong>
+        <section class="workspace-hero refined-hero">
+          <span class="workspace-kicker">WORKSPACE</span>
+          <div class="hero-content-row">
+            <div class="workspace-avatar-xl">{{ firstLetter(workspace.name) }}</div>
+            <div class="workspace-title-block">
+              <h1>{{ workspace.name }}</h1>
+              <p>{{ workspace.description || 'No description provided.' }}</p>
+              <div class="workspace-members compact-members">
+                <span *ngFor="let member of workspace.members | slice:0:3">{{ initials(member) }}</span>
+                <button type="button" (click)="isAddMemberOpen = true" aria-label="Add member">+</button>
+                <em>{{ memberCount }} members</em>
+                <strong><i></i>{{ activeMembersCount }} active</strong>
+              </div>
             </div>
+          </div>
 
-            <div class="workspace-actions">
-              <button type="button" (click)="isAddMemberOpen = true">Invite members</button>
-              <button type="button">Workspace settings</button>
+          <div class="workspace-hero-divider"></div>
+          <div class="hero-summary-row">
+            <div class="hero-meta-strip" aria-label="Workspace summary">
+              <span><small>Active members</small><strong>{{ activeMembersCount }}</strong></span>
+              <span><small>Projects</small><strong>{{ activeProjectCount }}</strong></span>
+              <span><small>Tasks</small><strong>{{ completionRate }}%</strong></span>
+            </div>
+            <div class="workspace-actions hero-actions">
+              <button type="button" class="invite-btn" (click)="isAddMemberOpen = true">
+                <span aria-hidden="true">+</span> Invite members
+              </button>
+              <button type="button" class="settings-btn">
+                <span aria-hidden="true">o</span> Workspace settings
+              </button>
             </div>
           </div>
         </section>
 
-        <section class="workspace-projects">
+        <section class="workspace-projects refined-projects">
           <div class="workspace-project-toolbar">
             <div class="project-toolbar-left">
               <h2>Projects</h2>
-              <button type="button" class="view-toggle active" aria-label="Grid view">▦</button>
-              <button type="button" class="view-toggle" aria-label="List view">☰</button>
             </div>
             <div class="project-toolbar-right">
               <button type="button">Filter</button>
@@ -77,44 +89,43 @@ import { SkeletonComponent } from '../../../shared/components/skeleton/skeleton.
 
           <article
             *ngFor="let project of projects; let i = index"
-            class="workspace-project-row"
+            class="workspace-project-row refined-project-card"
             (click)="router.navigate(['/projects', project.id])"
           >
-            <div class="project-thumb" [class]="'tone-' + (i % 3)"></div>
-            <div class="project-row-content">
-              <div class="project-row-title">
-                <div>
-                  <h3>{{ project.title }} <button type="button" (click)="$event.stopPropagation()">☆</button></h3>
-                  <p>{{ project.description }}</p>
-                </div>
-                <button type="button" (click)="$event.stopPropagation()">...</button>
+            <div class="project-card-topline">
+              <div class="project-thumb" [class]="'tone-' + (i % 3)">
+                <button type="button" aria-label="Favorite project" (click)="$event.stopPropagation()">?</button>
               </div>
 
-              <div class="project-avatar-line">
-                <span *ngFor="let member of workspace.members | slice:0:4">{{ initials(member) }}</span>
-                <span *ngIf="workspace.members.length > 4">+{{ workspace.members.length - 4 }}</span>
-              </div>
+              <div class="project-row-content">
+                <div class="project-row-title">
+                  <div>
+                    <h3>{{ project.title }} <button type="button" aria-label="Favorite project" (click)="$event.stopPropagation()">?</button></h3>
+                    <p>{{ project.description || 'No description provided.' }}</p>
+                  </div>
+                  <button type="button" aria-label="Project options" (click)="$event.stopPropagation()">...</button>
+                </div>
 
-              <div class="project-stats-row">
-                <div>
-                  <small>Progress</small>
-                  <strong>{{ project.progress }}%</strong>
-                  <div class="project-progress"><i [style.width.%]="project.progress" [class]="healthClass(project)"></i></div>
+                <div class="project-avatar-line">
+                  <span *ngFor="let member of workspace.members | slice:0:4">{{ initials(member) }}</span>
+                  <span *ngIf="workspace.members.length > 4">+{{ workspace.members.length - 4 }}</span>
                 </div>
-                <div>
-                  <small>Due date</small>
-                  <strong>{{ project.deadline ? (project.deadline | date:'MMM d, y') : 'No deadline' }}</strong>
-                </div>
-                <div>
-                  <small>Health</small>
-                  <strong class="health-label" [class]="healthClass(project)"><i></i>{{ healthText(project) }}</strong>
-                </div>
-              </div>
 
-              <div class="project-insight-row">
-                <span>⚡ AI Insight</span>
-                <p>{{ project.insight || fallbackInsight(project) }}</p>
-                <a href="#" (click)="$event.stopPropagation()">-></a>
+                <div class="project-stats-row">
+                  <div>
+                    <small>Progress</small>
+                    <strong>{{ project.progress }}%</strong>
+                    <div class="project-progress"><i [style.width.%]="project.progress" [class]="healthClass(project)"></i></div>
+                  </div>
+                  <div>
+                    <small>Due date</small>
+                    <strong>{{ project.deadline ? (project.deadline | date:'MMM d, y') : 'No deadline' }}</strong>
+                  </div>
+                  <div>
+                    <small>Health</small>
+                    <strong class="health-label" [class]="healthClass(project)"><i></i>{{ healthText(project) }}</strong>
+                  </div>
+                </div>
               </div>
             </div>
           </article>
@@ -129,27 +140,59 @@ import { SkeletonComponent } from '../../../shared/components/skeleton/skeleton.
         </section>
       </main>
 
-      <aside class="workspace-activity-panel">
-        <div class="activity-header">
-          <h2>Recent activity</h2>
-          <button type="button">All activity v</button>
-        </div>
+      <aside class="workspace-activity-panel refined-side-panel">
+        <article class="side-activity-card">
+          <div class="activity-header">
+            <h2>Recent activity</h2>
+            <button type="button">All activity v</button>
+          </div>
 
-        <ng-container *ngFor="let group of activityGroups">
-          <h3>{{ group.label }}</h3>
-          <article class="activity-item" *ngFor="let activity of group.items">
-            <time>{{ activity.createdAt | date:'h:mm a' }}</time>
-            <span>{{ initials(activity.user) }}</span>
-            <div>
-              <p><strong>{{ activity.user?.username || 'TeamSync' }}</strong> {{ activity.action }}</p>
-              <blockquote *ngIf="activity.action.includes('COMMENT')">{{ activity.action }}</blockquote>
+          <div class="activity-timeline" *ngIf="activity.length; else emptyTimeline">
+            <article class="timeline-row" *ngFor="let item of activity | slice:0:4; let i = index">
+              <span class="timeline-icon" [class]="activityIcon(item.action)" aria-hidden="true"></span>
+              <div>
+                <strong>{{ readableActivity(item.action) }}</strong>
+                <p>{{ item.user?.username || 'Just now' }}</p>
+              </div>
+            </article>
+          </div>
+
+          <ng-template #emptyTimeline>
+            <div class="activity-timeline synthetic">
+              <article class="timeline-row muted">
+                <span class="timeline-icon empty" aria-hidden="true"></span>
+                <div><strong>No recent activity yet.</strong><p>Just now</p></div>
+              </article>
+              <article class="timeline-row">
+                <span class="timeline-icon green created" aria-hidden="true"></span>
+                <div><strong>Workspace created</strong><p>{{ workspace.owner.username || 'TeamSync' }}</p></div>
+              </article>
+              <article class="timeline-row">
+                <span class="timeline-icon amber member" aria-hidden="true"></span>
+                <div><strong>Workspace member added</strong><p>{{ workspace.owner.username || 'TeamSync' }}</p></div>
+              </article>
+              <article class="timeline-row">
+                <span class="timeline-icon purple project" aria-hidden="true"></span>
+                <div><strong>Project created</strong><p>Just now</p></div>
+              </article>
             </div>
-            <button type="button" aria-label="Open activity">□</button>
-          </article>
-        </ng-container>
+          </ng-template>
 
-        <p class="activity-empty" *ngIf="!activity.length">No recent activity yet.</p>
-        <a class="view-activity-link" href="#">View all activity -></a>
+          <a class="view-activity-link" href="#">View all activity -></a>
+        </article>
+
+        <article class="ai-recommendation-card">
+          <div class="recommendation-title">
+            <span class="spark-mark" aria-hidden="true">✦</span>
+            <h2>AI recommendation</h2>
+          </div>
+          <div class="recommendation-preview" aria-hidden="true">
+            <span></span>
+            <span></span>
+            <strong></strong>
+          </div>
+          <a href="#" aria-label="View AI recommendation">›</a>
+        </article>
       </aside>
     </div>
 
@@ -216,26 +259,22 @@ export default class WorkspaceDetailComponent implements OnInit {
     this.load();
   }
 
-  get activeMembersCount(): number {
-    return Math.min(5, this.workspace?.members.length || 0);
+  get memberCount(): number {
+    return this.workspace?.members.length || 0;
   }
 
-  get activityGroups(): { label: string; items: WorkspaceActivity[] }[] {
-    const today = new Date().toDateString();
-    const yesterday = new Date(Date.now() - 86_400_000).toDateString();
-    const groups = [
-      { label: 'Today', items: [] as WorkspaceActivity[] },
-      { label: 'Yesterday', items: [] as WorkspaceActivity[] },
-      { label: 'Earlier', items: [] as WorkspaceActivity[] },
-    ];
+  get activeMembersCount(): number {
+    return Math.min(5, this.memberCount);
+  }
 
-    for (const item of this.activity) {
-      const date = new Date(item.createdAt).toDateString();
-      if (date === today) groups[0].items.push(item);
-      else if (date === yesterday) groups[1].items.push(item);
-      else groups[2].items.push(item);
-    }
-    return groups.filter((group) => group.items.length);
+  get activeProjectCount(): number {
+    return this.projects.filter((project) => project.status !== 'ARCHIVED').length;
+  }
+
+  get completionRate(): number {
+    if (!this.projects.length) return 0;
+    const total = this.projects.reduce((sum, project) => sum + (project.progress || 0), 0);
+    return Math.round(total / this.projects.length);
   }
 
   load(): void {
@@ -295,6 +334,10 @@ export default class WorkspaceDetailComponent implements OnInit {
     });
   }
 
+  firstLetter(value: string): string {
+    return (value || 'W').charAt(0).toUpperCase();
+  }
+
   initials(user: User | null): string {
     if (!user?.username) return 'TS';
     return user.username
@@ -316,9 +359,19 @@ export default class WorkspaceDetailComponent implements OnInit {
     return 'At risk';
   }
 
-  fallbackInsight(project: Project): string {
-    if (project.health === 'ON_TRACK') return 'Components are ahead of schedule. Consider starting documentation early.';
-    if (project.health === 'DELAYED') return 'Significant delays detected. Schedule a team sync immediately.';
-    return 'User testing results suggest reviewing the onboarding flow.';
+  activityIcon(action: string | null | undefined): string {
+    if (!action) return 'empty';
+    const normalized = action.toLowerCase();
+    if (normalized.includes('member') || normalized.includes('assigned')) return 'member';
+    if (normalized.includes('project')) return 'project';
+    if (normalized.includes('workspace')) return 'created';
+    return 'empty';
+  }
+
+  readableActivity(action: string): string {
+    return action
+      .toLowerCase()
+      .replace(/_/g, ' ')
+      .replace(/^./, (letter) => letter.toUpperCase());
   }
 }

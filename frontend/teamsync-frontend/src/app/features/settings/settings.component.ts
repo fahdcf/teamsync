@@ -1,7 +1,9 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AuthStore } from '../../store/auth.store';
+import { WorkspaceService } from '../../api/workspace.service';
 import { User } from '../../shared/models/user.model';
+import { Workspace } from '../../shared/models/workspace.model';
 
 @Component({
   selector: 'app-settings',
@@ -9,244 +11,650 @@ import { User } from '../../shared/models/user.model';
   imports: [CommonModule],
   template: `
     <div class="settings-page">
-      <header class="page-header">
+      <section class="settings-hero">
+        <div class="hero-glow" aria-hidden="true"></div>
         <h1>Settings</h1>
-        <p class="page-sub">Manage your account, notifications, and preferences.</p>
-      </header>
+        <p>Manage your profile, preferences, notifications, and security.</p>
+      </section>
 
-      <!-- Tabs -->
-      <div class="tabs">
-        <button class="tab-btn" *ngFor="let tab of tabs"
+      <nav class="settings-tabs" aria-label="Settings sections">
+        <button
+          *ngFor="let tab of tabs"
+          class="settings-tab"
           [class.active]="activeTab === tab.id"
-          (click)="activeTab = tab.id" type="button">
-          <span class="tab-icon">{{ tab.icon }}</span>{{ tab.label }}
+          (click)="activeTab = tab.id"
+          type="button">
+          <span class="tab-mark" [attr.data-icon]="tab.icon"></span>
+          {{ tab.label }}
         </button>
-      </div>
+      </nav>
 
-      <div class="tab-content">
+      <div class="settings-layout" *ngIf="activeTab === 'profile'">
+        <section class="profile-panel">
+          <div class="profile-left">
+            <div class="profile-orb">
+              <span>{{ initials }}</span>
+              <button type="button" aria-label="Edit avatar">/</button>
+            </div>
 
-        <!-- Profile Tab -->
-        <div *ngIf="activeTab === 'profile'" class="settings-card">
-          <div class="card-header"><h2>Profile</h2><p>Your personal information.</p></div>
-          <div class="avatar-section">
-            <div class="big-avatar">{{ initials }}</div>
-            <div>
-              <div class="avatar-name">{{ user?.username || '—' }}</div>
-              <div class="avatar-role">{{ roleLabel }}</div>
+            <div class="completion-block">
+              <div class="completion-top">
+                <span>Profile Completion</span>
+                <strong>70%</strong>
+              </div>
+              <div class="completion-track"><i></i></div>
+              <p>Complete your profile to get the most out of TeamSync.</p>
             </div>
           </div>
-          <div class="fields-grid">
-            <div class="field-group">
-              <label>Username</label>
-              <div class="field-value">{{ user?.username || '—' }}</div>
-            </div>
-            <div class="field-group">
-              <label>Email</label>
-              <div class="field-value">{{ user?.email || '—' }}</div>
-            </div>
-            <div class="field-group">
-              <label>Role</label>
-              <div class="field-value"><span class="role-badge">{{ roleLabel }}</span></div>
-            </div>
-            <div class="field-group">
-              <label>Member Since</label>
-              <div class="field-value">{{ user?.createdAt | date:'MMMM d, y' }}</div>
-            </div>
-          </div>
-        </div>
 
-        <!-- Notifications Tab -->
-        <div *ngIf="activeTab === 'notifications'" class="settings-card">
-          <div class="card-header"><h2>Notifications</h2><p>Control how you receive notifications.</p></div>
-          <div class="toggle-list">
-            <div class="toggle-row" *ngFor="let n of notifSettings">
-              <div class="toggle-info">
-                <span class="toggle-label">{{ n.label }}</span>
-                <span class="toggle-desc">{{ n.desc }}</span>
+          <div class="profile-fields">
+            <label class="profile-field">
+              <span>Username</span>
+              <div class="field-shell">
+                <input readonly [value]="user?.username || '-'" />
+                <button type="button" aria-label="Edit username">/</button>
               </div>
-              <button class="toggle-switch" [class.on]="n.enabled"
-                (click)="n.enabled = !n.enabled" type="button"
-                [attr.aria-checked]="n.enabled">
-                <span class="toggle-knob"></span>
-              </button>
-            </div>
-          </div>
-        </div>
+            </label>
 
-        <!-- Appearance Tab -->
-        <div *ngIf="activeTab === 'appearance'" class="settings-card">
-          <div class="card-header"><h2>Appearance</h2><p>Customize the look and feel.</p></div>
-          <div class="appearance-grid">
-            <div class="theme-option active">
-              <div class="theme-preview dark-preview">
-                <div class="preview-sidebar"></div>
-                <div class="preview-content">
-                  <div class="preview-bar"></div>
-                  <div class="preview-card"></div>
-                </div>
+            <label class="profile-field">
+              <span>Email</span>
+              <div class="field-shell">
+                <input readonly [value]="user?.email || '-'" />
+                <button type="button" aria-label="Edit email">/</button>
               </div>
-              <div class="theme-label"><span class="check-icon">✓</span> Dark (Active)</div>
-            </div>
-            <div class="theme-option disabled">
-              <div class="theme-preview light-preview">
-                <div class="preview-sidebar light"></div>
-                <div class="preview-content light">
-                  <div class="preview-bar light"></div>
-                  <div class="preview-card light"></div>
-                </div>
-              </div>
-              <div class="theme-label muted">Light (Coming soon)</div>
-            </div>
-          </div>
-          <div class="accent-section">
-            <h3>Accent Color</h3>
-            <div class="accent-swatches">
-              <div class="swatch active" style="background:#D4A853"></div>
-              <div class="swatch" style="background:#60A5FA"></div>
-              <div class="swatch" style="background:#4ADE80"></div>
-              <div class="swatch" style="background:#F472B6"></div>
-              <div class="swatch" style="background:#A78BFA"></div>
-            </div>
-          </div>
-        </div>
+            </label>
 
-        <!-- Security Tab -->
-        <div *ngIf="activeTab === 'security'" class="settings-card">
-          <div class="card-header"><h2>Security</h2><p>Keep your account safe.</p></div>
-          <div class="security-section">
-            <h3>Change Password</h3>
-            <div class="fields-stack">
-              <div class="field-group">
-                <label>Current Password</label>
-                <input type="password" class="field-input" placeholder="Enter current password" />
+            <label class="profile-field">
+              <span>Role</span>
+              <div class="field-shell select-shell">
+                <input readonly [value]="roleLabel" />
+                <button type="button" aria-label="Edit role">/</button>
               </div>
-              <div class="field-group">
-                <label>New Password</label>
-                <input type="password" class="field-input" placeholder="Enter new password" />
+            </label>
+
+            <label class="profile-field member-since">
+              <span>Member Since</span>
+              <div class="field-shell full-field">
+                <input readonly [value]="memberSince" />
               </div>
-              <div class="field-group">
-                <label>Confirm New Password</label>
-                <input type="password" class="field-input" placeholder="Confirm new password" />
-              </div>
+            </label>
+
+            <div class="profile-hint">
+              <span class="hint-icon">o</span>
+              <p>This is how your teammates see you across TeamSync.<br />Keep your profile up to date.</p>
             </div>
-            <button class="save-btn" type="button">Update Password</button>
           </div>
-          <div class="divider"></div>
-          <div class="security-section">
-            <h3>Sessions</h3>
-            <div class="session-row">
+        </section>
+
+        <aside class="settings-side">
+          <article class="side-card account-card">
+            <header><span class="side-icon trend"></span><h2>Account Overview</h2></header>
+            <div class="overview-row">
+              <span class="soft-icon box"></span>
               <div>
-                <div class="session-device">Current Browser · Windows</div>
-                <div class="session-time">Active now</div>
+                <div class="row-head"><span>Profile Completion</span><strong>70%</strong></div>
+                <div class="mini-progress"><i></i></div>
               </div>
-              <span class="active-dot"></span>
             </div>
-          </div>
-        </div>
+            <div class="overview-row">
+              <span class="soft-icon shield"></span>
+              <div class="row-head"><span>Security Status</span><strong class="secure"><i></i>Secure</strong></div>
+            </div>
+          </article>
 
+          <article class="side-card membership-card">
+            <header><span class="side-icon users"></span><h2>Workspace Membership</h2></header>
+            <div class="workspace-row" *ngFor="let workspace of visibleWorkspaces">
+              <div class="workspace-avatar">{{ firstLetter(workspace.name) }}</div>
+              <div><strong>{{ workspace.name }}</strong><span>Workspace</span></div>
+              <em>Owner</em>
+            </div>
+            <div class="workspace-row empty" *ngIf="!visibleWorkspaces.length">
+              <div class="workspace-avatar">W</div>
+              <div><strong>No workspace</strong><span>Join or create a workspace</span></div>
+            </div>
+          </article>
+
+          <article class="side-card recent-card">
+            <header><span class="side-icon clock"></span><h2>Recent Activity</h2></header>
+            <div class="recent-row" *ngFor="let item of recentActivity">
+              <span class="recent-dot"></span>
+              <p>{{ item.label }}</p>
+              <time>{{ item.time }}</time>
+            </div>
+            <a href="#">View all activity -></a>
+          </article>
+        </aside>
       </div>
+
+      <section class="settings-placeholder" *ngIf="activeTab !== 'profile'">
+        <h2>{{ activeLabel }}</h2>
+        <p>This section is ready for the next settings pass.</p>
+      </section>
     </div>
   `,
   styles: [`
-    .settings-page { min-height:100%; padding:32px; background:var(--bg-base); color:var(--text-primary); }
-    .page-header { margin-bottom:24px; }
-    h1 { font-size:24px; font-weight:600; margin-bottom:4px; }
-    .page-sub { font-size:13px; color:var(--text-secondary); }
-    .tabs { display:flex; gap:4px; border-bottom:1px solid var(--border-subtle); margin-bottom:28px; }
-    .tab-btn { height:40px; padding:0 16px; border:none; background:transparent; color:var(--text-secondary); font-size:13px; cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; transition:all 0.15s; display:flex; align-items:center; gap:8px; }
-    .tab-btn:hover { color:var(--text-primary); }
-    .tab-btn.active { color:var(--text-primary); border-bottom-color:var(--accent); }
-    .tab-icon { font-size:14px; }
-    .settings-card { background:var(--bg-surface); border:1px solid var(--border-subtle); border-radius:var(--radius-lg); padding:28px; max-width:680px; display:flex; flex-direction:column; gap:24px; }
-    .card-header h2 { font-size:16px; font-weight:600; margin-bottom:4px; }
-    .card-header p { font-size:13px; color:var(--text-secondary); }
-    .avatar-section { display:flex; align-items:center; gap:18px; padding:16px; background:var(--bg-elevated); border-radius:var(--radius-lg); }
-    .big-avatar { width:56px; height:56px; border-radius:50%; background:linear-gradient(135deg,#D4A853,#8b5cf6); color:#fff; font-size:20px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-    .avatar-name { font-size:16px; font-weight:600; margin-bottom:4px; }
-    .avatar-role { font-size:12px; color:var(--text-secondary); }
-    .fields-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
-    .field-group label { display:block; font-size:11px; font-weight:600; color:var(--text-tertiary); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:6px; }
-    .field-value { font-size:13px; color:var(--text-primary); padding:8px 12px; background:var(--bg-elevated); border-radius:var(--radius-md); border:1px solid var(--border-subtle); }
-    .role-badge { display:inline-block; padding:2px 10px; border-radius:var(--radius-full); background:var(--accent-dim); color:var(--accent); font-size:12px; font-weight:500; }
-    .toggle-list { display:flex; flex-direction:column; gap:4px; }
-    .toggle-row { display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-radius:var(--radius-md); transition:background 0.12s; }
-    .toggle-row:hover { background:var(--bg-elevated); }
-    .toggle-info { display:flex; flex-direction:column; gap:3px; }
-    .toggle-label { font-size:13px; font-weight:500; color:var(--text-primary); }
-    .toggle-desc { font-size:12px; color:var(--text-secondary); }
-    .toggle-switch { width:44px; height:24px; border-radius:12px; border:none; background:var(--bg-elevated); cursor:pointer; position:relative; transition:background 0.2s; padding:0; flex-shrink:0; }
-    .toggle-switch.on { background:var(--accent); }
-    .toggle-knob { position:absolute; top:3px; left:3px; width:18px; height:18px; border-radius:50%; background:#fff; transition:transform 0.2s; }
-    .toggle-switch.on .toggle-knob { transform:translateX(20px); }
-    .appearance-grid { display:flex; gap:16px; }
-    .theme-option { display:flex; flex-direction:column; gap:10px; cursor:pointer; }
-    .theme-option.disabled { cursor:not-allowed; opacity:0.5; }
-    .theme-preview { width:160px; height:100px; border-radius:var(--radius-lg); border:2px solid transparent; overflow:hidden; display:flex; transition:border-color 0.15s; }
-    .theme-option.active .theme-preview { border-color:var(--accent); }
-    .dark-preview { background:#0c0c0e; }
-    .preview-sidebar { width:36px; background:#141416; border-right:1px solid rgba(255,255,255,0.06); }
-    .preview-content { flex:1; padding:6px; display:flex; flex-direction:column; gap:4px; }
-    .preview-bar { height:8px; background:#1c1c1f; border-radius:3px; }
-    .preview-card { flex:1; background:#141416; border-radius:3px; border:1px solid rgba(255,255,255,0.06); }
-    .light-preview { background:#f8f9fa; }
-    .preview-sidebar.light { background:#fff; border-right:1px solid #e5e7eb; }
-    .preview-content.light .preview-bar.light { background:#e5e7eb; }
-    .preview-content.light .preview-card.light { background:#fff; border:1px solid #e5e7eb; }
-    .theme-label { font-size:12px; color:var(--text-primary); display:flex; align-items:center; gap:6px; }
-    .theme-label.muted { color:var(--text-tertiary); }
-    .check-icon { color:var(--accent); font-weight:700; }
-    .accent-section { display:flex; flex-direction:column; gap:10px; }
-    .accent-section h3 { font-size:13px; font-weight:600; color:var(--text-secondary); }
-    .accent-swatches { display:flex; gap:10px; }
-    .swatch { width:28px; height:28px; border-radius:50%; cursor:pointer; transition:transform 0.15s; }
-    .swatch:hover { transform:scale(1.15); }
-    .swatch.active { outline:2px solid var(--text-primary); outline-offset:2px; }
-    .security-section { display:flex; flex-direction:column; gap:16px; }
-    .security-section h3 { font-size:14px; font-weight:600; }
-    .fields-stack { display:flex; flex-direction:column; gap:14px; }
-    .field-input { width:100%; height:38px; padding:0 12px; background:var(--bg-elevated); border:1px solid var(--border-subtle); border-radius:var(--radius-md); color:var(--text-primary); font-size:13px; outline:none; transition:border-color 0.15s; }
-    .field-input:focus { border-color:var(--border-default); }
-    .field-input::placeholder { color:var(--text-tertiary); }
-    .save-btn { height:36px; padding:0 20px; background:var(--accent); border:none; border-radius:var(--radius-md); color:#0c0c0e; font-size:13px; font-weight:600; cursor:pointer; align-self:flex-start; transition:background 0.15s; }
-    .save-btn:hover { background:var(--accent-hover); }
-    .divider { border-top:1px solid var(--border-subtle); }
-    .session-row { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; background:var(--bg-elevated); border-radius:var(--radius-md); }
-    .session-device { font-size:13px; font-weight:500; margin-bottom:3px; }
-    .session-time { font-size:12px; color:var(--text-secondary); }
-    .active-dot { width:8px; height:8px; border-radius:50%; background:var(--success); flex-shrink:0; }
+    .settings-page {
+      min-height: 100%;
+      padding: 42px 48px 48px;
+      color: var(--text-primary);
+      background:
+        radial-gradient(ellipse 38% 28% at 33% 5%, rgba(212,168,83,0.18), transparent 70%),
+        var(--bg-base);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .settings-hero {
+      position: relative;
+      margin-bottom: 34px;
+      max-width: 900px;
+    }
+
+    .hero-glow {
+      position: absolute;
+      top: -160px;
+      left: 250px;
+      width: 500px;
+      height: 300px;
+      pointer-events: none;
+      background:
+        radial-gradient(ellipse 45% 18% at 50% 68%, rgba(242,182,92,0.45), transparent 70%),
+        repeating-radial-gradient(ellipse at 50% 76%, transparent 0 30px, rgba(212,168,83,0.18) 31px 32px, transparent 33px 64px);
+      transform: rotate(-7deg);
+      opacity: 0.75;
+    }
+
+    .settings-hero h1 {
+      position: relative;
+      margin: 0 0 10px;
+      font-size: clamp(36px, 4vw, 48px);
+      line-height: 1;
+      letter-spacing: -0.05em;
+      font-weight: 750;
+    }
+
+    .settings-hero p {
+      position: relative;
+      margin: 0;
+      color: var(--text-secondary);
+      font-size: 16px;
+    }
+
+    .settings-tabs {
+      width: min(640px, 100%);
+      height: 58px;
+      margin-bottom: 28px;
+      padding: 4px;
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-xl);
+      background: linear-gradient(145deg, rgba(255,255,255,0.035), rgba(255,255,255,0.012)), var(--bg-surface);
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 4px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+    }
+
+    .settings-tab {
+      border: 0;
+      border-radius: var(--radius-lg);
+      background: transparent;
+      color: var(--text-secondary);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      font-size: 14px;
+    }
+
+    .settings-tab.active {
+      color: var(--text-primary);
+      background: linear-gradient(180deg, rgba(212,168,83,0.13), rgba(255,255,255,0.025));
+      border: 1px solid rgba(212,168,83,0.18);
+      box-shadow: 0 16px 28px rgba(212,168,83,0.16), inset 0 -2px 0 var(--accent);
+    }
+
+    .tab-mark {
+      width: 18px;
+      height: 18px;
+      color: var(--accent);
+      position: relative;
+    }
+
+    .tab-mark::before {
+      content: attr(data-icon);
+      font-size: 16px;
+    }
+
+    .settings-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 490px;
+      gap: 22px;
+      align-items: start;
+    }
+
+    .profile-panel,
+    .side-card,
+    .settings-placeholder {
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-xl);
+      background: linear-gradient(145deg, rgba(255,255,255,0.035), rgba(255,255,255,0.012)), var(--bg-surface);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.03), 0 18px 50px rgba(0,0,0,0.22);
+    }
+
+    .profile-panel {
+      min-height: 575px;
+      display: grid;
+      grid-template-columns: 300px minmax(0, 1fr);
+      overflow: hidden;
+    }
+
+    .profile-left {
+      padding: 84px 28px 34px;
+      border-right: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      background: radial-gradient(ellipse 78% 22% at 50% 45%, rgba(212,168,83,0.18), transparent 68%);
+    }
+
+    .profile-orb {
+      width: 172px;
+      height: 172px;
+      border-radius: var(--radius-full);
+      position: relative;
+      display: grid;
+      place-items: center;
+      background:
+        radial-gradient(circle at 22% 18%, rgba(255,218,164,0.85), transparent 25%),
+        linear-gradient(135deg, #e7ad7b, #b65ee0 65%, #7d4cff);
+      box-shadow: 0 28px 60px rgba(212,168,83,0.24), inset 0 1px 0 rgba(255,255,255,0.2);
+    }
+
+    .profile-orb span {
+      font-size: 48px;
+      font-weight: 800;
+      color: #fff;
+    }
+
+    .profile-orb button {
+      position: absolute;
+      right: 6px;
+      bottom: 0;
+      width: 42px;
+      height: 42px;
+      border-radius: var(--radius-full);
+      border: 1px solid rgba(212,168,83,0.35);
+      background: var(--bg-elevated);
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    .completion-block {
+      width: 100%;
+    }
+
+    .completion-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+
+    .completion-top strong {
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    .completion-track,
+    .mini-progress {
+      height: 5px;
+      margin-top: 10px;
+      border-radius: var(--radius-full);
+      background: var(--bg-elevated);
+      overflow: hidden;
+    }
+
+    .completion-track i,
+    .mini-progress i {
+      display: block;
+      width: 70%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--accent), #ffbd66);
+    }
+
+    .completion-block p {
+      margin-top: 20px;
+      color: var(--text-tertiary);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .profile-fields {
+      padding: 38px 28px 40px;
+      display: grid;
+      gap: 24px;
+    }
+
+    .profile-field > span {
+      display: block;
+      margin-bottom: 9px;
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+
+    .field-shell {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 44px;
+      gap: 10px;
+    }
+
+    .field-shell input {
+      min-width: 0;
+      height: 40px;
+      padding: 0 16px;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      background: rgba(255,255,255,0.025);
+      color: var(--text-primary);
+      font-size: 14px;
+      outline: none;
+    }
+
+    .field-shell button {
+      width: 44px;
+      height: 40px;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      background: rgba(255,255,255,0.025);
+      color: var(--text-secondary);
+    }
+
+    .full-field {
+      grid-template-columns: 1fr;
+    }
+
+    .profile-hint {
+      margin-top: 4px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      color: var(--text-secondary);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .hint-icon {
+      width: 60px;
+      height: 60px;
+      border-radius: var(--radius-lg);
+      display: grid;
+      place-items: center;
+      background: rgba(212,168,83,0.08);
+      border: 1px solid var(--border-subtle);
+      color: var(--accent);
+      font-size: 24px;
+    }
+
+    .settings-side {
+      display: grid;
+      gap: 16px;
+    }
+
+    .side-card {
+      padding: 26px 24px;
+    }
+
+    .side-card header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 22px;
+    }
+
+    .side-card h2 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 650;
+    }
+
+    .side-icon,
+    .soft-icon {
+      color: var(--accent);
+      display: inline-grid;
+      place-items: center;
+    }
+
+    .side-icon::before { content: '~'; }
+    .side-icon.users::before { content: 'oo'; }
+    .side-icon.clock::before { content: 'o'; }
+
+    .overview-row {
+      display: grid;
+      grid-template-columns: 40px minmax(0, 1fr);
+      align-items: center;
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .soft-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: var(--radius-md);
+      background: rgba(212,168,83,0.08);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .soft-icon::before { content: '?'; }
+    .soft-icon.shield::before { content: '?'; }
+
+    .row-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+
+    .row-head strong {
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    .row-head .secure {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--text-secondary);
+    }
+
+    .secure i {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--success);
+    }
+
+    .workspace-row {
+      display: grid;
+      grid-template-columns: 40px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .workspace-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: var(--radius-md);
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, #efbd75, #b65ee0 65%, #7058ff);
+      color: #fff;
+      font-weight: 800;
+    }
+
+    .workspace-row strong,
+    .workspace-row span {
+      display: block;
+    }
+
+    .workspace-row strong {
+      font-size: 14px;
+    }
+
+    .workspace-row span {
+      margin-top: 2px;
+      color: var(--text-secondary);
+      font-size: 12px;
+    }
+
+    .workspace-row em {
+      padding: 6px 12px;
+      border: 1px solid rgba(212,168,83,0.25);
+      border-radius: var(--radius-md);
+      color: var(--accent);
+      font-size: 12px;
+      font-style: normal;
+    }
+
+    .recent-row {
+      display: grid;
+      grid-template-columns: 24px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 12px;
+      margin-top: 20px;
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+
+    .recent-dot {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .recent-row p {
+      margin: 0;
+    }
+
+    .recent-row time {
+      color: var(--text-tertiary);
+      font-size: 13px;
+    }
+
+    .recent-card a {
+      display: inline-flex;
+      margin-top: 24px;
+      color: var(--accent);
+      font-size: 14px;
+    }
+
+    .settings-placeholder {
+      max-width: 640px;
+      padding: 36px;
+    }
+
+    .settings-placeholder h2 {
+      margin: 0 0 8px;
+      font-size: 24px;
+    }
+
+    .settings-placeholder p {
+      color: var(--text-secondary);
+    }
+
+    @media (max-width: 1180px) {
+      .settings-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .settings-page {
+        padding: 28px 18px;
+      }
+
+      .settings-tabs,
+      .profile-panel {
+        grid-template-columns: 1fr;
+        height: auto;
+      }
+
+      .settings-tabs {
+        display: grid;
+      }
+
+      .settings-tab {
+        min-height: 46px;
+      }
+
+      .profile-left {
+        border-right: 0;
+        border-bottom: 1px solid var(--border-subtle);
+      }
+    }
   `]
 })
 export default class SettingsComponent implements OnInit {
   private readonly authStore = inject(AuthStore);
+  private readonly workspaceService = inject(WorkspaceService);
+
   user: User | null = null;
+  workspaces: Workspace[] = [];
   activeTab = 'profile';
 
   readonly tabs = [
-    { id:'profile', label:'Profile', icon:'👤' },
-    { id:'notifications', label:'Notifications', icon:'🔔' },
-    { id:'appearance', label:'Appearance', icon:'🎨' },
-    { id:'security', label:'Security', icon:'🔒' },
+    { id: 'profile', label: 'Profile', icon: 'o' },
+    { id: 'notifications', label: 'Notifications', icon: '^' },
+    { id: 'appearance', label: 'Appearance', icon: '*' },
+    { id: 'security', label: 'Security', icon: '#' },
   ];
 
-  notifSettings = [
-    { label:'In-App Notifications', desc:'Receive notifications inside the app.', enabled:true },
-    { label:'Email Notifications', desc:'Get updates sent to your email.', enabled:true },
-    { label:'Task Assignments', desc:'Notify when a task is assigned to you.', enabled:true },
-    { label:'Project Updates', desc:'Notify when a project status changes.', enabled:false },
-    { label:'Comment Mentions', desc:'Notify when someone mentions you in comments.', enabled:true },
-    { label:'Weekly Digest', desc:'Get a weekly summary of your activity.', enabled:false },
+  readonly recentActivity = [
+    { label: 'Profile updated', time: 'Just now' },
+    { label: 'Logged in from Chrome on macOS', time: '2h ago' },
+    { label: 'Password changed', time: '3d ago' },
   ];
 
   ngOnInit(): void {
-    this.authStore.user$.subscribe(u => this.user = u);
+    this.authStore.user$.subscribe((u) => (this.user = u));
+    this.workspaceService.getAll().subscribe({
+      next: (workspaces) => (this.workspaces = workspaces),
+      error: () => (this.workspaces = []),
+    });
   }
 
   get initials(): string {
-    return this.user?.username.split(' ').map(p => p[0]).join('').slice(0,2).toUpperCase() ?? '??';
+    return this.user?.username.split(' ').map((p) => p[0]).join('').slice(0, 2).toUpperCase() ?? '??';
   }
 
   get roleLabel(): string {
-    const map: Record<string, string> = { ADMIN:'Administrator', PROJECT_MANAGER:'Project Manager', TEAM_MEMBER:'Team Member' };
-    return map[this.user?.role ?? ''] ?? this.user?.role ?? '—';
+    const map: Record<string, string> = { ADMIN: 'Administrator', PROJECT_MANAGER: 'Project Manager', TEAM_MEMBER: 'Team Member' };
+    return map[this.user?.role ?? ''] ?? this.user?.role ?? '-';
+  }
+
+  get memberSince(): string {
+    if (!this.user?.createdAt) return '-';
+    return new Date(this.user.createdAt).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
+  }
+
+  get visibleWorkspaces(): Workspace[] {
+    return this.workspaces.slice(0, 1);
+  }
+
+  get activeLabel(): string {
+    return this.tabs.find((tab) => tab.id === this.activeTab)?.label ?? 'Settings';
+  }
+
+  firstLetter(value: string): string {
+    return (value || 'W').charAt(0).toUpperCase();
   }
 }

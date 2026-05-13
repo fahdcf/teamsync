@@ -1,15 +1,4 @@
 <div class="analytics-page">
-  <aside class="analytics-nav">
-    <div class="analytics-brand">
-      <span>Analytics</span>
-      <small>Beta</small>
-    </div>
-    <button *ngFor="let item of navItems" type="button" [class.active]="activeView === item.key" (click)="activeView = item.key">
-      <span>{{ item.icon }}</span>
-      {{ item.label }}
-    </button>
-  </aside>
-
   <main class="analytics-main">
     <header class="analytics-header">
       <div>
@@ -22,6 +11,16 @@
         <button type="button">Filter</button>
       </div>
     </header>
+
+    <nav class="analytics-nav" aria-label="Analytics sections">
+      <div class="analytics-brand">
+        <span>Analytics</span>
+        <small>Beta</small>
+      </div>
+      <button *ngFor="let item of navItems" type="button" [class.active]="activeView === item.key" (click)="activeView = item.key">
+        {{ item.label }}
+      </button>
+    </nav>
 
     <div *ngIf="isLoading" class="loading-card">Loading analytics...</div>
 
@@ -68,18 +67,6 @@
               </div>
             </div>
           </div>
-        </article>
-      </div>
-
-      <div class="bottom-stats">
-        <article *ngFor="let stat of bottomStats" class="mini-card">
-          <header><h3>{{ stat.title }}</h3><button type="button">This week ▾</button></header>
-          <span>{{ stat.label }}</span>
-          <strong>{{ stat.value }}</strong>
-          <small [class.negative]="stat.trend < 0">{{ stat.trend >= 0 ? '↑' : '↓' }} {{ stat.trend < 0 ? -stat.trend : stat.trend }}% from last week</small>
-          <svg viewBox="0 0 180 54" class="sparkline amber">
-            <path d="M4 40 C 18 10, 32 52, 48 30 S 78 22, 92 34 S 120 18, 136 22 S 158 42, 176 20" />
-          </svg>
         </article>
       </div>
     </section>

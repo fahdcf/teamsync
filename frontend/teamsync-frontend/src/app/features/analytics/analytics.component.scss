@@ -1,9 +1,10 @@
 .analytics-page {
   display: grid;
-  grid-template-columns: 180px minmax(0, 1fr) 300px;
-  min-height: calc(100vh - var(--navbar-height));
-  margin: calc(var(--content-padding) * -1);
+  grid-template-columns: minmax(0, 1fr) clamp(280px, 20vw, 320px);
+  width: 100%;
+  min-height: 100%;
   background: radial-gradient(ellipse 50% 30% at 54% 6%, rgba(180, 130, 60, 0.15), transparent 72%), var(--bg-base);
+  overflow: hidden;
 }
 
 .analytics-nav,
@@ -13,17 +14,29 @@
 }
 
 .analytics-nav {
-  border-right: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  margin-bottom: 18px;
+  padding: 6px 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: rgba(20, 20, 22, 0.72);
+  overflow: hidden;
 }
 
 .analytics-brand {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex: 0 0 auto;
   color: var(--text-primary);
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 600;
-  margin: 0 12px 16px;
+  margin: 0 6px;
+  padding-right: 8px;
+  border-right: 1px solid var(--border-subtle);
 }
 
 .analytics-brand small,
@@ -36,19 +49,23 @@
 }
 
 .analytics-nav button {
-  width: 100%;
-  height: 40px;
+  flex: 1 1 0;
+  min-width: 0;
+  height: 30px;
   border: 0;
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--text-secondary);
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 10px;
-  font-size: 13px;
-  padding: 0 12px;
-  text-align: left;
+  justify-content: center;
+  font-size: 12px;
+  padding: 0 8px;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .analytics-nav button.active,
@@ -59,14 +76,16 @@
 
 .analytics-main {
   min-width: 0;
-  padding: 32px;
+  padding: 28px;
+  overflow: hidden;
 }
 
 .analytics-header {
   display: flex;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 24px;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 
 h1,
@@ -94,6 +113,7 @@ p {
 .header-actions {
   display: flex;
   gap: 8px;
+  flex: 0 0 auto;
 }
 
 .header-actions button,
@@ -123,10 +143,9 @@ p {
   box-shadow: var(--shadow-sm);
 }
 
-.top-stats,
-.bottom-stats {
+.top-stats {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(180px, 1fr));
   gap: 12px;
 }
 
@@ -211,7 +230,7 @@ p {
 
 .charts-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
   margin-top: 12px;
 }
@@ -243,14 +262,15 @@ p {
 
 .distribution-layout {
   display: grid;
-  grid-template-columns: 190px 1fr;
+  grid-template-columns: minmax(150px, 180px) minmax(0, 1fr);
   align-items: center;
-  gap: 20px;
+  gap: 16px;
 }
 
 .donut-wrap {
   position: relative;
-  height: 190px;
+  height: 180px;
+  min-width: 0;
 }
 
 .donut-center {
@@ -297,10 +317,6 @@ p {
 .dot-3 { background: #ef4444; }
 .dot-4 { background: #8b7cf6; }
 
-.bottom-stats {
-  margin-top: 12px;
-}
-
 .mini-card strong {
   display: block;
   color: var(--text-primary);
@@ -335,7 +351,9 @@ p {
 
 .insights-panel {
   border-left: 1px solid var(--border-subtle);
-  padding: 24px;
+  min-width: 0;
+  padding: 28px 20px;
+  overflow-y: auto;
 }
 
 .insights-panel header {
@@ -445,24 +463,27 @@ p {
 
 @media (max-width: 1200px) {
   .analytics-page {
-    grid-template-columns: 160px minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
+    overflow: visible;
   }
 
   .insights-panel {
-    grid-column: 2;
+    border-left: 0;
+    border-top: 1px solid var(--border-subtle);
+    overflow: visible;
   }
 }
 
 @media (max-width: 860px) {
   .analytics-page,
   .top-stats,
-  .bottom-stats,
   .charts-row {
     grid-template-columns: 1fr;
   }
 
-  .analytics-nav {
-    display: none;
+  .analytics-main,
+  .insights-panel {
+    padding: 20px;
   }
 
   .analytics-header,

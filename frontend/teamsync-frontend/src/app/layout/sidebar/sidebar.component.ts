@@ -501,12 +501,6 @@ export class SidebarComponent implements OnInit {
       count: 3,
     },
     {
-      label: 'Files',
-      route: '/files',
-      iconPath:
-        '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M9 2H4a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7z"></path><path d="M9 2v5h5"></path></svg>',
-    },
-    {
       label: 'Settings',
       route: '/settings',
       iconPath:

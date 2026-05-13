@@ -227,7 +227,7 @@ interface WorkspaceActivityItem {
   styles: [`
     .workspaces-page {
       min-height: 100%;
-      padding: 54px 40px 64px;
+      padding: 38px 40px 64px;
       color: var(--text-primary);
       background:
         radial-gradient(circle at 18% 8%, rgba(212, 168, 83, 0.13), transparent 24%),
@@ -259,38 +259,39 @@ interface WorkspaceActivityItem {
     .hero-copy {
       display: flex;
       align-items: center;
-      gap: 28px;
+      gap: 34px;
     }
 
     .hero-icon {
-      width: 68px;
-      height: 68px;
+      width: 86px;
+      height: 86px;
       border: 1px solid var(--border-default);
-      border-radius: var(--radius-xl);
+      border-radius: 16px;
       display: grid;
       place-items: center;
-      background: linear-gradient(145deg, rgba(212,168,83,0.08), rgba(255,255,255,0.02));
+      background: linear-gradient(145deg, rgba(212,168,83,0.12), rgba(255,255,255,0.025));
       box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
       color: #e6dccb;
     }
 
     .hero-icon svg {
-      width: 34px;
-      height: 34px;
+      width: 42px;
+      height: 42px;
       filter: drop-shadow(0 8px 20px rgba(212,168,83,0.28));
     }
 
     h1 {
-      font-size: clamp(34px, 3.4vw, 44px);
-      line-height: 1;
-      letter-spacing: -0.04em;
-      font-weight: 650;
-      margin: 0 0 14px;
+      font-size: clamp(44px, 4.4vw, 58px);
+      line-height: 0.96;
+      letter-spacing: -0.055em;
+      font-weight: 760;
+      margin: 0 0 18px;
     }
 
     .hero-copy p {
       color: var(--text-secondary);
-      font-size: 15px;
+      font-size: 19px;
+      line-height: 1.35;
       margin: 0;
     }
 
