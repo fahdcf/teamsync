@@ -1,17 +1,19 @@
 import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
-import { Subject, forkJoin, of, switchMap, takeUntil } from 'rxjs';
+import { Subject, forkJoin, of, switchMap, takeUntil, finalize } from 'rxjs';
 import { ProjectService } from '../../../api/project.service';
 import { WorkspaceService } from '../../../api/workspace.service';
 import { WorkspaceContextService } from '../../../core/services/workspace-context.service';
 import { Project, ProjectStatus } from '../../../shared/models/project.model';
+import { Workspace } from '../../../shared/models/workspace.model';
+import { User } from '../../../shared/models/user.model';
 
 @Component({
   selector: 'app-project-list',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule],
   template: `
     <div class="projects-page redesigned-projects-page">
       <header class="projects-header">
@@ -24,7 +26,7 @@ import { Project, ProjectStatus } from '../../../shared/models/project.model';
         </div>
 
         <div class="projects-header-actions">
-          <button class="new-project-btn" type="button">
+          <button class="new-project-btn" type="button" (click)="openCreateModal()">
             <span aria-hidden="true">+</span>
             New Project
           </button>
@@ -131,7 +133,64 @@ import { Project, ProjectStatus } from '../../../shared/models/project.model';
         <div class="empty-icon">▣</div>
         <h2>No projects found</h2>
         <p>{{ activeFilter !== 'ALL' || searchText ? 'Try a different filter or search.' : 'Create your first project to get started.' }}</p>
+        <button class="new-project-btn empty-create-btn" type="button" (click)="openCreateModal()">Create project</button>
       </section>
+      <div class="modal-overlay" *ngIf="isCreateOpen" (click)="closeCreateModal()">
+        <div class="modal-box project-create-modal" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <div>
+              <span>New project</span>
+              <h2>Create a project</h2>
+            </div>
+            <button class="modal-close" type="button" aria-label="Close" (click)="closeCreateModal()">x</button>
+          </div>
+
+          <form [formGroup]="createProjectForm" (ngSubmit)="createProject()" class="modal-form">
+            <div class="field-group">
+              <label for="project-workspace">Workspace</label>
+              <select id="project-workspace" formControlName="workspaceId" (change)="onCreateWorkspaceChanged()">
+                <option value="" disabled>Select workspace</option>
+                <option *ngFor="let workspace of workspaces" [value]="workspace.id">{{ workspace.name }}</option>
+              </select>
+            </div>
+
+            <div class="field-group">
+              <label for="project-title">Project name</label>
+              <input id="project-title" type="text" placeholder="e.g. Design system refresh" formControlName="title" />
+              <small *ngIf="createProjectForm.controls.title.touched && createProjectForm.controls.title.invalid">Project name is required.</small>
+            </div>
+
+            <div class="field-group">
+              <label for="project-description">Description</label>
+              <textarea id="project-description" rows="3" placeholder="What is this project about?" formControlName="description"></textarea>
+            </div>
+
+            <div class="modal-grid">
+              <div class="field-group">
+                <label for="project-manager">Manager</label>
+                <select id="project-manager" formControlName="managerId">
+                  <option value="">No manager</option>
+                  <option *ngFor="let member of selectedWorkspaceMembers" [value]="member.id">{{ member.username }}</option>
+                </select>
+              </div>
+
+              <div class="field-group">
+                <label for="project-deadline">Due date</label>
+                <input id="project-deadline" type="date" formControlName="deadline" />
+              </div>
+            </div>
+
+            <p class="modal-error" *ngIf="createError">{{ createError }}</p>
+
+            <div class="modal-actions">
+              <button class="cancel-btn" type="button" (click)="closeCreateModal()">Cancel</button>
+              <button class="submit-btn" type="submit" [disabled]="createProjectForm.invalid || isCreating || !workspaces.length">
+                {{ isCreating ? 'Creating...' : 'Create project' }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
     </div>
   `,
   styles: [`
@@ -524,6 +583,7 @@ import { Project, ProjectStatus } from '../../../shared/models/project.model';
     .project-empty-card h2 { margin: 8px 0; font-size: 18px; color: var(--text-primary); }
     .project-empty-card p { margin: 0; }
     .empty-icon { color: var(--text-tertiary); font-size: 34px; }
+    .empty-create-btn { margin-top: 18px; }
 
     @media (max-width: 1100px) {
       .project-table-card { overflow-x: auto; }
@@ -546,13 +606,27 @@ export default class ProjectListComponent implements OnInit, OnDestroy {
   private readonly workspaceService = inject(WorkspaceService);
   private readonly workspaceContext = inject(WorkspaceContextService);
   private readonly router = inject(Router);
+  private readonly fb = inject(FormBuilder);
   private readonly destroy$ = new Subject<void>();
 
   projects: Project[] = [];
   filtered: Project[] = [];
+  workspaces: Workspace[] = [];
   loading = true;
+  isCreateOpen = false;
+  isCreating = false;
+  createError = '';
+  currentWorkspaceId: string | null = null;
   activeFilter: string = 'ALL';
   searchText = '';
+
+  readonly createProjectForm = this.fb.nonNullable.group({
+    workspaceId: ['', Validators.required],
+    title: ['', [Validators.required, Validators.maxLength(120)]],
+    description: [''],
+    deadline: [''],
+    managerId: [''],
+  });
 
   readonly filters = [
     { label: 'All', value: 'ALL' },
@@ -564,9 +638,12 @@ export default class ProjectListComponent implements OnInit, OnDestroy {
   ];
 
   ngOnInit(): void {
+    this.loadWorkspaceOptions();
+
     this.workspaceContext.selectedWorkspaceId$
       .pipe(
         switchMap((workspaceId) => {
+          this.currentWorkspaceId = workspaceId;
           this.loading = true;
           if (workspaceId) return this.projectService.getByWorkspace(workspaceId);
           return this.loadAllWorkspaceProjects();
@@ -585,6 +662,25 @@ export default class ProjectListComponent implements OnInit, OnDestroy {
       });
   }
 
+  private loadWorkspaceOptions(): void {
+    this.workspaceService.getAll()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (workspaces) => {
+          this.workspaces = workspaces;
+          const selected = this.workspaceContext.syncAvailableWorkspaces(workspaces);
+          const workspaceId = selected?.id || workspaces[0]?.id || '';
+          this.createProjectForm.patchValue({
+            workspaceId,
+            managerId: this.defaultManagerId(workspaceId),
+          });
+        },
+        error: () => {
+          this.workspaces = [];
+        },
+      });
+  }
+
   private loadAllWorkspaceProjects() {
     return this.workspaceService.getAll().pipe(
       switchMap(workspaces => {
@@ -595,6 +691,99 @@ export default class ProjectListComponent implements OnInit, OnDestroy {
           .pipe(switchMap((projectGroups) => of(projectGroups.flat())));
       })
     );
+  }
+
+  private refreshProjects(): void {
+    this.loading = true;
+    const source = this.currentWorkspaceId
+      ? this.projectService.getByWorkspace(this.currentWorkspaceId)
+      : this.loadAllWorkspaceProjects();
+
+    source
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (projects) => {
+          this.projects = projects;
+          this.applyFilter();
+          this.loading = false;
+        },
+        error: () => {
+          this.loading = false;
+        },
+      });
+  }
+
+  get selectedWorkspaceMembers(): User[] {
+    const workspaceId = this.createProjectForm.controls.workspaceId.value;
+    const workspace = this.workspaces.find((candidate) => candidate.id === workspaceId);
+    if (!workspace) return [];
+
+    const users = new Map<string, User>();
+    if (workspace.owner) users.set(workspace.owner.id, workspace.owner);
+    (workspace.members || []).forEach((member) => users.set(member.id, member));
+    return Array.from(users.values());
+  }
+
+  openCreateModal(): void {
+    const workspaceId = this.currentWorkspaceId || this.workspaceContext.selectedWorkspaceId || this.workspaces[0]?.id || '';
+    this.createError = '';
+    this.createProjectForm.reset({
+      workspaceId,
+      title: '',
+      description: '',
+      deadline: '',
+      managerId: this.defaultManagerId(workspaceId),
+    });
+    this.isCreateOpen = true;
+  }
+
+  closeCreateModal(): void {
+    if (this.isCreating) return;
+    this.isCreateOpen = false;
+    this.createError = '';
+  }
+
+  onCreateWorkspaceChanged(): void {
+    const workspaceId = this.createProjectForm.controls.workspaceId.value;
+    this.createProjectForm.patchValue({ managerId: this.defaultManagerId(workspaceId) });
+  }
+
+  createProject(): void {
+    if (this.createProjectForm.invalid) {
+      this.createProjectForm.markAllAsTouched();
+      return;
+    }
+
+    const { workspaceId, title, description, deadline, managerId } = this.createProjectForm.getRawValue();
+    this.isCreating = true;
+    this.createError = '';
+
+    this.projectService.create(workspaceId, {
+      title,
+      description: description || '',
+      deadline: deadline || undefined,
+      managerId: managerId || undefined,
+    })
+      .pipe(finalize(() => (this.isCreating = false)))
+      .subscribe({
+        next: () => {
+          this.isCreateOpen = false;
+          if (this.currentWorkspaceId !== workspaceId) {
+            this.workspaceContext.selectWorkspace(workspaceId);
+            return;
+          }
+          this.refreshProjects();
+        },
+        error: () => {
+          this.createError = 'Project could not be created. Please check the fields and try again.';
+        },
+      });
+  }
+
+  private defaultManagerId(workspaceId: string): string {
+    const workspace = this.workspaces.find((candidate) => candidate.id === workspaceId);
+    if (!workspace) return '';
+    return workspace.owner?.id || workspace.members?.[0]?.id || '';
   }
 
   setFilter(value: string): void {

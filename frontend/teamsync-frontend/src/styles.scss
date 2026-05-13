@@ -4176,3 +4176,158 @@ $wide:    1280px;
   }
 }
 
+
+/* Shared modal shell styling. */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(2, 4, 8, 0.72);
+  backdrop-filter: blur(16px);
+}
+
+.modal-box {
+  width: min(560px, 100%);
+  border: 1px solid var(--border-default);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 18% 0%, rgba(212,168,83,0.16), transparent 38%),
+    linear-gradient(145deg, rgba(255,255,255,0.06), rgba(255,255,255,0.018)),
+    var(--bg-surface);
+  box-shadow: 0 30px 90px rgba(0,0,0,0.46), inset 0 1px 0 rgba(255,255,255,0.06);
+  overflow: hidden;
+}
+
+.modal-close {
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: rgba(255,255,255,0.025);
+  color: var(--text-secondary);
+}
+
+/* Shared create-project modal styling. */
+.project-create-modal {
+  width: min(560px, 100%);
+}
+
+.project-create-modal .modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 24px 26px 18px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.project-create-modal .modal-header span {
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.project-create-modal .modal-header h2 {
+  margin: 7px 0 0;
+  color: var(--text-primary);
+  font-size: 24px;
+  letter-spacing: -0.04em;
+}
+
+.project-create-modal .modal-form {
+  display: grid;
+  gap: 16px;
+  padding: 24px 26px 26px;
+}
+
+.project-create-modal .modal-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.project-create-modal .field-group {
+  display: grid;
+  gap: 8px;
+}
+
+.project-create-modal .field-group label {
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.project-create-modal .field-group input,
+.project-create-modal .field-group textarea,
+.project-create-modal .field-group select {
+  width: 100%;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: rgba(255,255,255,0.03);
+  color: var(--text-primary);
+  outline: 0;
+  font: inherit;
+}
+
+.project-create-modal .field-group input,
+.project-create-modal .field-group select {
+  height: 42px;
+  padding: 0 13px;
+}
+
+.project-create-modal .field-group textarea {
+  resize: vertical;
+  min-height: 86px;
+  padding: 12px 13px;
+}
+
+.project-create-modal .field-group small,
+.project-create-modal .modal-error {
+  color: var(--danger);
+  font-size: 12px;
+  margin: 0;
+}
+
+.project-create-modal .modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 6px;
+}
+
+.project-create-modal .cancel-btn,
+.project-create-modal .submit-btn {
+  height: 40px;
+  padding: 0 18px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.project-create-modal .cancel-btn {
+  border: 1px solid var(--border-subtle);
+  background: rgba(255,255,255,0.024);
+  color: var(--text-primary);
+}
+
+.project-create-modal .submit-btn {
+  border: 1px solid rgba(245,190,88,0.45);
+  background: linear-gradient(180deg, #efc96e, #d7a748);
+  color: #14100a;
+}
+
+.project-create-modal .submit-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.56;
+}
+
+@media (max-width: 760px) {
+  .project-create-modal .modal-grid {
+    grid-template-columns: 1fr;
+  }
+}

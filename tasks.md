@@ -112,7 +112,7 @@ Excluded by request:
 
 ## Projects Page
 
-- [ ] Task UI-AUDIT-040: Make `New Project` on the projects page work.
+- [x] Task UI-AUDIT-040: Make `New Project` on the projects page work.
   Frontend: open a project creation modal, select a workspace/manager, call `ProjectService.create`, and refresh the list.
   Backend: `POST /workspaces/{workspaceId}/projects` exists; verify it supports all fields shown in the UI and returns workspace/manager data.
 

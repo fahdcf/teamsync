@@ -22,7 +22,8 @@ export interface Project {
 
 export interface CreateProjectRequest {
   title: string;
-  description: string;
-  deadline: string;
-  managerId: string;
+  description?: string;
+  deadline?: string | null;
+  managerId?: string | null;
+  progress?: number;
 }
