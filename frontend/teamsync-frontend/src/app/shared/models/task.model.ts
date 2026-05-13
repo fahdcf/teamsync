@@ -17,6 +17,7 @@ export interface Task {
   projectTitle?: string;
   workspaceId?: string;
   workspaceName?: string;
+  commentCount?: number;
   dependencies: Task[];
   subtasks?: Subtask[];
   dueDate: string | null;

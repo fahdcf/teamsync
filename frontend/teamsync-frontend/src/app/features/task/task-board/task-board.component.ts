@@ -220,7 +220,7 @@ export default class TaskBoardComponent implements OnInit, OnChanges {
   }
 
   commentCountFor(task: Task): number {
-    return task.dependencies?.length ?? 0;
+    return task.commentCount ?? 0;
   }
 
   onKeywordChange(event: Event): void {

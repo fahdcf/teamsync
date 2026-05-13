@@ -164,7 +164,7 @@ Excluded by request:
   Frontend: `TaskService.assign` sends `{ userId }` in the body, but backend expects `@RequestParam UUID userId`; align the service call or backend signature.
   Backend: choose one contract and document it; recommended endpoint shape is `PUT /tasks/{id}/assign` with JSON body for consistency.
 
-- [ ] Task UI-AUDIT-062: Replace task card comment count with real comment count.
+- [x] Task UI-AUDIT-062: Replace task card comment count with real comment count.
   Frontend: stop using dependency count as `commentCountFor(task)` and show actual comment counts.
   Backend: include `commentCount` in `TaskResponseDTO` or add a batch counts endpoint for task cards.
 

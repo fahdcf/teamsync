@@ -10,4 +10,5 @@ import java.util.UUID;
 public interface CommentRepository extends JpaRepository<Comment, UUID> {
     List<Comment> findByTaskAndParentCommentIsNull(Task task);
     List<Comment> findByParentComment(Comment parentComment);
+    long countByTask(Task task);
 }

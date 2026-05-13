@@ -26,6 +26,7 @@ public class TaskResponseDTO {
     private String projectTitle;
     private UUID workspaceId;
     private String workspaceName;
+    private long commentCount;
     private List<SubtaskResponseDTO> subtasks;
     private LocalDate dueDate;
     private LocalDateTime createdAt;

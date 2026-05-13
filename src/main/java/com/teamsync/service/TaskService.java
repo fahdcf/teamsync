@@ -23,6 +23,7 @@ import com.teamsync.presentation.dto.UserResponseDTO;
 import com.teamsync.repository.TaskRepository;
 import com.teamsync.repository.TaskSpecification;
 import com.teamsync.repository.UserRepository;
+import com.teamsync.repository.CommentRepository;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
@@ -37,6 +38,7 @@ public class TaskService implements com.teamsync.patterns.structural.proxy.TaskS
     private final TaskRepository taskRepository;
     private final ProjectService projectService;
     private final UserRepository userRepository;
+    private final CommentRepository commentRepository;
     private final TaskStateMachine stateMachine;
     private final TaskAssignmentService assignmentService;
     private final ProjectEventPublisher eventPublisher;
@@ -47,6 +49,7 @@ public class TaskService implements com.teamsync.patterns.structural.proxy.TaskS
     public TaskService(TaskRepository taskRepository,
                        ProjectService projectService,
                        UserRepository userRepository,
+                       CommentRepository commentRepository,
                        TaskStateMachine stateMachine,
                        TaskAssignmentService assignmentService,
                        ProjectEventPublisher eventPublisher,
@@ -56,6 +59,7 @@ public class TaskService implements com.teamsync.patterns.structural.proxy.TaskS
         this.taskRepository = taskRepository;
         this.projectService = projectService;
         this.userRepository = userRepository;
+        this.commentRepository = commentRepository;
         this.stateMachine = stateMachine;
         this.assignmentService = assignmentService;
         this.eventPublisher = eventPublisher;
@@ -225,6 +229,7 @@ public class TaskService implements com.teamsync.patterns.structural.proxy.TaskS
                 .projectTitle(t.getProject().getTitle())
                 .workspaceId(t.getProject().getWorkspace().getId())
                 .workspaceName(t.getProject().getWorkspace().getName())
+                .commentCount(commentRepository.countByTask(t))
                 .subtasks(t.getSubtasks().stream()
                         .map(subtask -> com.teamsync.presentation.dto.SubtaskResponseDTO.builder()
                                 .id(subtask.getId())
