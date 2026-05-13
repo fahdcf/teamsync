@@ -276,7 +276,7 @@ Excluded by request:
   Frontend: `Book a demo`, `Explore all features`, `View all reports`, `Learn more`, and `View full board` currently use `href="#"`; route them to real pages/sections or remove them.
   Backend: no backend required unless demo requests or contact forms are added.
 
-- [ ] Task UI-AUDIT-121: Replace or label static landing preview stats.
+- [x] Task UI-AUDIT-121: Replace or label static landing preview stats.
   Frontend: mockup stats, kanban cards, testimonials, logos, and feature preview data are static marketing content; either keep them explicitly as marketing examples or connect them to public stats/content.
   Backend: add public content/config endpoints only if marketing content should be managed dynamically.
 

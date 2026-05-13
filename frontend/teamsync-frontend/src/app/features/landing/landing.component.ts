@@ -79,6 +79,7 @@ interface Testimonial {
                 <span class="dot red"></span>
                 <span class="dot amber"></span>
                 <span class="dot green"></span>
+                <span class="sample-badge">Sample workspace data</span>
               </div>
               <div class="mockup-body">
                 <aside class="mockup-sidebar">
@@ -118,7 +119,7 @@ interface Testimonial {
         </section>
 
         <section class="trusted-section">
-          <p>TRUSTED BY INNOVATIVE TEAMS</p>
+          <p>EXAMPLE CUSTOMER LOGOS</p>
           <div class="logos-row">
             <span *ngFor="let logo of logos">{{ logo }}</span>
           </div>
@@ -126,10 +127,10 @@ interface Testimonial {
 
         <section id="features" class="feature-section">
           <div class="feature-copy">
-            <span>FEATURES</span>
+            <span>FEATURES PREVIEW</span>
             <h2>Everything your team needs to move faster</h2>
             <p>
-              Powerful features designed to help you plan, collaborate, and deliver your best work.
+              Static marketing examples of the product areas TeamSync is built to support.
             </p>
             <a href="#collaboration">Explore all features -></a>
           </div>
@@ -145,9 +146,9 @@ interface Testimonial {
 
         <section class="showcase-section">
           <div class="showcase-copy">
-            <span>ANALYTICS</span>
+            <span>SAMPLE ANALYTICS PREVIEW</span>
             <h2>Data that drives better decisions</h2>
-            <p>Beautiful, real-time insights into your projects, teams, and performance.</p>
+            <p>Illustrative report cards showing how project insights can look inside TeamSync.</p>
             <a routerLink="/register">View all reports -></a>
           </div>
 
@@ -185,18 +186,18 @@ interface Testimonial {
           </div>
 
           <div class="showcase-copy">
-            <span>COLLABORATION</span>
+            <span>SAMPLE COLLABORATION PREVIEW</span>
             <h2>Work together, anywhere</h2>
-            <p>Real-time collaboration, seamless communication, and a shared understanding.</p>
+            <p>Example collaboration cards showing the kind of activity a team workspace can surface.</p>
             <a href="#testimonials">Learn more -></a>
           </div>
         </section>
 
         <section class="showcase-section">
           <div class="showcase-copy">
-            <span>KANBAN BOARD</span>
+            <span>SAMPLE KANBAN PREVIEW</span>
             <h2>Visualize work. Deliver results.</h2>
-            <p>Intuitive boards that adapt to your workflow and keep your team in the zone.</p>
+            <p>Illustrative board cards, not live workspace data, for previewing the product experience.</p>
             <a routerLink="/register">View full board -></a>
           </div>
 
@@ -216,6 +217,7 @@ interface Testimonial {
 
         <section id="testimonials" class="testimonial-section">
           <h2>Loved by teams building the future</h2>
+          <p class="sample-note">Sample testimonials used as marketing placeholders until public customer stories are managed dynamically.</p>
 
           <div class="testimonial-grid">
             <article class="testimonial-card" *ngFor="let testimonial of testimonials">

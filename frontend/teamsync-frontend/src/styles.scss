@@ -2297,6 +2297,19 @@ $wide:    1280px;
         padding: 0 14px;
       }
 
+      .sample-badge {
+        margin-left: auto;
+        padding: 4px 9px;
+        border: 1px solid rgba(212,168,83,0.22);
+        border-radius: var(--radius-full);
+        color: var(--accent);
+        background: rgba(212,168,83,0.08);
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
       .dot {
         width: 8px;
         height: 8px;
@@ -2711,6 +2724,14 @@ $wide:    1280px;
 
       .testimonial-section h2 {
         margin-bottom: 22px;
+      }
+
+      .sample-note {
+        max-width: 620px;
+        margin: -8px 0 24px;
+        color: var(--text-secondary);
+        font-size: 13px;
+        line-height: 1.7;
       }
 
       .testimonial-grid {
