@@ -58,7 +58,7 @@ Excluded by request:
   Frontend: wire `View all activity`, `View calendar`, and `View all projects` to real routes instead of `href="#"`.
   Backend: no backend required unless adding a dedicated full activity page endpoint beyond `GET /users/me/activity`.
 
-- [ ] Task UI-AUDIT-016: Make dashboard calendar show all relevant tasks.
+- [x] Task UI-AUDIT-016: Make dashboard calendar show all relevant tasks.
   Frontend: load task events across all visible projects/workspaces instead of only the first loaded project, and make calendar event chips open the task detail.
   Backend: add an efficient endpoint such as `GET /calendar/events?from=&to=&workspaceId=` returning all visible task deadlines and project deadlines.
 

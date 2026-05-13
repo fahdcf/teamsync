@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { forkJoin, of, switchMap } from 'rxjs';
 import { AuthStore } from '../../store/auth.store';
 import { ActivityService } from '../../api/activity.service';
+import { CalendarEvent, CalendarService } from '../../api/calendar.service';
 import { DashboardChartSeries, DashboardDateRange, DashboardDeadline, DashboardProjectOverview, DashboardService, DashboardStats, DashboardTeamWorkSummary } from '../../api/dashboard.service';
 import { ProjectService } from '../../api/project.service';
 import { TaskService } from '../../api/task.service';
@@ -13,6 +14,14 @@ import { ActivityLog } from '../../shared/models/activity.model';
 import { Task } from '../../shared/models/task.model';
 import { User } from '../../shared/models/user.model';
 import { Workspace } from '../../shared/models/workspace.model';
+
+interface CalendarDayEvent {
+  id: string;
+  type: CalendarEvent['type'];
+  title: string;
+  priority: CalendarEvent['priority'];
+  projectId: string;
+}
 
 @Component({
   selector: 'app-dashboard',
@@ -102,13 +111,16 @@ import { Workspace } from '../../shared/models/workspace.model';
             >
               <div class="calendar-day-number">{{ day.date.getDate() }}</div>
               <div class="calendar-day-events">
-                <span
+                <button
+                  type="button"
+                  class="calendar-event-chip"
                   *ngFor="let event of day.events | slice:0:2"
-                  [class]="event.priority.toLowerCase()"
+                  [ngClass]="event.priority.toLowerCase()"
                   [title]="event.title"
+                  (click)="openCalendarEvent(event)"
                 >
                   {{ event.title }}
-                </span>
+                </button>
                 <em *ngIf="day.events.length > 2">+{{ day.events.length - 2 }} more</em>
               </div>
             </div>
@@ -228,11 +240,45 @@ import { Workspace } from '../../shared/models/workspace.model';
       padding: 0;
       text-align: left;
     }
+
+    .calendar-event-chip {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      border: 0;
+      border-radius: var(--radius-sm);
+      font: inherit;
+      font-size: 11px;
+      line-height: 1.2;
+      padding: 4px 6px;
+      text-align: left;
+      background: var(--bg-elevated);
+      color: var(--text-secondary);
+      cursor: pointer;
+    }
+
+    .calendar-event-chip.low {
+      background: var(--success-dim);
+      color: var(--success);
+    }
+
+    .calendar-event-chip.medium {
+      background: var(--warning-dim);
+      color: var(--warning);
+    }
+
+    .calendar-event-chip.high,
+    .calendar-event-chip.critical {
+      background: var(--danger-dim);
+      color: var(--danger);
+    }
   `],
 })
 export default class DashboardComponent implements OnInit {
   private readonly authStore = inject(AuthStore);
   private readonly activityService = inject(ActivityService);
+  private readonly calendarService = inject(CalendarService);
   private readonly dashboardService = inject(DashboardService);
   private readonly projectService = inject(ProjectService);
   private readonly taskService = inject(TaskService);
@@ -258,6 +304,7 @@ export default class DashboardComponent implements OnInit {
   tasks: Task[] = [];
   recentActivity: ActivityLog[] = [];
   teamWorkSummaries: DashboardTeamWorkSummary[] = [];
+  calendarEvents: CalendarEvent[] = [];
   selectedProjectId = '';
   dashboardCalendarDate = new Date();
 
@@ -320,13 +367,13 @@ export default class DashboardComponent implements OnInit {
     });
   }
 
-  get dashboardCalendarDays(): { date: Date; isCurrentMonth: boolean; isToday: boolean; events: { title: string; priority: Task['priority'] }[] }[] {
+  get dashboardCalendarDays(): { date: Date; isCurrentMonth: boolean; isToday: boolean; events: CalendarDayEvent[] }[] {
     const year = this.dashboardCalendarDate.getFullYear();
     const month = this.dashboardCalendarDate.getMonth();
     const today = new Date();
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
-    const days: { date: Date; isCurrentMonth: boolean; isToday: boolean; events: { title: string; priority: Task['priority'] }[] }[] = [];
+    const days: { date: Date; isCurrentMonth: boolean; isToday: boolean; events: CalendarDayEvent[] }[] = [];
 
     for (let index = 0; index < firstDay.getDay(); index++) {
       days.push({
@@ -372,6 +419,7 @@ export default class DashboardComponent implements OnInit {
       activity: this.activityService.getMyActivity(),
       chartSeries: this.dashboardService.getChartSeries(range),
       teamWorkload: this.dashboardService.getTeamWorkload(),
+      calendarEvents: this.calendarService.getEvents(this.monthStart(), this.monthEnd()),
     })
       .pipe(
         switchMap((data) => {
@@ -383,6 +431,7 @@ export default class DashboardComponent implements OnInit {
           this.recentActivity = data.activity;
           this.chartSeries = data.chartSeries;
           this.teamWorkSummaries = data.teamWorkload;
+          this.calendarEvents = data.calendarEvents;
           const workspaceId = data.workspaces[0]?.id;
           if (!workspaceId) return of([] as Project[]);
           return this.projectService.getByWorkspace(workspaceId);
@@ -446,14 +495,17 @@ export default class DashboardComponent implements OnInit {
 
   previousDashboardMonth(): void {
     this.dashboardCalendarDate = new Date(this.dashboardCalendarDate.getFullYear(), this.dashboardCalendarDate.getMonth() - 1, 1);
+    this.loadCalendarEvents();
   }
 
   nextDashboardMonth(): void {
     this.dashboardCalendarDate = new Date(this.dashboardCalendarDate.getFullYear(), this.dashboardCalendarDate.getMonth() + 1, 1);
+    this.loadCalendarEvents();
   }
 
   goToCurrentDashboardMonth(): void {
     this.dashboardCalendarDate = new Date();
+    this.loadCalendarEvents();
   }
 
   setDashboardRange(event: Event): void {
@@ -482,14 +534,31 @@ export default class DashboardComponent implements OnInit {
     return date.toISOString().slice(0, 10);
   }
 
-  eventsForCalendarDay(date: Date): { title: string; priority: Task['priority'] }[] {
-    const taskEvents = this.tasks
-      .filter((task) => task.dueDate && this.isSameDay(new Date(task.dueDate), date))
-      .map((task) => ({ title: task.title, priority: task.priority }));
-    const deadlineEvents = this.deadlines
-      .filter((deadline) => deadline.dueDate && this.isSameDay(new Date(deadline.dueDate), date))
-      .map((deadline) => ({ title: deadline.title, priority: deadline.priority }));
-    return [...taskEvents, ...deadlineEvents];
+  private monthStart(): string {
+    return this.formatDate(new Date(this.dashboardCalendarDate.getFullYear(), this.dashboardCalendarDate.getMonth(), 1));
+  }
+
+  private monthEnd(): string {
+    return this.formatDate(new Date(this.dashboardCalendarDate.getFullYear(), this.dashboardCalendarDate.getMonth() + 1, 0));
+  }
+
+  private loadCalendarEvents(): void {
+    this.calendarService.getEvents(this.monthStart(), this.monthEnd()).subscribe({
+      next: (events) => (this.calendarEvents = events),
+      error: () => (this.calendarEvents = []),
+    });
+  }
+
+  eventsForCalendarDay(date: Date): CalendarDayEvent[] {
+    return this.calendarEvents
+      .filter((event) => event.date && this.isSameDay(new Date(event.date), date))
+      .map((event) => ({
+        id: event.id,
+        type: event.type,
+        title: event.title,
+        priority: event.priority,
+        projectId: event.projectId,
+      }));
   }
 
   isSameDay(left: Date, right: Date): boolean {
@@ -498,6 +567,14 @@ export default class DashboardComponent implements OnInit {
 
   openTask(id: string): void {
     this.router.navigate(['/tasks', id]);
+  }
+
+  openCalendarEvent(event: CalendarDayEvent): void {
+    if (event.type === 'TASK') {
+      this.router.navigate(['/tasks', event.id]);
+      return;
+    }
+    this.router.navigate(['/projects', event.projectId || event.id]);
   }
 
   openAnalytics(): void {
