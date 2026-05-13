@@ -114,6 +114,7 @@ p {
   display: flex;
   gap: 8px;
   flex: 0 0 auto;
+  position: relative;
 }
 
 .header-actions button,
@@ -128,6 +129,65 @@ p {
   cursor: pointer;
   font-size: 12px;
   padding: 0 12px;
+}
+
+.header-actions button.active,
+.popover-card button.active {
+  border-color: rgba(212, 168, 83, 0.55);
+  background: rgba(212, 168, 83, 0.12);
+  color: var(--accent);
+}
+
+.action-popover {
+  position: relative;
+}
+
+.popover-card {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 20;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: rgba(18, 18, 20, 0.96);
+}
+
+.date-card > button {
+  width: 100%;
+}
+
+.analytics-filters label {
+  display: grid;
+  gap: 6px;
+}
+
+.analytics-filters select {
+  height: 34px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  padding: 0 10px;
+}
+
+.analytics-filters {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr) auto;
+  align-items: end;
+  gap: 12px;
+  margin: -6px 0 18px;
+  padding: 14px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: rgba(20, 20, 22, 0.72);
+}
+
+.analytics-filters button {
+  height: 34px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-secondary);
 }
 
 .loading-card,
@@ -491,5 +551,14 @@ p {
   .distribution-layout {
     flex-direction: column;
     display: flex;
+  }
+
+  .analytics-filters {
+    grid-template-columns: 1fr;
+  }
+
+  .popover-card {
+    left: 0;
+    right: auto;
   }
 }

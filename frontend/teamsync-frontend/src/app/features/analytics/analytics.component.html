@@ -6,11 +6,42 @@
         <p>AI-powered analytics for modern collaborative teams.</p>
       </div>
       <div class="header-actions">
-        <button type="button">May 12 – Jun 12, 2024 ▾</button>
-        <button type="button">Share</button>
-        <button type="button">Filter</button>
+        <div class="action-popover">
+          <button type="button" (click)="isDateMenuOpen = !isDateMenuOpen">{{ dateRangeLabel }} v</button>
+          <div class="popover-card date-card" *ngIf="isDateMenuOpen">
+            <button
+              *ngFor="let preset of datePresets"
+              type="button"
+              [class.active]="selectedPreset === preset.key"
+              (click)="applyDatePreset(preset.key)">
+              {{ preset.label }}
+            </button>
+          </div>
+        </div>
+        <button type="button" (click)="shareAnalytics()">Share</button>
+        <button type="button" [class.active]="isFilterOpen" (click)="isFilterOpen = !isFilterOpen">
+          Filter <span *ngIf="activeFilterCount">({{ activeFilterCount }})</span>
+        </button>
       </div>
     </header>
+
+    <section class="analytics-filters" *ngIf="isFilterOpen">
+      <label>
+        <span>Workspace</span>
+        <select [(ngModel)]="selectedWorkspaceId" (ngModelChange)="onWorkspaceChange()">
+          <option value="">All workspaces</option>
+          <option *ngFor="let workspace of workspaces" [value]="workspace.id">{{ workspace.name }}</option>
+        </select>
+      </label>
+      <label>
+        <span>Project</span>
+        <select [(ngModel)]="selectedProjectId" (ngModelChange)="selectProject($event)">
+          <option value="">All projects</option>
+          <option *ngFor="let project of projects" [value]="project.id">{{ project.title }}</option>
+        </select>
+      </label>
+      <button type="button" (click)="clearFilters()">Clear filters</button>
+    </section>
 
     <nav class="analytics-nav" aria-label="Analytics sections">
       <div class="analytics-brand">

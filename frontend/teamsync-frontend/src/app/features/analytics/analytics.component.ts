@@ -1,6 +1,7 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute, Router } from '@angular/router';
 import { BaseChartDirective } from 'ng2-charts';
 import {
   ArcElement,
@@ -20,10 +21,12 @@ import {
 } from 'chart.js';
 import { forkJoin, of, switchMap } from 'rxjs';
 import { catchError } from 'rxjs/operators';
-import { AnalyticsService } from '../../api/analytics.service';
+import { AnalyticsFilters, AnalyticsService } from '../../api/analytics.service';
 import { ProjectService } from '../../api/project.service';
+import { WorkspaceService } from '../../api/workspace.service';
 import { AnalyticsInsight, ProjectStats, TeamPerformance } from '../../shared/models/analytics.model';
 import { Project } from '../../shared/models/project.model';
+import { Workspace } from '../../shared/models/workspace.model';
 
 Chart.register(
   LineController,
@@ -52,17 +55,27 @@ type AnalyticsView = 'overview' | 'team' | 'projects' | 'sprint' | 'workload' | 
 export default class AnalyticsComponent implements OnInit {
   private readonly analyticsService = inject(AnalyticsService);
   private readonly projectService = inject(ProjectService);
+  private readonly workspaceService = inject(WorkspaceService);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
 
   activeView: AnalyticsView = 'overview';
   assistantQuestion = '';
   toast = '';
   isLoading = true;
+  isDateMenuOpen = false;
+  isFilterOpen = false;
   performance: TeamPerformance | null = null;
   animatedPerformance: TeamPerformance | null = null;
   insights: AnalyticsInsight[] = [];
+  workspaces: Workspace[] = [];
   projects: Project[] = [];
+  selectedWorkspaceId = '';
   selectedProjectId = '';
   selectedStats: ProjectStats | null = null;
+  selectedPreset = 'last30';
+  dateFrom = '';
+  dateTo = '';
 
   readonly navItems: { key: AnalyticsView; label: string; icon: string }[] = [
     { key: 'overview', label: 'Overview', icon: '⌂' },
@@ -72,6 +85,12 @@ export default class AnalyticsComponent implements OnInit {
     { key: 'workload', label: 'Workload', icon: '◇' },
     { key: 'flow', label: 'Flow Metrics', icon: '○' },
     { key: 'reports', label: 'Reports', icon: '▣' },
+  ];
+  readonly datePresets = [
+    { key: 'last7', label: 'Last 7 days' },
+    { key: 'last30', label: 'Last 30 days' },
+    { key: 'thisMonth', label: 'This month' },
+    { key: 'next30', label: 'Next 30 days' },
   ];
 
   sprintChartData: ChartConfiguration<'line'>['data'] = { labels: [], datasets: [] };
@@ -85,25 +104,39 @@ export default class AnalyticsComponent implements OnInit {
   };
 
   ngOnInit(): void {
+    this.restoreFiltersFromUrl();
     this.load();
   }
 
   load(): void {
     this.isLoading = true;
+    const filters = this.analyticsFilters();
+    this.syncFiltersToUrl(filters);
     forkJoin({
-      performance: this.analyticsService.getTeamPerformance().pipe(catchError(() => of(null))),
-      insights: this.analyticsService.getInsights().pipe(catchError(() => of([]))),
-      projects: this.projectService.search().pipe(catchError(() => of([]))),
+      performance: this.analyticsService.getTeamPerformance(filters).pipe(catchError(() => of(null))),
+      insights: this.analyticsService.getInsights(filters).pipe(catchError(() => of([]))),
+      workspaces: this.workspaceService.getAll().pipe(catchError(() => of([]))),
+      projects: this.projectService.search({
+        workspaceId: this.selectedWorkspaceId || undefined,
+        sort: 'recent',
+      }).pipe(catchError(() => of([]))),
     })
       .pipe(
-        switchMap(({ performance, insights, projects }) => {
+        switchMap(({ performance, insights, workspaces, projects }) => {
           this.performance = performance;
           if (performance) this.animatePerformance(performance);
           this.insights = insights;
+          this.workspaces = workspaces;
           this.projects = projects;
-          this.selectedProjectId = projects[0]?.id || '';
+          if (this.selectedProjectId && !projects.some((project) => project.id === this.selectedProjectId)) {
+            this.selectedProjectId = '';
+          }
+          if (!this.selectedProjectId) this.selectedProjectId = projects[0]?.id || '';
           if (!this.selectedProjectId) return of(null);
-          return this.analyticsService.getStats(this.selectedProjectId).pipe(catchError(() => of(null)));
+          return this.analyticsService.getStats(this.selectedProjectId, {
+            from: this.dateFrom || undefined,
+            to: this.dateTo || undefined,
+          }).pipe(catchError(() => of(null)));
         }),
       )
       .subscribe((stats) => {
@@ -115,10 +148,46 @@ export default class AnalyticsComponent implements OnInit {
 
   selectProject(projectId: string): void {
     this.selectedProjectId = projectId;
-    this.analyticsService.getStats(projectId).subscribe((stats) => {
-      this.selectedStats = stats;
-      this.configureCharts();
-    });
+    this.load();
+  }
+
+  applyDatePreset(preset: string): void {
+    this.selectedPreset = preset;
+    this.setPresetDates(preset);
+    this.isDateMenuOpen = false;
+    this.load();
+  }
+
+  onWorkspaceChange(): void {
+    this.selectedProjectId = '';
+    this.load();
+  }
+
+  clearFilters(): void {
+    this.selectedWorkspaceId = '';
+    this.selectedProjectId = '';
+    this.load();
+  }
+
+  async shareAnalytics(): Promise<void> {
+    const shareUrl = this.buildShareUrl(this.analyticsFilters());
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      this.showToast('Share link copied');
+    } catch {
+      this.showToast(shareUrl);
+    }
+  }
+
+  get dateRangeLabel(): string {
+    const preset = this.datePresets.find((item) => item.key === this.selectedPreset);
+    if (this.selectedPreset !== 'custom' && preset) return preset.label;
+    if (this.dateFrom && this.dateTo) return `${this.dateFrom} to ${this.dateTo}`;
+    return 'Select date range';
+  }
+
+  get activeFilterCount(): number {
+    return [this.selectedWorkspaceId, this.selectedProjectId].filter(Boolean).length;
   }
 
   configureCharts(): void {
@@ -191,8 +260,7 @@ export default class AnalyticsComponent implements OnInit {
   }
 
   sendAssistant(): void {
-    this.toast = 'Coming soon';
-    window.setTimeout(() => (this.toast = ''), 1800);
+    this.showToast('Coming soon');
   }
 
   animatePerformance(target: TeamPerformance): void {
@@ -265,5 +333,71 @@ export default class AnalyticsComponent implements OnInit {
         },
       },
     };
+  }
+
+  private analyticsFilters(): AnalyticsFilters {
+    return {
+      from: this.dateFrom || undefined,
+      to: this.dateTo || undefined,
+      workspaceId: this.selectedWorkspaceId || undefined,
+      projectId: this.selectedProjectId || undefined,
+    };
+  }
+
+  private restoreFiltersFromUrl(): void {
+    const params = this.route.snapshot.queryParamMap;
+    this.selectedWorkspaceId = params.get('workspaceId') || '';
+    this.selectedProjectId = params.get('projectId') || '';
+    this.dateFrom = params.get('from') || '';
+    this.dateTo = params.get('to') || '';
+    if (this.dateFrom || this.dateTo) {
+      this.selectedPreset = 'custom';
+    } else {
+      this.setPresetDates(this.selectedPreset);
+    }
+  }
+
+  private setPresetDates(preset: string): void {
+    const today = new Date();
+    let from = new Date(today);
+    let to = new Date(today);
+    if (preset === 'last7') {
+      from.setDate(today.getDate() - 6);
+    } else if (preset === 'thisMonth') {
+      from = new Date(today.getFullYear(), today.getMonth(), 1);
+      to = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    } else if (preset === 'next30') {
+      to.setDate(today.getDate() + 30);
+    } else {
+      from.setDate(today.getDate() - 29);
+    }
+    this.dateFrom = this.formatDate(from);
+    this.dateTo = this.formatDate(to);
+  }
+
+  private syncFiltersToUrl(filters: AnalyticsFilters): void {
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: filters,
+      replaceUrl: true,
+    });
+  }
+
+  private buildShareUrl(filters: AnalyticsFilters): string {
+    const url = new URL(window.location.href);
+    ['from', 'to', 'workspaceId', 'projectId'].forEach((key) => url.searchParams.delete(key));
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value) url.searchParams.set(key, value);
+    });
+    return url.toString();
+  }
+
+  private formatDate(date: Date): string {
+    return date.toISOString().slice(0, 10);
+  }
+
+  private showToast(message: string): void {
+    this.toast = message;
+    window.setTimeout(() => (this.toast = ''), 1800);
   }
 }

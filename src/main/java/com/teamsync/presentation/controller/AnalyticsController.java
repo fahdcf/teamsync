@@ -4,9 +4,11 @@ import com.teamsync.service.AnalyticsService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -25,8 +27,10 @@ public class AnalyticsController {
     @Operation(summary = "Get project statistics (total tasks, by status, by priority, overdue, completion %)")
     @ApiResponse(responseCode = "200", description = "Stats returned")
     @GetMapping("/projects/{id}/stats")
-    public Map<String, Object> getStats(@PathVariable UUID id) {
-        return analyticsService.getProjectStats(id);
+    public Map<String, Object> getStats(@PathVariable UUID id,
+                                        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+                                        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return analyticsService.getProjectStats(id, from, to);
     }
 
     @Operation(summary = "Get per-member active and completed task counts for a project")
@@ -46,14 +50,22 @@ public class AnalyticsController {
     @Operation(summary = "Get workspace-level team performance analytics for the current user")
     @ApiResponse(responseCode = "200", description = "Team performance analytics returned")
     @GetMapping("/team/performance")
-    public Map<String, Object> getTeamPerformance(Authentication auth) {
-        return analyticsService.getTeamPerformance(auth.getName());
+    public Map<String, Object> getTeamPerformance(Authentication auth,
+                                                  @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+                                                  @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+                                                  @RequestParam(required = false) UUID workspaceId,
+                                                  @RequestParam(required = false) UUID projectId) {
+        return analyticsService.getTeamPerformance(auth.getName(), from, to, workspaceId, projectId);
     }
 
     @Operation(summary = "Get rule-based analytics insights for the current user's workspaces")
     @ApiResponse(responseCode = "200", description = "Insight cards returned")
     @GetMapping("/insights")
-    public List<Map<String, Object>> getInsights(Authentication auth) {
-        return analyticsService.getInsights(auth.getName());
+    public List<Map<String, Object>> getInsights(Authentication auth,
+                                                @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+                                                @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+                                                @RequestParam(required = false) UUID workspaceId,
+                                                @RequestParam(required = false) UUID projectId) {
+        return analyticsService.getInsights(auth.getName(), from, to, workspaceId, projectId);
     }
 }

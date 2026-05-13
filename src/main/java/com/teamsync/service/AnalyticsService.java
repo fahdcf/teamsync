@@ -41,8 +41,12 @@ public class AnalyticsService {
     }
 
     public Map<String, Object> getProjectStats(UUID projectId) {
+        return getProjectStats(projectId, null, null);
+    }
+
+    public Map<String, Object> getProjectStats(UUID projectId, LocalDate from, LocalDate to) {
         Project project = projectService.getProject(projectId);
-        List<Task> tasks = taskRepository.findByProject(project);
+        List<Task> tasks = filterTasksByDateRange(taskRepository.findByProject(project), from, to);
 
         long total = tasks.size();
         Map<String, Long> byStatus = tasks.stream()
@@ -68,7 +72,7 @@ public class AnalyticsService {
         result.put("workloadBalance", calculateWorkloadBalance(tasks, project.getWorkspace()));
         result.put("projectsHealth", calculateProjectsHealth(project.getWorkspace()));
         result.put("sprintVelocityHistory", buildSprintVelocityHistory(tasks));
-        result.put("workloadDistribution", buildWorkloadDistribution(project.getWorkspace()));
+        result.put("workloadDistribution", buildWorkloadDistribution(project.getWorkspace(), from, to));
         return result;
     }
 
@@ -126,8 +130,13 @@ public class AnalyticsService {
     }
 
     public Map<String, Object> getTeamPerformance(String userEmail) {
-        List<Project> projects = getProjectsForUser(userEmail);
-        List<Task> tasks = getTasksForProjects(projects);
+        return getTeamPerformance(userEmail, null, null, null, null);
+    }
+
+    public Map<String, Object> getTeamPerformance(String userEmail, LocalDate from, LocalDate to,
+                                                  UUID workspaceId, UUID projectId) {
+        List<Project> projects = filterProjects(getProjectsForUser(userEmail), workspaceId, projectId);
+        List<Task> tasks = filterTasksByDateRange(getTasksForProjects(projects), from, to);
 
         long total = tasks.size();
         long done = tasks.stream().filter(t -> t.getStatus() == TaskStatus.DONE).count();
@@ -152,15 +161,20 @@ public class AnalyticsService {
     }
 
     public List<Map<String, Object>> getInsights(String userEmail) {
-        List<Project> projects = getProjectsForUser(userEmail);
-        List<Task> tasks = getTasksForProjects(projects);
+        return getInsights(userEmail, null, null, null, null);
+    }
+
+    public List<Map<String, Object>> getInsights(String userEmail, LocalDate from, LocalDate to,
+                                                 UUID workspaceId, UUID projectId) {
+        List<Project> projects = filterProjects(getProjectsForUser(userEmail), workspaceId, projectId);
+        List<Task> tasks = filterTasksByDateRange(getTasksForProjects(projects), from, to);
         Map<User, Long> riskyMembers = tasks.stream()
                 .filter(this::isBlockedOrOverdue)
                 .filter(t -> t.getAssignee() != null)
                 .collect(Collectors.groupingBy(Task::getAssignee, Collectors.counting()));
         long burnoutRiskCount = riskyMembers.values().stream().filter(count -> count > 5).count();
 
-        String workspaceId = projects.stream()
+        String firstWorkspaceId = projects.stream()
                 .map(Project::getWorkspace)
                 .filter(Objects::nonNull)
                 .map(w -> w.getId().toString())
@@ -171,7 +185,7 @@ public class AnalyticsService {
         if (burnoutRiskCount > 0) {
             insights.add(insight("warning", "Burnout Risk Detected",
                     burnoutRiskCount + " team members show signs of burnout risk. Review workload distribution and consider redistributing tasks.",
-                    "View affected members", "/workspaces/" + workspaceId + "/members"));
+                    "View affected members", "/workspaces/" + firstWorkspaceId + "/members"));
         } else {
             insights.add(insight("success", "Workload Looks Healthy",
                     "No team members currently exceed the blocked or overdue task risk threshold.",
@@ -205,6 +219,38 @@ public class AnalyticsService {
         return projects.stream()
                 .flatMap(project -> taskRepository.findByProject(project).stream())
                 .toList();
+    }
+
+    private List<Project> filterProjects(List<Project> projects, UUID workspaceId, UUID projectId) {
+        return projects.stream()
+                .filter(project -> workspaceId == null
+                        || (project.getWorkspace() != null && project.getWorkspace().getId().equals(workspaceId)))
+                .filter(project -> projectId == null || project.getId().equals(projectId))
+                .toList();
+    }
+
+    private List<Task> filterTasksByDateRange(List<Task> tasks, LocalDate from, LocalDate to) {
+        if (from == null && to == null) {
+            return tasks;
+        }
+        return tasks.stream()
+                .filter(task -> {
+                    LocalDate date = analyticsDate(task);
+                    return date != null
+                            && (from == null || !date.isBefore(from))
+                            && (to == null || !date.isAfter(to));
+                })
+                .toList();
+    }
+
+    private LocalDate analyticsDate(Task task) {
+        if (task.getDueDate() != null) {
+            return task.getDueDate();
+        }
+        if (task.getUpdatedAt() != null) {
+            return task.getUpdatedAt().toLocalDate();
+        }
+        return task.getCreatedAt() != null ? task.getCreatedAt().toLocalDate() : null;
     }
 
     private double calculateTeamVelocity(List<Task> tasks) {
@@ -266,9 +312,14 @@ public class AnalyticsService {
     }
 
     private List<Map<String, Object>> buildWorkloadDistribution(Workspace workspace) {
+        return buildWorkloadDistribution(workspace, null, null);
+    }
+
+    private List<Map<String, Object>> buildWorkloadDistribution(Workspace workspace, LocalDate from, LocalDate to) {
         List<Project> projects = projectRepository.findByWorkspace(workspace);
         Map<Project, Long> counts = projects.stream()
-                .collect(Collectors.toMap(project -> project, project -> (long) taskRepository.findByProject(project).size(),
+                .collect(Collectors.toMap(project -> project,
+                        project -> (long) filterTasksByDateRange(taskRepository.findByProject(project), from, to).size(),
                         (left, right) -> left, LinkedHashMap::new));
         long total = counts.values().stream().mapToLong(Long::longValue).sum();
         return counts.entrySet().stream().map(entry -> {

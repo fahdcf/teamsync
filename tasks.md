@@ -232,7 +232,7 @@ Excluded by request:
 
 ## Analytics Page
 
-- [ ] Task UI-AUDIT-100: Make analytics date range, share, and filter buttons real.
+- [x] Task UI-AUDIT-100: Make analytics date range, share, and filter buttons real.
   Frontend: wire header date range, Share, and Filter controls to actual UI/actions.
   Backend: analytics endpoints should accept date range and filter query parameters; share may require a report/share-link endpoint if links are persisted.
 
