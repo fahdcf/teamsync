@@ -1,6 +1,6 @@
 package com.teamsync.presentation.controller;
 
-import com.teamsync.presentation.dto.UpdateUsernameRequestDTO;
+import com.teamsync.presentation.dto.UpdateProfileRequestDTO;
 import com.teamsync.presentation.dto.UserResponseDTO;
 import com.teamsync.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -35,15 +35,15 @@ public class UserController {
         return userService.getCurrentUser(auth.getName());
     }
 
-    @Operation(summary = "Update current user's username")
+    @Operation(summary = "Update current user's profile")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Username updated"),
         @ApiResponse(responseCode = "400", description = "Username already taken or blank")
     })
     @PutMapping("/me")
-    public UserResponseDTO updateUsername(@Valid @RequestBody UpdateUsernameRequestDTO request,
+    public UserResponseDTO updateProfile(@Valid @RequestBody UpdateProfileRequestDTO request,
                                           Authentication auth) {
-        return userService.updateUsername(auth.getName(), request.getUsername());
+        return userService.updateProfile(auth.getName(), request);
     }
 
     @Operation(summary = "List all users (ADMIN only)")

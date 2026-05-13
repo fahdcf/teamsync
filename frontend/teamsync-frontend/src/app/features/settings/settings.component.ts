@@ -1,14 +1,16 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { AuthStore } from '../../store/auth.store';
+import { AuthService } from '../../api/auth.service';
 import { WorkspaceService } from '../../api/workspace.service';
-import { User } from '../../shared/models/user.model';
+import { User, UserRole } from '../../shared/models/user.model';
 import { Workspace } from '../../shared/models/workspace.model';
 
 @Component({
   selector: 'app-settings',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   template: `
     <div class="settings-page">
       <section class="settings-hero">
@@ -33,8 +35,16 @@ import { Workspace } from '../../shared/models/workspace.model';
         <section class="profile-panel">
           <div class="profile-left">
             <div class="profile-orb">
-              <span>{{ initials }}</span>
-              <button type="button" aria-label="Edit avatar">/</button>
+              <img *ngIf="profileForm.avatarUrl" [src]="profileForm.avatarUrl" alt="Profile avatar">
+              <span *ngIf="!profileForm.avatarUrl">{{ initials }}</span>
+              <button type="button" (click)="startEditing('avatar')" aria-label="Edit avatar">/</button>
+            </div>
+            <div class="avatar-editor" *ngIf="editingField === 'avatar'">
+              <input [(ngModel)]="profileForm.avatarUrl" placeholder="Avatar image URL">
+              <div>
+                <button type="button" (click)="saveProfile()">Save</button>
+                <button type="button" (click)="cancelEditing()">Cancel</button>
+              </div>
             </div>
 
             <div class="completion-block">
@@ -51,24 +61,30 @@ import { Workspace } from '../../shared/models/workspace.model';
             <label class="profile-field">
               <span>Username</span>
               <div class="field-shell">
-                <input readonly [value]="user?.username || '-'" />
-                <button type="button" aria-label="Edit username">/</button>
+                <input [readonly]="editingField !== 'username'" [(ngModel)]="profileForm.username" />
+                <button type="button" (click)="editingField === 'username' ? saveProfile() : startEditing('username')" [attr.aria-label]="editingField === 'username' ? 'Save username' : 'Edit username'">{{ editingField === 'username' ? 'Save' : '/' }}</button>
+                <button *ngIf="editingField === 'username'" type="button" (click)="cancelEditing()">Cancel</button>
               </div>
             </label>
 
             <label class="profile-field">
               <span>Email</span>
               <div class="field-shell">
-                <input readonly [value]="user?.email || '-'" />
-                <button type="button" aria-label="Edit email">/</button>
+                <input [readonly]="editingField !== 'email'" [(ngModel)]="profileForm.email" />
+                <button type="button" (click)="editingField === 'email' ? saveProfile() : startEditing('email')" [attr.aria-label]="editingField === 'email' ? 'Save email' : 'Edit email'">{{ editingField === 'email' ? 'Save' : '/' }}</button>
+                <button *ngIf="editingField === 'email'" type="button" (click)="cancelEditing()">Cancel</button>
               </div>
             </label>
 
             <label class="profile-field">
               <span>Role</span>
               <div class="field-shell select-shell">
-                <input readonly [value]="roleLabel" />
-                <button type="button" aria-label="Edit role">/</button>
+                <input *ngIf="editingField !== 'role'" readonly [value]="roleLabel" />
+                <select *ngIf="editingField === 'role'" [(ngModel)]="profileForm.role">
+                  <option *ngFor="let role of roleOptions" [value]="role">{{ roleLabelFor(role) }}</option>
+                </select>
+                <button type="button" (click)="editingField === 'role' ? saveProfile() : startEditing('role')" [attr.aria-label]="editingField === 'role' ? 'Save role' : 'Edit role'">{{ editingField === 'role' ? 'Save' : '/' }}</button>
+                <button *ngIf="editingField === 'role'" type="button" (click)="cancelEditing()">Cancel</button>
               </div>
             </label>
 
@@ -81,7 +97,7 @@ import { Workspace } from '../../shared/models/workspace.model';
 
             <div class="profile-hint">
               <span class="hint-icon">o</span>
-              <p>This is how your teammates see you across TeamSync.<br />Keep your profile up to date.</p>
+              <p>{{ profileMessage || 'This is how your teammates see you across TeamSync.' }}<br />Keep your profile up to date.</p>
             </div>
           </div>
         </section>
@@ -278,6 +294,13 @@ import { Workspace } from '../../shared/models/workspace.model';
       color: #fff;
     }
 
+    .profile-orb img {
+      width: 100%;
+      height: 100%;
+      border-radius: inherit;
+      object-fit: cover;
+    }
+
     .profile-orb button {
       position: absolute;
       right: 6px;
@@ -289,6 +312,39 @@ import { Workspace } from '../../shared/models/workspace.model';
       background: var(--bg-elevated);
       color: var(--accent);
       font-weight: 700;
+    }
+
+    .avatar-editor {
+      width: 100%;
+      display: grid;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .avatar-editor input,
+    .field-shell select {
+      min-width: 0;
+      height: 40px;
+      padding: 0 16px;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      background: rgba(255,255,255,0.025);
+      color: var(--text-primary);
+      outline: none;
+    }
+
+    .avatar-editor div {
+      display: flex;
+      gap: 8px;
+    }
+
+    .avatar-editor button {
+      height: 34px;
+      padding: 0 12px;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      background: var(--bg-elevated);
+      color: var(--text-primary);
     }
 
     .completion-block {
@@ -348,7 +404,7 @@ import { Workspace } from '../../shared/models/workspace.model';
 
     .field-shell {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) 44px;
+      grid-template-columns: minmax(0, 1fr) auto auto;
       gap: 10px;
     }
 
@@ -365,8 +421,9 @@ import { Workspace } from '../../shared/models/workspace.model';
     }
 
     .field-shell button {
-      width: 44px;
+      min-width: 44px;
       height: 40px;
+      padding: 0 12px;
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-md);
       background: rgba(255,255,255,0.025);
@@ -605,11 +662,20 @@ import { Workspace } from '../../shared/models/workspace.model';
 })
 export default class SettingsComponent implements OnInit {
   private readonly authStore = inject(AuthStore);
+  private readonly authService = inject(AuthService);
   private readonly workspaceService = inject(WorkspaceService);
 
   user: User | null = null;
   workspaces: Workspace[] = [];
   activeTab = 'profile';
+  editingField: 'username' | 'email' | 'role' | 'avatar' | null = null;
+  profileMessage = '';
+  profileForm: { username: string; email: string; role: UserRole; avatarUrl: string } = {
+    username: '',
+    email: '',
+    role: 'TEAM_MEMBER',
+    avatarUrl: '',
+  };
 
   readonly tabs = [
     { id: 'profile', label: 'Profile', icon: 'o' },
@@ -617,6 +683,7 @@ export default class SettingsComponent implements OnInit {
     { id: 'appearance', label: 'Appearance', icon: '*' },
     { id: 'security', label: 'Security', icon: '#' },
   ];
+  readonly roleOptions: UserRole[] = ['ADMIN', 'PROJECT_MANAGER', 'TEAM_MEMBER'];
 
   readonly recentActivity = [
     { label: 'Profile updated', time: 'Just now' },
@@ -625,7 +692,10 @@ export default class SettingsComponent implements OnInit {
   ];
 
   ngOnInit(): void {
-    this.authStore.user$.subscribe((u) => (this.user = u));
+    this.authStore.user$.subscribe((u) => {
+      this.user = u;
+      this.resetProfileForm();
+    });
     this.workspaceService.getAll().subscribe({
       next: (workspaces) => (this.workspaces = workspaces),
       error: () => (this.workspaces = []),
@@ -637,8 +707,7 @@ export default class SettingsComponent implements OnInit {
   }
 
   get roleLabel(): string {
-    const map: Record<string, string> = { ADMIN: 'Administrator', PROJECT_MANAGER: 'Project Manager', TEAM_MEMBER: 'Team Member' };
-    return map[this.user?.role ?? ''] ?? this.user?.role ?? '-';
+    return this.roleLabelFor(this.user?.role);
   }
 
   get memberSince(): string {
@@ -656,5 +725,50 @@ export default class SettingsComponent implements OnInit {
 
   firstLetter(value: string): string {
     return (value || 'W').charAt(0).toUpperCase();
+  }
+
+  roleLabelFor(role?: string): string {
+    const map: Record<string, string> = { ADMIN: 'Administrator', PROJECT_MANAGER: 'Project Manager', TEAM_MEMBER: 'Team Member' };
+    return map[role ?? ''] ?? role ?? '-';
+  }
+
+  startEditing(field: 'username' | 'email' | 'role' | 'avatar'): void {
+    this.editingField = field;
+    this.profileMessage = field === 'role' ? 'Role changes can only move to the same or lower privilege.' : '';
+  }
+
+  cancelEditing(): void {
+    this.editingField = null;
+    this.profileMessage = '';
+    this.resetProfileForm();
+  }
+
+  saveProfile(): void {
+    this.authService.updateMe({
+      username: this.profileForm.username,
+      email: this.profileForm.email,
+      role: this.profileForm.role,
+      avatarUrl: this.profileForm.avatarUrl || null,
+    }).subscribe({
+      next: (user) => {
+        this.authStore.setUser(user);
+        this.user = user;
+        this.editingField = null;
+        this.profileMessage = 'Profile updated successfully.';
+      },
+      error: () => {
+        this.profileMessage = 'Could not update profile. Check the value and try again.';
+      },
+    });
+  }
+
+  private resetProfileForm(): void {
+    if (!this.user) return;
+    this.profileForm = {
+      username: this.user.username || '',
+      email: this.user.email || '',
+      role: this.user.role,
+      avatarUrl: this.user.avatarUrl || '',
+    };
   }
 }

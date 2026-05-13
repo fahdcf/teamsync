@@ -250,7 +250,7 @@ Excluded by request:
 
 ## Settings Page
 
-- [ ] Task UI-AUDIT-110: Make profile fields editable.
+- [x] Task UI-AUDIT-110: Make profile fields editable.
   Frontend: edit buttons for username, email, role, and avatar are currently visual; implement editable states and save/cancel behavior.
   Backend: `PUT /users/me` currently updates username only; add email update, avatar upload/profile image, and role-change rules if role editing is allowed.
 

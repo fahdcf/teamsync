@@ -1,21 +1,20 @@
 package com.teamsync.presentation.dto;
 
 import com.teamsync.domain.enums.Role;
+import jakarta.validation.constraints.Email;
 import lombok.*;
-
-import java.time.LocalDateTime;
-import java.util.UUID;
 
 @Getter
 @Setter
-@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class UserResponseDTO {
-    private UUID id;
+public class UpdateProfileRequestDTO {
     private String username;
+
+    @Email
     private String email;
-    private String avatarUrl;
+
     private Role role;
-    private LocalDateTime createdAt;
+
+    private String avatarUrl;
 }
