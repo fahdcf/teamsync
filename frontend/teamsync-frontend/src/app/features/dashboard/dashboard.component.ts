@@ -4,7 +4,7 @@ import { Router } from '@angular/router';
 import { forkJoin, of, switchMap } from 'rxjs';
 import { AuthStore } from '../../store/auth.store';
 import { ActivityService } from '../../api/activity.service';
-import { DashboardDateRange, DashboardDeadline, DashboardProjectOverview, DashboardService, DashboardStats } from '../../api/dashboard.service';
+import { DashboardChartSeries, DashboardDateRange, DashboardDeadline, DashboardProjectOverview, DashboardService, DashboardStats } from '../../api/dashboard.service';
 import { ProjectService } from '../../api/project.service';
 import { TaskService } from '../../api/task.service';
 import { WorkspaceService } from '../../api/workspace.service';
@@ -62,7 +62,7 @@ import { Workspace } from '../../shared/models/workspace.model';
           <strong>{{ animatedStats.teamVelocity }}</strong>
           <span class="trend" [class.down]="(stats?.trendVelocity || 0) < 0">{{ trendText(stats?.trendVelocity) }} from last week</span>
           <svg class="barline" viewBox="0 0 180 48">
-            <rect *ngFor="let bar of bars; let i = index" [attr.x]="i * 22 + 8" [attr.y]="48 - bar" width="8" [attr.height]="bar"></rect>
+            <rect *ngFor="let bar of velocityBars; let i = index" [attr.x]="i * 22 + 8" [attr.y]="48 - bar" width="8" [attr.height]="bar"></rect>
           </svg>
         </article>
 
@@ -128,8 +128,8 @@ import { Workspace } from '../../shared/models/workspace.model';
             <span>Progress Overview</span>
             <strong>{{ animatedStats.completionRate }}%</strong>
             <small>{{ trendText(stats?.trendCompletion) }} from last week</small>
-            <svg viewBox="0 0 220 80" preserveAspectRatio="none"><path d="M0 64 C22 58 34 42 55 45 C80 49 85 30 110 34 C132 38 144 24 165 28 C190 30 196 12 220 10"></path></svg>
-            <div class="days"><span *ngFor="let day of days">{{ day }}</span></div>
+            <svg viewBox="0 0 220 80" preserveAspectRatio="none"><path [attr.d]="seriesPath(chartSeries.completionSeries, 220, 80)"></path></svg>
+            <div class="days"><span *ngFor="let day of chartSeries.dayLabels">{{ day }}</span></div>
           </article>
           <article class="dash-card priority-card">
             <span>Tasks by Priority</span>
@@ -151,15 +151,15 @@ import { Workspace } from '../../shared/models/workspace.model';
             <span>Team Workload</span>
             <strong>Balanced</strong>
             <small>No issues detected</small>
-            <div class="mini-bars"><i *ngFor="let bar of bars" [style.height.px]="bar"></i></div>
+            <div class="mini-bars"><i *ngFor="let bar of workloadBars" [style.height.px]="bar"></i></div>
             <div class="member-avatars"><span *ngFor="let member of teamMembers">{{ initials(member) }}</span></div>
           </article>
           <article class="dash-card analytic-card">
             <span>Time Tracked</span>
             <strong>{{ timeTracked }}h</strong>
             <small>↑ 16% from last week</small>
-            <svg viewBox="0 0 220 80" preserveAspectRatio="none"><path d="M0 58 C20 30 34 66 56 45 C76 24 90 34 112 38 C140 42 140 18 164 20 C188 23 196 4 220 8"></path></svg>
-            <div class="days"><span *ngFor="let day of days">{{ day }}</span></div>
+            <svg viewBox="0 0 220 80" preserveAspectRatio="none"><path [attr.d]="seriesPath(chartSeries.timeTrackedSeries, 220, 80)"></path></svg>
+            <div class="days"><span *ngFor="let day of chartSeries.dayLabels">{{ day }}</span></div>
           </article>
         </div>
       </section>
@@ -257,9 +257,13 @@ export default class DashboardComponent implements OnInit {
   selectedProjectId = '';
   dashboardCalendarDate = new Date();
 
-  readonly bars = [20, 34, 28, 40, 18, 36, 25, 31];
-  readonly days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
   readonly calendarWeekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  chartSeries: DashboardChartSeries = {
+    dayLabels: [],
+    completionSeries: [],
+    timeTrackedSeries: [],
+    workloadSeries: [],
+  };
   readonly rangeOptions = [
     { key: 'week', label: 'This week' },
     { key: 'month', label: 'This month' },
@@ -300,6 +304,18 @@ export default class DashboardComponent implements OnInit {
 
   get firstTaskTitle(): string {
     return this.tasks.find((task) => task.status === 'IN_PROGRESS')?.title || 'current priorities';
+  }
+
+  get workloadBars(): number[] {
+    const values = this.chartSeries.workloadSeries.length ? this.chartSeries.workloadSeries : [0];
+    const max = Math.max(1, ...values);
+    return values.map((value) => Math.max(8, Math.round((value / max) * 42)));
+  }
+
+  get velocityBars(): number[] {
+    const values = this.chartSeries.completionSeries.length ? this.chartSeries.completionSeries : [0];
+    const max = Math.max(1, ...values);
+    return values.map((value) => Math.max(8, Math.round((value / max) * 40)));
   }
 
   get dashboardMonthLabel(): string {
@@ -359,6 +375,7 @@ export default class DashboardComponent implements OnInit {
       overview: this.dashboardService.getProjectsOverview(),
       workspaces: this.workspaceService.getAll(),
       activity: this.activityService.getMyActivity(),
+      chartSeries: this.dashboardService.getChartSeries(range),
     })
       .pipe(
         switchMap((data) => {
@@ -368,6 +385,7 @@ export default class DashboardComponent implements OnInit {
           this.overviewProjects = data.overview;
           this.workspaces = data.workspaces;
           this.recentActivity = data.activity;
+          this.chartSeries = data.chartSeries;
           const workspaceId = data.workspaces[0]?.id;
           if (!workspaceId) return of([] as Project[]);
           return this.projectService.getByWorkspace(workspaceId);
@@ -514,6 +532,26 @@ export default class DashboardComponent implements OnInit {
 
   priorityCount(priority: Task['priority']): number {
     return this.tasks.filter((task) => task.priority === priority).length;
+  }
+
+  seriesPath(series: number[], width: number, height: number): string {
+    const values = series.length ? series : [0];
+    if (values.length === 1) {
+      const y = height - this.normalizedY(values[0], values, height);
+      return `M0 ${y} L${width} ${y}`;
+    }
+    return values
+      .map((value, index) => {
+        const x = (index / (values.length - 1)) * width;
+        const y = height - this.normalizedY(value, values, height);
+        return `${index === 0 ? 'M' : 'L'}${x} ${y}`;
+      })
+      .join(' ');
+  }
+
+  private normalizedY(value: number, values: number[], height: number): number {
+    const max = Math.max(1, ...values);
+    return 8 + (value / max) * (height - 16);
   }
 
   initials(user: User | null): string {

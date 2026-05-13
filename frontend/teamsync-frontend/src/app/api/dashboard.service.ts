@@ -40,6 +40,13 @@ export interface DashboardDateRange {
   to: string;
 }
 
+export interface DashboardChartSeries {
+  dayLabels: string[];
+  completionSeries: number[];
+  timeTrackedSeries: number[];
+  workloadSeries: number[];
+}
+
 @Injectable({ providedIn: 'root' })
 export class DashboardService {
   private readonly http = inject(HttpClient);
@@ -55,6 +62,10 @@ export class DashboardService {
 
   getProjectsOverview(): Observable<DashboardProjectOverview[]> {
     return this.http.get<DashboardProjectOverview[]>(`${this.base}/dashboard/projects-overview`);
+  }
+
+  getChartSeries(range?: DashboardDateRange): Observable<DashboardChartSeries> {
+    return this.http.get<DashboardChartSeries>(`${this.base}/dashboard/chart-series`, { params: this.rangeParams(range) });
   }
 
   private rangeParams(range?: DashboardDateRange): HttpParams {

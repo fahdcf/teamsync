@@ -42,7 +42,7 @@ Excluded by request:
   Frontend: wire the `This week` analytics selector to a real selected date range and refresh stats/charts when changed.
   Backend: extend dashboard/analytics endpoints with `from` and `to` query parameters so trends and cards are calculated for the chosen range.
 
-- [ ] Task UI-AUDIT-012: Replace dashboard static chart shapes with real chart series.
+- [x] Task UI-AUDIT-012: Replace dashboard static chart shapes with real chart series.
   Frontend: drive Progress Overview, Time Tracked, Team Workload mini bars, and day labels from API data instead of fixed SVG paths and fixed bar arrays.
   Backend: add dashboard chart-series endpoints or extend `GET /dashboard/stats` with daily completion, time tracking, and workload series.
 

@@ -50,4 +50,13 @@ public class DashboardController {
     public List<Map<String, Object>> getProjectsOverview(Authentication auth) {
         return dashboardService.getProjectsOverview(auth.getName());
     }
+
+    @Operation(summary = "Get dashboard chart series for the authenticated user")
+    @ApiResponse(responseCode = "200", description = "Dashboard chart series returned")
+    @GetMapping("/chart-series")
+    public Map<String, Object> getChartSeries(Authentication auth,
+                                              @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+                                              @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return dashboardService.getChartSeries(auth.getName(), from, to);
+    }
 }

@@ -14,6 +14,7 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
@@ -139,6 +140,51 @@ public class DashboardService {
                 .toList();
     }
 
+    public Map<String, Object> getChartSeries(String userEmail, LocalDate fromDate, LocalDate toDate) {
+        User currentUser = userService.findByEmail(userEmail);
+        Set<Project> userProjects = getUserProjects(currentUser);
+        DateRange range = normalizeRange(fromDate, toDate);
+        long totalDays = ChronoUnit.DAYS.between(range.from(), range.to()) + 1;
+        int buckets = (int) Math.min(7, totalDays);
+
+        List<String> dayLabels = new ArrayList<>();
+        List<Long> completionSeries = new ArrayList<>();
+        List<Long> timeTrackedSeries = new ArrayList<>();
+        for (int index = 0; index < buckets; index++) {
+            long startOffset = (index * totalDays) / buckets;
+            long nextOffset = ((index + 1L) * totalDays) / buckets;
+            LocalDate bucketStart = range.from().plusDays(startOffset);
+            LocalDate bucketEnd = range.from().plusDays(nextOffset - 1);
+            DateRange bucketRange = new DateRange(bucketStart, bucketEnd);
+            dayLabels.add(formatBucketLabel(bucketStart, bucketEnd));
+            completionSeries.add(taskRepository.countByAssigneeAndStatusAndUpdatedAtBetween(
+                    currentUser, TaskStatus.DONE, bucketRange.startDateTime(), bucketRange.endDateTime()));
+            timeTrackedSeries.add((long) taskRepository.findByAssigneeAndUpdatedAtBetween(
+                    currentUser, bucketRange.startDateTime(), bucketRange.endDateTime()).size() * 4);
+        }
+
+        List<Integer> workloadSeries = new ArrayList<>();
+        if (!userProjects.isEmpty()) {
+            Map<UUID, Integer> workloadByUser = new LinkedHashMap<>();
+            taskRepository.findByProjectInAndStatusAndUpdatedAtBetween(
+                            userProjects, TaskStatus.IN_PROGRESS, range.startDateTime(), range.endDateTime())
+                    .stream()
+                    .filter(task -> task.getAssignee() != null)
+                    .forEach(task -> workloadByUser.merge(task.getAssignee().getId(), 1, Integer::sum));
+            workloadSeries.addAll(workloadByUser.values());
+        }
+        if (workloadSeries.isEmpty()) {
+            workloadSeries.add(0);
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("dayLabels", dayLabels);
+        result.put("completionSeries", completionSeries);
+        result.put("timeTrackedSeries", timeTrackedSeries);
+        result.put("workloadSeries", workloadSeries);
+        return result;
+    }
+
     private Set<Project> getUserProjects(User user) {
         Set<Workspace> workspaces = new LinkedHashSet<>();
         workspaces.addAll(workspaceRepository.findByOwner(user));
@@ -187,6 +233,14 @@ public class DashboardService {
         LocalDate previousTo = range.from().minusDays(1);
         LocalDate previousFrom = previousTo.minusDays(days - 1);
         return new DateRange(previousFrom, previousTo);
+    }
+
+    private String formatBucketLabel(LocalDate start, LocalDate end) {
+        if (start.equals(end)) {
+            return start.getDayOfWeek().toString().substring(0, 3);
+        }
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("M/d");
+        return start.format(formatter) + "-" + end.format(formatter);
     }
 
     private record ProjectSnapshot(Project project, LocalDateTime updatedAt, long taskCount) {}
