@@ -200,7 +200,7 @@ Excluded by request:
   Frontend: define whether `Create` creates a subtask, related task, or template, then wire it to the correct modal/action.
   Backend: reuse subtask/task/template endpoints depending on the chosen behavior.
 
-- [ ] Task UI-AUDIT-083: Implement assignee picker in task detail.
+- [x] Task UI-AUDIT-083: Implement assignee picker in task detail.
   Frontend: make the assignee field editable, list project/workspace members, and call the assignment service.
   Backend: fix/confirm `PUT /tasks/{id}/assign` contract from UI-AUDIT-061 and ensure only project members can be assigned.
 

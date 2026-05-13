@@ -42,6 +42,7 @@ export default class TaskDetailComponent implements OnInit {
   activity: WorkspaceActivity[] = [];
   projectName = 'Project';
   workspaceId = '';
+  assigneeOptions: User[] = [];
   isLoading = true;
   hasError = false;
   isEditingTitle = false;
@@ -140,8 +141,10 @@ export default class TaskDetailComponent implements OnInit {
       next: (project) => {
         this.projectName = project.title;
         this.workspaceId = project.workspaceId || project.workspace?.id || '';
+        this.setAssigneeOptions(project.manager ? [project.manager] : []);
         if (this.workspaceId) {
           this.loadActivity();
+          this.loadAssigneeOptions(project.manager ? [project.manager] : []);
         }
       },
     });
@@ -201,6 +204,11 @@ export default class TaskDetailComponent implements OnInit {
   onDueDateChange(date: string): void {
     if (!this.task) return;
     this.taskService.update(this.task.id, { dueDate: date }).subscribe({ next: (task) => (this.task = task) });
+  }
+
+  onAssigneeChange(userId: string): void {
+    if (!this.task || !userId || userId === this.task.assignee?.id) return;
+    this.taskService.assign(this.task.id, userId).subscribe({ next: (task) => (this.task = task) });
   }
 
   addSubtask(): void {
@@ -371,5 +379,30 @@ export default class TaskDetailComponent implements OnInit {
       .join('')
       .slice(0, 2)
       .toUpperCase();
+  }
+
+  private loadAssigneeOptions(seedUsers: User[]): void {
+    if (!this.workspaceId) {
+      this.setAssigneeOptions(seedUsers);
+      return;
+    }
+
+    this.workspaceService.getById(this.workspaceId).subscribe({
+      next: (workspace) => {
+        this.setAssigneeOptions([
+          ...seedUsers,
+          ...(workspace.owner ? [workspace.owner] : []),
+          ...(workspace.members || []),
+        ]);
+      },
+      error: () => this.setAssigneeOptions(seedUsers),
+    });
+  }
+
+  private setAssigneeOptions(users: User[]): void {
+    const unique = new Map<string, User>();
+    users.forEach((user) => unique.set(user.id, user));
+    if (this.task?.assignee) unique.set(this.task.assignee.id, this.task.assignee);
+    this.assigneeOptions = [...unique.values()].sort((a, b) => a.username.localeCompare(b.username));
   }
 }

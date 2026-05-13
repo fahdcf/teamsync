@@ -98,10 +98,15 @@
 
         <div class="td-meta-item">
           <label>Assignee</label>
-          <div class="td-assignee-stack">
+          <div class="td-meta-btn">
             <span class="td-av" *ngIf="task.assignee">{{ initials(task.assignee) }}</span>
             <span class="td-av muted" *ngIf="!task.assignee">?</span>
-            <strong>{{ task.assignee?.username || 'Unassigned' }}</strong>
+            {{ task.assignee?.username || 'Unassigned' }}
+            <span class="chevron">v</span>
+            <select [ngModel]="task.assignee?.id || ''" (ngModelChange)="onAssigneeChange($event)">
+              <option value="" disabled>Choose assignee</option>
+              <option *ngFor="let member of assigneeOptions" [value]="member.id">{{ member.username }}</option>
+            </select>
           </div>
         </div>
 
