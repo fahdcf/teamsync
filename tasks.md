@@ -212,7 +212,7 @@ Excluded by request:
   Frontend: the Files tab lists fake files; either remove the tab or implement upload/list/delete/download attachments.
   Backend: add attachment entity and endpoints such as `GET/POST/DELETE /tasks/{id}/attachments` with file storage.
 
-- [ ] Task UI-AUDIT-086: Allow subtask assignee and due date editing.
+- [x] Task UI-AUDIT-086: Allow subtask assignee and due date editing.
   Frontend: subtask rows display assignee/date but creation only accepts title; add fields and edit controls.
   Backend: `SubtaskRequestDTO` appears to support assigneeId/dueDate from the frontend model; verify backend accepts and returns those fields, and add subtask update endpoint if editing after creation is needed.
 

@@ -110,3 +110,38 @@
   margin: 4px 0 0;
   color: var(--text-secondary);
 }
+
+.add-subtask-form {
+  display: grid;
+  grid-template-columns: 1fr minmax(140px, 180px) 140px auto auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.td-subtask-select,
+.td-subtask-date-input {
+  height: 32px;
+  min-width: 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  padding: 0 8px;
+  outline: none;
+}
+
+.td-subtask-action {
+  height: 32px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  padding: 0 10px;
+  cursor: pointer;
+}
+
+@media (max-width: 760px) {
+  .add-subtask-form {
+    grid-template-columns: 1fr;
+  }
+}

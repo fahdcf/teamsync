@@ -47,6 +47,15 @@ public class SubtaskService {
         return toDTO(subtaskRepository.save(subtask));
     }
 
+    public SubtaskResponseDTO updateSubtask(UUID taskId, UUID subtaskId, SubtaskRequestDTO request) {
+        findTask(taskId);
+        Subtask subtask = findSubtaskForTask(taskId, subtaskId);
+        subtask.setTitle(request.getTitle());
+        subtask.setAssignee(resolveUser(request.getAssigneeId()));
+        subtask.setDueDate(request.getDueDate());
+        return toDTO(subtaskRepository.save(subtask));
+    }
+
     public void deleteSubtask(UUID taskId, UUID subtaskId) {
         findTask(taskId);
         Subtask subtask = findSubtaskForTask(taskId, subtaskId);

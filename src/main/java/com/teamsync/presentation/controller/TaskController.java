@@ -226,6 +226,17 @@ public class TaskController {
         return subtaskService.toggleSubtask(id, sid);
     }
 
+    @Operation(summary = "Update a subtask title, assignee, or due date")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Subtask updated"),
+        @ApiResponse(responseCode = "404", description = "Task or subtask not found")
+    })
+    @PutMapping("/tasks/{id}/subtasks/{sid}")
+    public SubtaskResponseDTO updateSubtask(@PathVariable UUID id, @PathVariable UUID sid,
+                                            @Valid @RequestBody SubtaskRequestDTO request) {
+        return subtaskService.updateSubtask(id, sid, request);
+    }
+
     @Operation(summary = "Delete a subtask")
     @ApiResponses({
         @ApiResponse(responseCode = "204", description = "Subtask deleted"),

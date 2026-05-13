@@ -138,15 +138,27 @@
             <span *ngIf="!subtask.completed" class="td-uncheck-icon"></span>
           </button>
           <span class="td-subtask-name">{{ subtask.title }}</span>
-          <span class="td-av-small">{{ initials(subtask.assignee) }}</span>
-          <span class="td-subtask-date">{{ subtask.dueDate ? (subtask.dueDate | date:'MMM d') : 'No date' }}</span>
+          <select class="td-subtask-select" [ngModel]="subtask.assignee?.id || ''" (ngModelChange)="updateSubtaskAssignee(subtask, $event)">
+            <option value="">Unassigned</option>
+            <option *ngFor="let member of assigneeOptions" [value]="member.id">{{ member.username }}</option>
+          </select>
+          <input class="td-subtask-date-input" type="date" [ngModel]="subtask.dueDate" (ngModelChange)="updateSubtaskDueDate(subtask, $event)">
           <button class="td-delete-subtask" type="button" (click)="deleteSubtask(subtask)" aria-label="Delete subtask">x</button>
         </div>
 
         <button *ngIf="!isAddingSubtask" class="add-subtask-placeholder" type="button" (click)="isAddingSubtask = true">
           + Add a subtask...
         </button>
-        <input *ngIf="isAddingSubtask" class="add-subtask-input" [(ngModel)]="newSubtaskTitle" placeholder="Add a subtask..." (keydown.enter)="addSubtask()" (keydown.escape)="cancelSubtask($event)" autofocus>
+        <div *ngIf="isAddingSubtask" class="add-subtask-form">
+          <input class="add-subtask-input" [(ngModel)]="newSubtaskTitle" placeholder="Add a subtask..." (keydown.enter)="addSubtask()" (keydown.escape)="cancelSubtask($event)" autofocus>
+          <select class="td-subtask-select" [(ngModel)]="newSubtaskAssigneeId">
+            <option value="">Unassigned</option>
+            <option *ngFor="let member of assigneeOptions" [value]="member.id">{{ member.username }}</option>
+          </select>
+          <input class="td-subtask-date-input" type="date" [(ngModel)]="newSubtaskDueDate">
+          <button class="td-subtask-action" type="button" (click)="addSubtask()">Add</button>
+          <button class="td-subtask-action" type="button" (click)="cancelSubtask($event)">Cancel</button>
+        </div>
       </div>
     </section>
 

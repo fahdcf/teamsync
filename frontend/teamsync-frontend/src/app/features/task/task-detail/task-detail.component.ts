@@ -50,6 +50,8 @@ export default class TaskDetailComponent implements OnInit {
   isAddingSubtask = false;
   activeTab: TaskDetailTab = 'comments';
   newSubtaskTitle = '';
+  newSubtaskAssigneeId = '';
+  newSubtaskDueDate = '';
   newCommentText = '';
   replyingToId: string | null = null;
   replyText = '';
@@ -214,10 +216,16 @@ export default class TaskDetailComponent implements OnInit {
     const title = this.newSubtaskTitle.trim();
     if (!this.task || !title) return;
 
-    this.taskService.createSubtask(this.task.id, { title }).subscribe({
+    this.taskService.createSubtask(this.task.id, {
+      title,
+      assigneeId: this.newSubtaskAssigneeId || undefined,
+      dueDate: this.newSubtaskDueDate || undefined,
+    }).subscribe({
       next: (subtask) => {
         this.task = { ...this.task!, subtasks: [...this.subtasks, subtask] };
         this.newSubtaskTitle = '';
+        this.newSubtaskAssigneeId = '';
+        this.newSubtaskDueDate = '';
         this.isAddingSubtask = false;
       },
     });
@@ -247,9 +255,19 @@ export default class TaskDetailComponent implements OnInit {
     });
   }
 
+  updateSubtaskAssignee(subtask: Subtask, assigneeId: string): void {
+    this.updateSubtask(subtask, { assigneeId: assigneeId || undefined });
+  }
+
+  updateSubtaskDueDate(subtask: Subtask, dueDate: string): void {
+    this.updateSubtask(subtask, { dueDate: dueDate || undefined });
+  }
+
   cancelSubtask(event?: Event): void {
     if (event) event.preventDefault();
     this.newSubtaskTitle = '';
+    this.newSubtaskAssigneeId = '';
+    this.newSubtaskDueDate = '';
     this.isAddingSubtask = false;
   }
 
@@ -389,6 +407,22 @@ export default class TaskDetailComponent implements OnInit {
       .join('')
       .slice(0, 2)
       .toUpperCase();
+  }
+
+  private updateSubtask(subtask: Subtask, changes: { assigneeId?: string; dueDate?: string }): void {
+    if (!this.task) return;
+    this.taskService.updateSubtask(this.task.id, subtask.id, {
+      title: subtask.title,
+      assigneeId: changes.assigneeId ?? subtask.assignee?.id,
+      dueDate: changes.dueDate ?? subtask.dueDate ?? undefined,
+    }).subscribe({
+      next: (updated) => {
+        this.task = {
+          ...this.task!,
+          subtasks: this.subtasks.map((candidate) => (candidate.id === updated.id ? updated : candidate)),
+        };
+      },
+    });
   }
 
   private loadAssigneeOptions(seedUsers: User[]): void {

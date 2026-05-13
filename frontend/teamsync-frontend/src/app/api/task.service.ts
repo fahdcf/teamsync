@@ -128,6 +128,10 @@ export class TaskService {
     return this.http.put<Subtask>(`${this.base}/tasks/${taskId}/subtasks/${subtaskId}/toggle`, {});
   }
 
+  updateSubtask(taskId: string, subtaskId: string, req: CreateSubtaskRequest): Observable<Subtask> {
+    return this.http.put<Subtask>(`${this.base}/tasks/${taskId}/subtasks/${subtaskId}`, req);
+  }
+
   deleteSubtask(taskId: string, subtaskId: string): Observable<void> {
     return this.http.delete<void>(`${this.base}/tasks/${taskId}/subtasks/${subtaskId}`);
   }
