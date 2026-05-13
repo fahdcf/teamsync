@@ -258,7 +258,7 @@ Excluded by request:
   Frontend: compute or fetch profile completion and security status instead of always showing `70%` and `Secure`.
   Backend: add account overview fields to `GET /users/me` or add `GET /users/me/account-overview` with profile completion and security status.
 
-- [ ] Task UI-AUDIT-112: Make settings Notifications, Appearance, and Security tabs real.
+- [x] Task UI-AUDIT-112: Make settings Notifications, Appearance, and Security tabs real.
   Frontend: replace placeholder panels with notification preferences, theme/display preferences, and password/security forms.
   Backend: add user preference endpoints, password change endpoint, and security/session metadata endpoints.
 

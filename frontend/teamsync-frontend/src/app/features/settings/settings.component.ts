@@ -2,7 +2,7 @@ import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AuthStore } from '../../store/auth.store';
-import { AccountOverview, AuthService } from '../../api/auth.service';
+import { AccountOverview, AuthService, SecurityOverview, UserPreferences } from '../../api/auth.service';
 import { WorkspaceService } from '../../api/workspace.service';
 import { User, UserRole } from '../../shared/models/user.model';
 import { Workspace } from '../../shared/models/workspace.model';
@@ -144,9 +144,102 @@ import { Workspace } from '../../shared/models/workspace.model';
         </aside>
       </div>
 
-      <section class="settings-placeholder" *ngIf="activeTab !== 'profile'">
-        <h2>{{ activeLabel }}</h2>
-        <p>This section is ready for the next settings pass.</p>
+      <section class="settings-tab-panel" *ngIf="activeTab === 'notifications'">
+        <div class="panel-heading">
+          <div>
+            <h2>Notification Preferences</h2>
+            <p>Choose which product updates should reach you and where they should appear.</p>
+          </div>
+          <button type="button" (click)="savePreferences()">Save preferences</button>
+        </div>
+        <div class="preference-grid">
+          <label class="switch-row">
+            <span><strong>Email notifications</strong><small>Receive important workspace and task updates by email.</small></span>
+            <input type="checkbox" [(ngModel)]="preferencesForm.emailNotifications">
+          </label>
+          <label class="switch-row">
+            <span><strong>In-app notifications</strong><small>Show updates in TeamSync notification panels.</small></span>
+            <input type="checkbox" [(ngModel)]="preferencesForm.inAppNotifications">
+          </label>
+          <label class="switch-row">
+            <span><strong>Task reminders</strong><small>Notify you before due dates and overdue work.</small></span>
+            <input type="checkbox" [(ngModel)]="preferencesForm.taskReminders">
+          </label>
+          <label class="switch-row">
+            <span><strong>Weekly digest</strong><small>Send a weekly summary of project and workspace progress.</small></span>
+            <input type="checkbox" [(ngModel)]="preferencesForm.weeklyDigest">
+          </label>
+        </div>
+        <p class="settings-message" *ngIf="preferencesMessage">{{ preferencesMessage }}</p>
+      </section>
+
+      <section class="settings-tab-panel" *ngIf="activeTab === 'appearance'">
+        <div class="panel-heading">
+          <div>
+            <h2>Appearance</h2>
+            <p>Save display preferences that can follow your account across sessions.</p>
+          </div>
+          <button type="button" (click)="savePreferences()">Save appearance</button>
+        </div>
+        <div class="appearance-grid">
+          <label>
+            <span>Theme</span>
+            <select [(ngModel)]="preferencesForm.theme" (ngModelChange)="applyAppearancePreferences()">
+              <option value="system">System</option>
+              <option value="dark">Dark</option>
+              <option value="light">Light</option>
+            </select>
+          </label>
+          <label>
+            <span>Density</span>
+            <select [(ngModel)]="preferencesForm.density" (ngModelChange)="applyAppearancePreferences()">
+              <option value="comfortable">Comfortable</option>
+              <option value="compact">Compact</option>
+            </select>
+          </label>
+          <label class="switch-row compact-switch">
+            <span><strong>Reduce motion</strong><small>Minimize animated UI transitions where supported.</small></span>
+            <input type="checkbox" [(ngModel)]="preferencesForm.reduceMotion" (ngModelChange)="applyAppearancePreferences()">
+          </label>
+        </div>
+        <p class="settings-message" *ngIf="preferencesMessage">{{ preferencesMessage }}</p>
+      </section>
+
+      <section class="settings-tab-panel" *ngIf="activeTab === 'security'">
+        <div class="panel-heading">
+          <div>
+            <h2>Security</h2>
+            <p>Review account access details and update your password.</p>
+          </div>
+        </div>
+        <div class="security-grid">
+          <article class="security-summary">
+            <h3>Session details</h3>
+            <dl>
+              <div><dt>Role</dt><dd>{{ roleLabelFor(securityOverview?.role) }}</dd></div>
+              <div><dt>Member since</dt><dd>{{ formatDate(securityOverview?.memberSince) }}</dd></div>
+              <div><dt>Password updated</dt><dd>{{ formatDate(securityOverview?.passwordUpdatedAt) }}</dd></div>
+              <div><dt>Active sessions</dt><dd>{{ securityOverview?.activeSessionCount ?? 0 }} {{ securityOverview?.sessionMode || '' }}</dd></div>
+            </dl>
+          </article>
+          <form class="password-form" (ngSubmit)="changePassword()">
+            <h3>Change password</h3>
+            <label>
+              <span>Current password</span>
+              <input type="password" [(ngModel)]="passwordForm.currentPassword" name="currentPassword" autocomplete="current-password">
+            </label>
+            <label>
+              <span>New password</span>
+              <input type="password" [(ngModel)]="passwordForm.newPassword" name="newPassword" autocomplete="new-password">
+            </label>
+            <label>
+              <span>Confirm new password</span>
+              <input type="password" [(ngModel)]="passwordForm.confirmPassword" name="confirmPassword" autocomplete="new-password">
+            </label>
+            <button type="submit">Update password</button>
+            <p class="settings-message" *ngIf="passwordMessage">{{ passwordMessage }}</p>
+          </form>
+        </div>
       </section>
     </div>
   `,
@@ -252,7 +345,8 @@ import { Workspace } from '../../shared/models/workspace.model';
 
     .profile-panel,
     .side-card,
-    .settings-placeholder {
+    .settings-placeholder,
+    .settings-tab-panel {
       border: 1px solid var(--border-default);
       border-radius: var(--radius-xl);
       background: linear-gradient(145deg, rgba(255,255,255,0.035), rgba(255,255,255,0.012)), var(--bg-surface);
@@ -631,15 +725,6 @@ import { Workspace } from '../../shared/models/workspace.model';
       padding: 36px;
     }
 
-    .settings-placeholder h2 {
-      margin: 0 0 8px;
-      font-size: 24px;
-    }
-
-    .settings-placeholder p {
-      color: var(--text-secondary);
-    }
-
     @media (max-width: 1180px) {
       .settings-layout {
         grid-template-columns: 1fr;
@@ -679,15 +764,33 @@ export default class SettingsComponent implements OnInit {
 
   user: User | null = null;
   accountOverview: AccountOverview | null = null;
+  preferences: UserPreferences | null = null;
+  securityOverview: SecurityOverview | null = null;
   workspaces: Workspace[] = [];
   activeTab = 'profile';
   editingField: 'username' | 'email' | 'role' | 'avatar' | null = null;
   profileMessage = '';
+  preferencesMessage = '';
+  passwordMessage = '';
   profileForm: { username: string; email: string; role: UserRole; avatarUrl: string } = {
     username: '',
     email: '',
     role: 'TEAM_MEMBER',
     avatarUrl: '',
+  };
+  preferencesForm: UserPreferences = {
+    emailNotifications: true,
+    inAppNotifications: true,
+    taskReminders: true,
+    weeklyDigest: false,
+    theme: 'system',
+    density: 'comfortable',
+    reduceMotion: false,
+  };
+  passwordForm = {
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
   };
 
   readonly tabs = [
@@ -714,6 +817,8 @@ export default class SettingsComponent implements OnInit {
       error: () => (this.workspaces = []),
     });
     this.loadAccountOverview();
+    this.loadPreferences();
+    this.loadSecurityOverview();
   }
 
   get initials(): string {
@@ -768,6 +873,11 @@ export default class SettingsComponent implements OnInit {
     return map[role ?? ''] ?? role ?? '-';
   }
 
+  formatDate(value?: string): string {
+    if (!value) return '-';
+    return new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
   startEditing(field: 'username' | 'email' | 'role' | 'avatar'): void {
     this.editingField = field;
     this.profileMessage = field === 'role' ? 'Role changes can only move to the same or lower privilege.' : '';
@@ -799,6 +909,53 @@ export default class SettingsComponent implements OnInit {
     });
   }
 
+  savePreferences(): void {
+    this.authService.updatePreferences(this.preferencesForm).subscribe({
+      next: (preferences) => {
+        this.preferences = preferences;
+        this.preferencesForm = { ...preferences };
+        this.preferencesMessage = 'Preferences saved successfully.';
+        this.applyAppearancePreferences();
+      },
+      error: () => {
+        this.preferencesMessage = 'Could not save preferences. Please try again.';
+      },
+    });
+  }
+
+  applyAppearancePreferences(): void {
+    if (typeof document === 'undefined') return;
+    document.documentElement.dataset['themePreference'] = this.preferencesForm.theme;
+    document.documentElement.dataset['density'] = this.preferencesForm.density;
+    document.documentElement.dataset['reduceMotion'] = String(this.preferencesForm.reduceMotion);
+  }
+
+  changePassword(): void {
+    this.passwordMessage = '';
+    if (!this.passwordForm.currentPassword || !this.passwordForm.newPassword) {
+      this.passwordMessage = 'Enter your current password and a new password.';
+      return;
+    }
+    if (this.passwordForm.newPassword !== this.passwordForm.confirmPassword) {
+      this.passwordMessage = 'The new password confirmation does not match.';
+      return;
+    }
+
+    this.authService.changePassword({
+      currentPassword: this.passwordForm.currentPassword,
+      newPassword: this.passwordForm.newPassword,
+    }).subscribe({
+      next: () => {
+        this.passwordForm = { currentPassword: '', newPassword: '', confirmPassword: '' };
+        this.passwordMessage = 'Password updated successfully.';
+        this.loadSecurityOverview();
+      },
+      error: () => {
+        this.passwordMessage = 'Could not update password. Check your current password and try again.';
+      },
+    });
+  }
+
   private resetProfileForm(): void {
     if (!this.user) return;
     this.profileForm = {
@@ -819,6 +976,28 @@ export default class SettingsComponent implements OnInit {
           securityMessage: 'Could not load account overview.',
           missingProfileFields: [],
         };
+      },
+    });
+  }
+
+  private loadPreferences(): void {
+    this.authService.getPreferences().subscribe({
+      next: (preferences) => {
+        this.preferences = preferences;
+        this.preferencesForm = { ...preferences };
+        this.applyAppearancePreferences();
+      },
+      error: () => {
+        this.preferencesMessage = 'Could not load preferences.';
+      },
+    });
+  }
+
+  private loadSecurityOverview(): void {
+    this.authService.getSecurityOverview().subscribe({
+      next: (overview) => (this.securityOverview = overview),
+      error: () => {
+        this.passwordMessage = 'Could not load security details.';
       },
     });
   }

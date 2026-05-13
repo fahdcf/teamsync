@@ -40,4 +40,6 @@ public class User {
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    private LocalDateTime passwordUpdatedAt;
 }

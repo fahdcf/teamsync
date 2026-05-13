@@ -1,7 +1,11 @@
 package com.teamsync.presentation.controller;
 
 import com.teamsync.presentation.dto.AccountOverviewResponseDTO;
+import com.teamsync.presentation.dto.ChangePasswordRequestDTO;
+import com.teamsync.presentation.dto.SecurityOverviewResponseDTO;
 import com.teamsync.presentation.dto.UpdateProfileRequestDTO;
+import com.teamsync.presentation.dto.UpdateUserPreferencesRequestDTO;
+import com.teamsync.presentation.dto.UserPreferencesResponseDTO;
 import com.teamsync.presentation.dto.UserResponseDTO;
 import com.teamsync.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -44,6 +48,40 @@ public class UserController {
     @GetMapping("/me/account-overview")
     public AccountOverviewResponseDTO getCurrentUserAccountOverview(Authentication auth) {
         return userService.getAccountOverview(auth.getName());
+    }
+
+    @Operation(summary = "Get current user's settings preferences")
+    @ApiResponse(responseCode = "200", description = "Preferences returned")
+    @GetMapping("/me/preferences")
+    public UserPreferencesResponseDTO getCurrentUserPreferences(Authentication auth) {
+        return userService.getPreferences(auth.getName());
+    }
+
+    @Operation(summary = "Update current user's settings preferences")
+    @ApiResponse(responseCode = "200", description = "Preferences updated")
+    @PutMapping("/me/preferences")
+    public UserPreferencesResponseDTO updateCurrentUserPreferences(@RequestBody UpdateUserPreferencesRequestDTO request,
+                                                                   Authentication auth) {
+        return userService.updatePreferences(auth.getName(), request);
+    }
+
+    @Operation(summary = "Get current user's security overview")
+    @ApiResponse(responseCode = "200", description = "Security overview returned")
+    @GetMapping("/me/security")
+    public SecurityOverviewResponseDTO getCurrentUserSecurity(Authentication auth) {
+        return userService.getSecurityOverview(auth.getName());
+    }
+
+    @Operation(summary = "Change current user's password")
+    @ApiResponses({
+        @ApiResponse(responseCode = "204", description = "Password changed"),
+        @ApiResponse(responseCode = "400", description = "Current password is invalid or new password is weak")
+    })
+    @PutMapping("/me/password")
+    @ResponseStatus(org.springframework.http.HttpStatus.NO_CONTENT)
+    public void changeCurrentUserPassword(@Valid @RequestBody ChangePasswordRequestDTO request,
+                                          Authentication auth) {
+        userService.changePassword(auth.getName(), request);
     }
 
     @Operation(summary = "Update current user's profile")
