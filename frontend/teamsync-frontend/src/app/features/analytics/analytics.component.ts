@@ -204,15 +204,7 @@ export default class AnalyticsComponent implements OnInit {
   }
 
   configureCharts(): void {
-    const history = this.selectedStats?.sprintVelocityHistory?.length
-      ? this.selectedStats.sprintVelocityHistory
-      : [
-          { sprint: 'May 12', value: 12 },
-          { sprint: 'May 19', value: 18 },
-          { sprint: 'May 26', value: 24 },
-          { sprint: 'Jun 2', value: 22 },
-          { sprint: 'Jun 9', value: 30 },
-        ];
+    const history = this.selectedStats?.sprintVelocityHistory ?? [];
     this.sprintChartData = {
       labels: history.map((point) => point.sprint),
       datasets: [
@@ -243,15 +235,7 @@ export default class AnalyticsComponent implements OnInit {
   }
 
   get distribution() {
-    return this.selectedStats?.workloadDistribution?.length
-      ? this.selectedStats.workloadDistribution
-      : [
-          { category: 'Design', count: 32, percent: 32 },
-          { category: 'Engineering', count: 28, percent: 28 },
-          { category: 'Marketing', count: 20, percent: 20 },
-          { category: 'Product', count: 12, percent: 12 },
-          { category: 'Others', count: 8, percent: 8 },
-        ];
+    return this.selectedStats?.workloadDistribution ?? [];
   }
 
   get totalDistributedTasks(): number {

@@ -96,6 +96,7 @@
                 <span>{{ item.category }}</span>
                 <strong>{{ item.percent }}%</strong>
               </div>
+              <p *ngIf="!distribution.length">No workload distribution data yet.</p>
             </div>
           </div>
         </article>
@@ -131,10 +132,11 @@
       <div *ngIf="activeView === 'sprint'" class="full-panel">
         <div class="line-chart"><canvas baseChart [data]="sprintChartData" [options]="sprintChartOptions" type="line"></canvas></div>
         <div class="timeline-list"><p *ngFor="let point of sprintRows"><span>{{ point.sprint }}</span><strong>{{ point.value }} completed</strong></p></div>
+        <p *ngIf="!sprintRows.length">No sprint velocity data yet.</p>
       </div>
 
       <div *ngIf="activeView === 'workload'" class="split-panel">
-        <article class="data-card"><h3>Distribution</h3><p *ngFor="let item of distribution">{{ item.category }}: {{ item.count }} tasks ({{ item.percent }}%)</p></article>
+        <article class="data-card"><h3>Distribution</h3><p *ngFor="let item of distribution">{{ item.category }}: {{ item.count }} tasks ({{ item.percent }}%)</p><p *ngIf="!distribution.length">No workload distribution data yet.</p></article>
         <article class="data-card"><h3>Members</h3><p *ngFor="let member of teamWorkload">{{ member.name || member.member.username || 'Member' }}: {{ member.activeTaskCount }} active, {{ member.completedTaskCount }} done</p><p *ngIf="!teamWorkload.length">No assigned workload yet.</p></article>
       </div>
 

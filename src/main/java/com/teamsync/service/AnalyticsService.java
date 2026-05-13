@@ -300,14 +300,20 @@ public class AnalyticsService {
     private List<Map<String, Object>> buildSprintVelocityHistory(List<Task> tasks) {
         List<Map<String, Object>> history = new ArrayList<>();
         LocalDate start = LocalDate.now().minusWeeks(4);
-        long done = tasks.stream().filter(t -> t.getStatus() == TaskStatus.DONE).count();
         for (int i = 0; i < 5; i++) {
+            LocalDate sprintStart = start.plusWeeks(i);
+            LocalDate sprintEnd = sprintStart.plusDays(6);
+            long completed = tasks.stream()
+                    .filter(t -> t.getStatus() == TaskStatus.DONE)
+                    .filter(t -> t.getUpdatedAt() != null)
+                    .map(t -> t.getUpdatedAt().toLocalDate())
+                    .filter(date -> !date.isBefore(sprintStart) && !date.isAfter(sprintEnd))
+                    .count();
             history.add(Map.of(
-                    "sprint", "Sprint " + (i + 1),
-                    "value", Math.max(0, done + (i * 2) - 3)
+                    "sprint", sprintStart.toString(),
+                    "value", completed
             ));
         }
-        history.set(0, Map.of("sprint", start.toString(), "value", history.get(0).get("value")));
         return history;
     }
 

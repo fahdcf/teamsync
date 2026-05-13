@@ -240,7 +240,7 @@ Excluded by request:
   Frontend: `Team Performance`, `Sprint Analytics`, `Workload`, `Flow Metrics`, and `Reports` currently show short text summaries; build full panels using real data.
   Backend: extend analytics/report endpoints with sprint series, flow/cycle-time details, workload breakdowns, and report payloads as needed.
 
-- [ ] Task UI-AUDIT-102: Remove analytics fallback datasets once backend data exists.
+- [x] Task UI-AUDIT-102: Remove analytics fallback datasets once backend data exists.
   Frontend: stop using static fallback sprint history and workload distribution when API data is missing; show empty/error states instead.
   Backend: ensure `GET /analytics/projects/{id}/stats` returns `sprintVelocityHistory` and `workloadDistribution` consistently.
 
