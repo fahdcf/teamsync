@@ -63,8 +63,9 @@ public class ProjectController {
                                                     @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dueFrom,
                                                     @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dueTo,
                                                     @RequestParam(required = false) String keyword,
-                                                    @RequestParam(required = false) String sort) {
-        return projectService.findByWorkspace(workspaceId, status, health, managerId, dueFrom, dueTo, keyword, sort);
+                                                    @RequestParam(required = false) String sort,
+                                                    Authentication auth) {
+        return projectService.findByWorkspace(workspaceId, status, health, managerId, dueFrom, dueTo, keyword, sort, auth.getName());
     }
 
     @Operation(summary = "Get project details by ID")
@@ -98,6 +99,13 @@ public class ProjectController {
     @PutMapping("/projects/{id}/archive")
     public ProjectResponseDTO archive(@PathVariable UUID id, Authentication auth) {
         return projectService.archive(id, auth.getName());
+    }
+
+    @Operation(summary = "Toggle project favorite for the authenticated user")
+    @ApiResponse(responseCode = "200", description = "Favorite state toggled")
+    @PutMapping("/projects/{id}/favorite")
+    public ProjectResponseDTO toggleFavorite(@PathVariable UUID id, Authentication auth) {
+        return projectService.toggleFavorite(id, auth.getName());
     }
 
     @Operation(summary = "Initialize a project via Facade pattern (validate workspace, create project, assign manager)")

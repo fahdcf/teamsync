@@ -21,6 +21,7 @@ public class ProjectResponseDTO {
     private int progress;
     private String health;
     private String insight;
+    private boolean favorite;
     private UUID workspaceId;
     private String workspaceName;
     private UserResponseDTO manager;

@@ -1,6 +1,7 @@
 package com.teamsync.service;
 
 import com.teamsync.domain.entity.Project;
+import com.teamsync.domain.entity.ProjectFavorite;
 import com.teamsync.domain.entity.Task;
 import com.teamsync.domain.entity.User;
 import com.teamsync.domain.entity.Workspace;
@@ -14,6 +15,7 @@ import com.teamsync.presentation.dto.ProjectRequestDTO;
 import com.teamsync.presentation.dto.ProjectResponseDTO;
 import com.teamsync.presentation.dto.UserResponseDTO;
 import com.teamsync.repository.ProjectRepository;
+import com.teamsync.repository.ProjectFavoriteRepository;
 import com.teamsync.repository.ProjectSpecification;
 import com.teamsync.repository.TaskRepository;
 import com.teamsync.repository.UserRepository;
@@ -32,6 +34,7 @@ import java.util.stream.Collectors;
 public class ProjectService {
 
     private final ProjectRepository projectRepository;
+    private final ProjectFavoriteRepository projectFavoriteRepository;
     private final UserRepository userRepository;
     private final TaskRepository taskRepository;
     private final WorkspaceService workspaceService;
@@ -39,12 +42,14 @@ public class ProjectService {
     private final ActivityLogService activityLogService;
 
     public ProjectService(ProjectRepository projectRepository,
+                          ProjectFavoriteRepository projectFavoriteRepository,
                           UserRepository userRepository,
                           TaskRepository taskRepository,
                           WorkspaceService workspaceService,
                           @Lazy ProjectEventPublisher eventPublisher,
                           ActivityLogService activityLogService) {
         this.projectRepository = projectRepository;
+        this.projectFavoriteRepository = projectFavoriteRepository;
         this.userRepository = userRepository;
         this.taskRepository = taskRepository;
         this.workspaceService = workspaceService;
@@ -116,7 +121,14 @@ public class ProjectService {
     public List<ProjectResponseDTO> findByWorkspace(UUID workspaceId, ProjectStatus status, String health,
                                                     UUID managerId, LocalDate dueFrom, LocalDate dueTo,
                                                     String keyword, String sort) {
+        return findByWorkspace(workspaceId, status, health, managerId, dueFrom, dueTo, keyword, sort, null);
+    }
+
+    public List<ProjectResponseDTO> findByWorkspace(UUID workspaceId, ProjectStatus status, String health,
+                                                    UUID managerId, LocalDate dueFrom, LocalDate dueTo,
+                                                    String keyword, String sort, String userEmail) {
         Workspace workspace = workspaceService.getWorkspace(workspaceId);
+        User currentUser = resolveActor(userEmail, null);
         Specification<Project> spec = Specification.where(ProjectSpecification.hasWorkspace(workspace));
         if (status != null) spec = spec.and(ProjectSpecification.hasStatus(status));
         if (managerId != null) spec = spec.and(ProjectSpecification.hasManager(managerId));
@@ -125,7 +137,7 @@ public class ProjectService {
         if (keyword != null && !keyword.isBlank()) spec = spec.and(ProjectSpecification.hasKeyword(keyword));
 
         return projectRepository.findAll(spec, sortForWorkspaceProjects(sort)).stream()
-                .map(this::toDTO)
+                .map(project -> toDTO(project, currentUser))
                 .filter(project -> health == null || health.isBlank() || health.equalsIgnoreCase(project.getHealth()))
                 .collect(Collectors.toList());
     }
@@ -139,6 +151,16 @@ public class ProjectService {
 
     public ProjectResponseDTO findById(UUID id) {
         return toDTO(getProject(id));
+    }
+
+    public ProjectResponseDTO toggleFavorite(UUID id, String userEmail) {
+        Project project = getProject(id);
+        User user = resolveActor(userEmail, null);
+        projectFavoriteRepository.findByProjectAndUser(project, user).ifPresentOrElse(
+                projectFavoriteRepository::delete,
+                () -> projectFavoriteRepository.save(ProjectFavorite.builder().project(project).user(user).build())
+        );
+        return toDTO(project, user);
     }
 
     public Project getProject(UUID id) {
@@ -171,6 +193,10 @@ public class ProjectService {
     }
 
     private ProjectResponseDTO toDTO(Project p) {
+        return toDTO(p, null);
+    }
+
+    private ProjectResponseDTO toDTO(Project p, User currentUser) {
         String health = calculateHealth(p);
         return ProjectResponseDTO.builder()
                 .id(p.getId())
@@ -181,6 +207,7 @@ public class ProjectService {
                 .progress(p.getProgress())
                 .health(health)
                 .insight(insightForHealth(health))
+                .favorite(currentUser != null && projectFavoriteRepository.existsByProjectAndUser(p, currentUser))
                 .workspaceId(p.getWorkspace().getId())
                 .workspaceName(p.getWorkspace().getName())
                 .manager(userToDTO(p.getManager()))

@@ -47,6 +47,10 @@ export class ProjectService {
     return this.http.put<Project>(`${this.base}/projects/${id}/archive`, {});
   }
 
+  toggleFavorite(id: string): Observable<Project> {
+    return this.http.put<Project>(`${this.base}/projects/${id}/favorite`, {});
+  }
+
   initialize(data: any): Observable<Project> {
     return this.http.post<Project>(`${this.base}/projects/initialize`, data);
   }

@@ -94,7 +94,7 @@ Excluded by request:
   Frontend: wire `Filter`, `All projects`, and `Sort: Recent` to actual filtering/sorting of workspace projects.
   Backend: extend `GET /workspaces/{workspaceId}/projects` with status, health, manager/team, due-date, keyword, and sort query parameters.
 
-- [ ] Task UI-AUDIT-032: Make project favorite buttons persist.
+- [x] Task UI-AUDIT-032: Make project favorite buttons persist.
   Frontend: clicking the star/favorite controls on workspace project cards should toggle a saved favorite state and update the UI.
   Backend: add a project favorite/watch model or endpoint such as `PUT /projects/{id}/favorite` scoped to the authenticated user.
 

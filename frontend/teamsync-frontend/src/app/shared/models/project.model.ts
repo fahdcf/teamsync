@@ -12,6 +12,7 @@ export interface Project {
   progress: number;
   health?: 'ON_TRACK' | 'AT_RISK' | 'DELAYED';
   insight?: string;
+  favorite?: boolean;
   workspace: Workspace;
   workspaceId?: string;
   workspaceName?: string;

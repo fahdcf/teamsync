@@ -115,13 +115,15 @@ import { SkeletonComponent } from '../../../shared/components/skeleton/skeleton.
           >
             <div class="project-card-topline">
               <div class="project-thumb" [class]="'tone-' + (i % 3)">
-                <button type="button" aria-label="Favorite project" (click)="$event.stopPropagation()">?</button>
+                <button type="button" [attr.aria-label]="favoriteLabel(project)" (click)="toggleFavorite(project, $event)">
+                  {{ project.favorite ? '★' : '☆' }}
+                </button>
               </div>
 
               <div class="project-row-content">
                 <div class="project-row-title">
                   <div>
-                    <h3>{{ project.title }} <button type="button" aria-label="Favorite project" (click)="$event.stopPropagation()">?</button></h3>
+                    <h3>{{ project.title }} <button type="button" [attr.aria-label]="favoriteLabel(project)" (click)="toggleFavorite(project, $event)">{{ project.favorite ? '★' : '☆' }}</button></h3>
                     <p>{{ project.description || 'No description provided.' }}</p>
                   </div>
                   <button type="button" aria-label="Project options" (click)="$event.stopPropagation()">...</button>
@@ -460,6 +462,19 @@ export default class WorkspaceDetailComponent implements OnInit {
     if (health === 'ON_TRACK') return 'On track';
     if (health === 'DELAYED') return 'Delayed';
     return 'At risk';
+  }
+
+  favoriteLabel(project: Project): string {
+    return project.favorite ? 'Remove project from favorites' : 'Add project to favorites';
+  }
+
+  toggleFavorite(project: Project, event: Event): void {
+    event.stopPropagation();
+    this.projectService.toggleFavorite(project.id).subscribe({
+      next: (updated) => {
+        this.projects = this.projects.map((item) => item.id === updated.id ? { ...item, favorite: updated.favorite } : item);
+      },
+    });
   }
 
   activityIcon(action: string | null | undefined): string {
