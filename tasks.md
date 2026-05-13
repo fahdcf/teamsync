@@ -236,7 +236,7 @@ Excluded by request:
   Frontend: wire header date range, Share, and Filter controls to actual UI/actions.
   Backend: analytics endpoints should accept date range and filter query parameters; share may require a report/share-link endpoint if links are persisted.
 
-- [ ] Task UI-AUDIT-101: Make analytics section tabs show full real content.
+- [x] Task UI-AUDIT-101: Make analytics section tabs show full real content.
   Frontend: `Team Performance`, `Sprint Analytics`, `Workload`, `Flow Metrics`, and `Reports` currently show short text summaries; build full panels using real data.
   Backend: extend analytics/report endpoints with sprint series, flow/cycle-time details, workload breakdowns, and report payloads as needed.
 

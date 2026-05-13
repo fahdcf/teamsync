@@ -30,19 +30,26 @@ export class AnalyticsService {
     return this.http.get<ProjectHealth>(`${this.base}/analytics/projects/${projectId}/health`);
   }
 
+  getReport(projectId: string, format = 'json'): Observable<string> {
+    return this.http.get(`${this.base}/reports/projects/${projectId}`, {
+      params: this.params({ format }),
+      responseType: 'text',
+    });
+  }
+
   getTeamPerformance(filters: AnalyticsFilters = {}): Observable<TeamPerformance> {
     return this.http.get<TeamPerformance>(`${this.base}/analytics/team/performance`, {
-      params: this.params(filters),
+      params: this.params({ ...filters }),
     });
   }
 
   getInsights(filters: AnalyticsFilters = {}): Observable<AnalyticsInsight[]> {
     return this.http.get<AnalyticsInsight[]>(`${this.base}/analytics/insights`, {
-      params: this.params(filters),
+      params: this.params({ ...filters }),
     });
   }
 
-  private params(filters: AnalyticsFilters | Pick<AnalyticsFilters, 'from' | 'to'>): HttpParams {
+  private params(filters: Record<string, string | undefined>): HttpParams {
     let params = new HttpParams();
     Object.entries(filters).forEach(([key, value]) => {
       if (value) params = params.set(key, value);

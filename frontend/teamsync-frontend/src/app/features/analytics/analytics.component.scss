@@ -104,8 +104,7 @@ p {
 
 .analytics-header p,
 .insights-panel p,
-.detail-panel p,
-.mini-card span {
+.detail-panel p {
   color: var(--text-secondary);
   font-size: 13px;
 }
@@ -118,9 +117,7 @@ p {
 }
 
 .header-actions button,
-.chart-card header button,
-.mini-card header button,
-.files-panel button {
+.chart-card header button {
   height: 36px;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
@@ -193,7 +190,7 @@ p {
 .loading-card,
 .metric-card,
 .chart-card,
-.mini-card,
+.data-card,
 .detail-panel,
 .insight-card,
 .assistant-box {
@@ -209,8 +206,7 @@ p {
   gap: 12px;
 }
 
-.metric-card,
-.mini-card {
+.metric-card {
   min-height: 142px;
   padding: 16px;
   overflow: hidden;
@@ -230,7 +226,7 @@ p {
 }
 
 .metric-card small,
-.mini-card small {
+.data-card small {
   color: var(--success);
   display: block;
   font-size: 12px;
@@ -300,7 +296,6 @@ p {
 }
 
 .chart-card header,
-.mini-card header,
 .insight-title,
 .assistant-input {
   display: flex;
@@ -309,7 +304,7 @@ p {
 }
 
 .chart-card h2,
-.mini-card h3 {
+.data-card h3 {
   color: var(--text-primary);
   font-size: 15px;
   font-weight: 600;
@@ -377,13 +372,6 @@ p {
 .dot-3 { background: #ef4444; }
 .dot-4 { background: #8b7cf6; }
 
-.mini-card strong {
-  display: block;
-  color: var(--text-primary);
-  font-size: 28px;
-  margin: 8px 0 2px;
-}
-
 .detail-panel,
 .loading-card {
   padding: 24px;
@@ -407,6 +395,21 @@ p {
   border-radius: var(--radius-md);
   background: var(--bg-elevated);
   color: var(--text-primary);
+}
+
+.panel-grid,
+.split-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.panel-grid {
+  grid-template-columns: repeat(4, minmax(140px, 1fr));
+}
+
+.split-panel {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 12px;
 }
 
 .insights-panel {
@@ -537,7 +540,9 @@ p {
 @media (max-width: 860px) {
   .analytics-page,
   .top-stats,
-  .charts-row {
+  .charts-row,
+  .panel-grid,
+  .split-panel {
     grid-template-columns: 1fr;
   }
 

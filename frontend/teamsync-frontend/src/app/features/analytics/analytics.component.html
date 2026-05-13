@@ -104,17 +104,52 @@
 
     <section *ngIf="!isLoading && activeView !== 'overview'" class="detail-panel">
       <h2>{{ navItems.find(item => item.key === activeView)?.label }}</h2>
-      <p *ngIf="activeView === 'team'">Completion rate is {{ performance?.completionRate ?? 0 }}% with velocity {{ performance?.teamVelocity ?? 0 }}.</p>
-      <div *ngIf="activeView === 'projects'" class="project-stats-list">
+
+      <div *ngIf="activeView === 'team'" class="panel-grid">
+        <article class="data-card"><span>Completion rate</span><strong>{{ performance?.completionRate ?? 0 }}%</strong><small>{{ performance?.trendCompletion ?? 0 }}% trend</small></article>
+        <article class="data-card"><span>Team velocity</span><strong>{{ performance?.teamVelocity ?? 0 }}</strong><small>{{ performance?.trendVelocity ?? 0 }}% trend</small></article>
+        <article class="data-card"><span>On-time delivery</span><strong>{{ performance?.onTimeDelivery?.percent ?? 0 }}%</strong><small>{{ performance?.onTimeDelivery?.trend ?? 0 }}% trend</small></article>
+        <article class="data-card"><span>Focus time</span><strong>{{ performance?.focusTime?.hours ?? 0 }}h</strong><small>{{ performance?.focusTime?.trend ?? 0 }}% trend</small></article>
+      </div>
+
+      <div *ngIf="activeView === 'projects'" class="project-stats-list full-panel">
         <select [ngModel]="selectedProjectId" (ngModelChange)="selectProject($event)">
           <option *ngFor="let project of projects" [value]="project.id">{{ project.title }}</option>
         </select>
-        <p>Total tasks: {{ selectedStats?.totalTasks ?? 0 }} · Completion: {{ selectedStats?.completionRate ?? selectedStats?.completionPercent ?? 0 }}%</p>
+        <div class="panel-grid compact">
+          <article class="data-card"><span>Total tasks</span><strong>{{ selectedStats?.totalTasks ?? 0 }}</strong></article>
+          <article class="data-card"><span>Completion</span><strong>{{ selectedStats?.completionRate ?? selectedStats?.completionPercent ?? 0 }}%</strong></article>
+          <article class="data-card"><span>Overdue</span><strong>{{ selectedStats?.overdueCount ?? 0 }}</strong></article>
+          <article class="data-card"><span>Health</span><strong>{{ healthSummary?.health || 'Unknown' }}</strong></article>
+        </div>
+        <div class="split-panel">
+          <article class="data-card"><h3>Status breakdown</h3><p *ngFor="let row of statusRows">{{ row.label }}: {{ row.count }}</p></article>
+          <article class="data-card"><h3>Priority breakdown</h3><p *ngFor="let row of priorityRows">{{ row.label }}: {{ row.count }}</p></article>
+        </div>
       </div>
-      <p *ngIf="activeView === 'sprint'">Sprint velocity uses the same last-5-sprints dataset rendered in the overview chart.</p>
-      <p *ngIf="activeView === 'workload'">Workload balance is {{ performance?.workloadBalance ?? 'Balanced' }}.</p>
-      <p *ngIf="activeView === 'flow'">Cycle time is {{ performance?.cycleTime?.days ?? 0 }} days with on-time delivery at {{ performance?.onTimeDelivery?.percent ?? 0 }}%.</p>
-      <p *ngIf="activeView === 'reports'">Reports are ready for JSON, CSV, and PDF export when a project is selected.</p>
+
+      <div *ngIf="activeView === 'sprint'" class="full-panel">
+        <div class="line-chart"><canvas baseChart [data]="sprintChartData" [options]="sprintChartOptions" type="line"></canvas></div>
+        <div class="timeline-list"><p *ngFor="let point of sprintRows"><span>{{ point.sprint }}</span><strong>{{ point.value }} completed</strong></p></div>
+      </div>
+
+      <div *ngIf="activeView === 'workload'" class="split-panel">
+        <article class="data-card"><h3>Distribution</h3><p *ngFor="let item of distribution">{{ item.category }}: {{ item.count }} tasks ({{ item.percent }}%)</p></article>
+        <article class="data-card"><h3>Members</h3><p *ngFor="let member of teamWorkload">{{ member.name || member.member.username || 'Member' }}: {{ member.activeTaskCount }} active, {{ member.completedTaskCount }} done</p><p *ngIf="!teamWorkload.length">No assigned workload yet.</p></article>
+      </div>
+
+      <div *ngIf="activeView === 'flow'" class="panel-grid">
+        <article class="data-card"><span>Cycle time</span><strong>{{ performance?.cycleTime?.days ?? 0 }} days</strong><small>{{ performance?.cycleTime?.trend ?? 0 }}% trend</small></article>
+        <article class="data-card"><span>On-time delivery</span><strong>{{ performance?.onTimeDelivery?.percent ?? 0 }}%</strong><small>{{ performance?.onTimeDelivery?.trend ?? 0 }}% trend</small></article>
+        <article class="data-card"><span>Team productivity</span><strong>{{ performance?.teamProductivity?.tasksCompleted ?? 0 }}</strong><small>{{ performance?.teamProductivity?.trend ?? 0 }}% trend</small></article>
+        <article class="data-card"><span>Project health</span><strong>{{ performance?.projectsHealth ?? 0 }}%</strong><small>{{ performance?.trendHealth ?? 0 }}% trend</small></article>
+      </div>
+
+      <div *ngIf="activeView === 'reports'" class="full-panel">
+        <p>Live report payload for {{ currentProject?.title || 'the selected project' }}.</p>
+        <pre class="report-preview"><code><ng-container *ngFor="let line of reportLines">{{ line }}
+</ng-container></code></pre>
+      </div>
     </section>
   </main>
 

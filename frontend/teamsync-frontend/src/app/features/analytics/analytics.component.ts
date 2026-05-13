@@ -24,7 +24,7 @@ import { catchError } from 'rxjs/operators';
 import { AnalyticsFilters, AnalyticsService } from '../../api/analytics.service';
 import { ProjectService } from '../../api/project.service';
 import { WorkspaceService } from '../../api/workspace.service';
-import { AnalyticsInsight, ProjectStats, TeamPerformance } from '../../shared/models/analytics.model';
+import { AnalyticsInsight, ProjectStats, TeamPerformance, TeamWorkload } from '../../shared/models/analytics.model';
 import { Project } from '../../shared/models/project.model';
 import { Workspace } from '../../shared/models/workspace.model';
 
@@ -70,9 +70,12 @@ export default class AnalyticsComponent implements OnInit {
   insights: AnalyticsInsight[] = [];
   workspaces: Workspace[] = [];
   projects: Project[] = [];
+  teamWorkload: TeamWorkload[] = [];
   selectedWorkspaceId = '';
   selectedProjectId = '';
   selectedStats: ProjectStats | null = null;
+  healthSummary: { progress?: number; overdueCount?: number; health?: string } | null = null;
+  reportPreview = '';
   selectedPreset = 'last30';
   dateFrom = '';
   dateTo = '';
@@ -132,15 +135,25 @@ export default class AnalyticsComponent implements OnInit {
             this.selectedProjectId = '';
           }
           if (!this.selectedProjectId) this.selectedProjectId = projects[0]?.id || '';
-          if (!this.selectedProjectId) return of(null);
-          return this.analyticsService.getStats(this.selectedProjectId, {
-            from: this.dateFrom || undefined,
-            to: this.dateTo || undefined,
-          }).pipe(catchError(() => of(null)));
+          if (!this.selectedProjectId) {
+            return of({ stats: null, workload: [], health: null, report: '' });
+          }
+          return forkJoin({
+            stats: this.analyticsService.getStats(this.selectedProjectId, {
+              from: this.dateFrom || undefined,
+              to: this.dateTo || undefined,
+            }).pipe(catchError(() => of(null))),
+            workload: this.analyticsService.getTeamWorkload(this.selectedProjectId).pipe(catchError(() => of([]))),
+            health: this.analyticsService.getHealth(this.selectedProjectId).pipe(catchError(() => of(null))),
+            report: this.analyticsService.getReport(this.selectedProjectId).pipe(catchError(() => of(''))),
+          });
         }),
       )
-      .subscribe((stats) => {
-        this.selectedStats = stats;
+      .subscribe((detail) => {
+        this.selectedStats = detail.stats;
+        this.teamWorkload = detail.workload;
+        this.healthSummary = detail.health as { progress?: number; overdueCount?: number; health?: string } | null;
+        this.reportPreview = detail.report;
         this.configureCharts();
         this.isLoading = false;
       });
@@ -243,6 +256,26 @@ export default class AnalyticsComponent implements OnInit {
 
   get totalDistributedTasks(): number {
     return this.distribution.reduce((sum, item) => sum + item.count, 0);
+  }
+
+  get statusRows(): { label: string; count: number }[] {
+    return Object.entries(this.selectedStats?.byStatus ?? {}).map(([label, count]) => ({ label, count: Number(count) }));
+  }
+
+  get priorityRows(): { label: string; count: number }[] {
+    return Object.entries(this.selectedStats?.byPriority ?? {}).map(([label, count]) => ({ label, count: Number(count) }));
+  }
+
+  get sprintRows() {
+    return this.selectedStats?.sprintVelocityHistory ?? [];
+  }
+
+  get reportLines(): string[] {
+    return this.reportPreview ? this.reportPreview.split('\n').slice(0, 14) : ['No report payload available.'];
+  }
+
+  get currentProject(): Project | undefined {
+    return this.projects.find((project) => project.id === this.selectedProjectId);
   }
 
   get topStats() {
