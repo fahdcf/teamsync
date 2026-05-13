@@ -146,7 +146,7 @@ Excluded by request:
   Frontend: wire `Filter`, `Sort`, `Group`, and `...` actions above the board to the task board filters/layout instead of static buttons.
   Backend: existing `GET /projects/{projectId}/tasks` supports status, priority, assigneeId, keyword, and overdue; add sort/group parameters if backend-side ordering is required.
 
-- [ ] Task UI-AUDIT-052: Make project favorite/star persist from project detail.
+- [x] Task UI-AUDIT-052: Make project favorite/star persist from project detail.
   Frontend: clicking the star beside the project title should toggle saved favorite state.
   Backend: same project favorite endpoint as UI-AUDIT-032.
 

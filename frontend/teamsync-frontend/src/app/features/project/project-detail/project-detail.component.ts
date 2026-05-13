@@ -50,7 +50,16 @@ type Tab = 'board' | 'analytics' | 'settings';
           <span class="chevron-down" *ngIf="!isEditingTitle">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
           </span>
-          <span class="star-icon" *ngIf="!isEditingTitle">☆</span>
+          <button
+            class="star-icon"
+            type="button"
+            *ngIf="!isEditingTitle"
+            [class.active]="project.favorite"
+            [attr.aria-label]="favoriteLabel"
+            [disabled]="isTogglingFavorite"
+            (click)="toggleFavorite($event)">
+            {{ project.favorite ? '★' : '☆' }}
+          </button>
           <input *ngIf="isEditingTitle" class="title-edit" [value]="project.title"
             (blur)="onTitleBlur($event)" (keydown.enter)="$any($event.target).blur()" autofocus />
         </div>
@@ -207,7 +216,25 @@ type Tab = 'board' | 'analytics' | 'settings';
       margin-left: 4px; cursor: pointer;
     }
     .star-icon {
-      color: var(--accent); font-size: 16px; margin-left: 12px; cursor: pointer;
+      width: 28px;
+      height: 28px;
+      border: 1px solid transparent;
+      border-radius: var(--radius-full);
+      background: transparent;
+      color: var(--text-tertiary);
+      font-size: 16px;
+      margin-left: 4px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+    }
+    .star-icon:hover,
+    .star-icon.active {
+      border-color: rgba(212,168,83,0.28);
+      background: var(--accent-dim);
+      color: var(--accent);
     }
 
     .title-edit {
@@ -325,6 +352,7 @@ export default class ProjectDetailComponent implements OnInit {
   isLoading = true;
   hasError = false;
   isEditingTitle = false;
+  isTogglingFavorite = false;
   activeTab: Tab = 'board';
   openBoardPanel: 'filter' | 'sort' | 'more' | null = null;
   boardFilters: TaskBoardFilters = {};
@@ -341,6 +369,10 @@ export default class ProjectDetailComponent implements OnInit {
   get canArchive(): boolean {
     const role = this.authStore.getUser()?.role;
     return role === 'ADMIN' || role === 'PROJECT_MANAGER';
+  }
+
+  get favoriteLabel(): string {
+    return this.project?.favorite ? 'Remove project from favorites' : 'Add project to favorites';
   }
 
   ngOnInit(): void { this.load(); }
@@ -368,6 +400,22 @@ export default class ProjectDetailComponent implements OnInit {
   archiveProject(): void {
     this.projectService.archive(this.project!.id).subscribe({
       next: p => { this.project = p; }
+    });
+  }
+
+  toggleFavorite(event: Event): void {
+    event.stopPropagation();
+    if (!this.project || this.isTogglingFavorite) return;
+
+    this.isTogglingFavorite = true;
+    this.projectService.toggleFavorite(this.project.id).subscribe({
+      next: (updated) => {
+        this.project = { ...this.project!, favorite: updated.favorite };
+        this.isTogglingFavorite = false;
+      },
+      error: () => {
+        this.isTogglingFavorite = false;
+      },
     });
   }
 
