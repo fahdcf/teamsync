@@ -204,7 +204,7 @@ Excluded by request:
   Frontend: make the assignee field editable, list project/workspace members, and call the assignment service.
   Backend: fix/confirm `PUT /tasks/{id}/assign` contract from UI-AUDIT-061 and ensure only project members can be assigned.
 
-- [ ] Task UI-AUDIT-084: Implement comment reply UI.
+- [x] Task UI-AUDIT-084: Implement comment reply UI.
   Frontend: the `Reply` button sets `replyingToId`, but no reply input is rendered; add reply editor, submit/cancel, and nested reply display.
   Backend: `POST /comments/{id}/replies` exists; verify response includes the new reply and nested replies are returned by `GET /tasks/{id}/comments`.
 

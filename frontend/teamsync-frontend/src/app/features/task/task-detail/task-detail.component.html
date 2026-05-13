@@ -175,8 +175,25 @@
                   </div>
                   <p>{{ comment.content }}</p>
                   <div class="td-comment-actions">
-                    <button type="button" (click)="replyingToId = comment.id">Reply</button>
+                    <button type="button" (click)="startReply(comment.id)">Reply</button>
                     <button type="button" *ngIf="canDeleteComment(comment)" (click)="deleteComment(comment.id)">Delete</button>
+                  </div>
+                  <div class="td-reply-editor" *ngIf="replyingToId === comment.id">
+                    <input [(ngModel)]="replyText" placeholder="Write a reply..." (keydown.enter)="submitReply(comment.id)" (keydown.escape)="cancelReply()">
+                    <button type="button" (click)="submitReply(comment.id)">Send</button>
+                    <button type="button" (click)="cancelReply()">Cancel</button>
+                  </div>
+                  <div class="td-replies" *ngIf="comment.replies.length">
+                    <div class="td-reply-item" *ngFor="let reply of comment.replies">
+                      <span class="td-av">{{ initials(reply.author) }}</span>
+                      <div>
+                        <div class="td-comment-meta">
+                          <strong>{{ reply.author.username }}</strong>
+                          <span class="time">{{ reply.createdAt | date:'shortTime' }}</span>
+                        </div>
+                        <p>{{ reply.content }}</p>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

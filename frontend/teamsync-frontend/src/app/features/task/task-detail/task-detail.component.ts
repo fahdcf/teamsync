@@ -264,12 +264,23 @@ export default class TaskDetailComponent implements OnInit {
     });
   }
 
+  startReply(commentId: string): void {
+    this.replyingToId = commentId;
+    this.replyText = '';
+  }
+
+  cancelReply(): void {
+    this.replyingToId = null;
+    this.replyText = '';
+  }
+
   submitReply(commentId: string): void {
     if (!this.replyText.trim()) return;
     this.commentService.reply(commentId, this.replyText).subscribe({
       next: (reply) => {
-        const parent = this.comments.find((comment) => comment.id === commentId);
-        if (parent) parent.replies = [...(parent.replies || []), reply];
+        this.comments = this.comments.map((comment) =>
+          comment.id === commentId ? { ...comment, replies: [...(comment.replies || []), reply] } : comment
+        );
         this.replyingToId = null;
         this.replyText = '';
       },
