@@ -1,16 +1,9 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
-import { forkJoin, of } from 'rxjs';
-import { switchMap } from 'rxjs/operators';
-import { TaskService } from '../../api/task.service';
-import { ProjectService } from '../../api/project.service';
-import { WorkspaceService } from '../../api/workspace.service';
-import { Task } from '../../shared/models/task.model';
-import { Workspace } from '../../shared/models/workspace.model';
-import { Project } from '../../shared/models/project.model';
+import { CalendarEvent, CalendarService } from '../../api/calendar.service';
 
-interface CalendarDay { date: Date; isCurrentMonth: boolean; isToday: boolean; tasks: Task[]; }
+interface CalendarDay { date: Date; isCurrentMonth: boolean; isToday: boolean; events: CalendarEvent[]; }
 
 @Component({
   selector: 'app-calendar',
@@ -39,9 +32,9 @@ interface CalendarDay { date: Date; isCurrentMonth: boolean; isToday: boolean; t
             [class.other-month]="!day.isCurrentMonth" [class.today]="day.isToday">
             <div class="day-num" [class.today-num]="day.isToday">{{ day.date.getDate() }}</div>
             <div class="day-tasks">
-              <button class="task-chip" type="button" *ngFor="let task of day.tasks | slice:0:3"
-                [class]="task.priority.toLowerCase()" [title]="task.title" (click)="openTask(task, $event)">{{ task.title }}</button>
-              <div class="more-chip" *ngIf="day.tasks.length > 3">+{{ day.tasks.length - 3 }} more</div>
+              <button class="task-chip" type="button" *ngFor="let event of day.events | slice:0:3"
+                [class]="event.priority.toLowerCase()" [title]="event.title" (click)="openEvent(event, $event)">{{ event.title }}</button>
+              <div class="more-chip" *ngIf="day.events.length > 3">+{{ day.events.length - 3 }} more</div>
             </div>
           </div>
         </div>
@@ -95,11 +88,9 @@ interface CalendarDay { date: Date; isCurrentMonth: boolean; isToday: boolean; t
   `]
 })
 export default class CalendarComponent implements OnInit {
-  private readonly taskService = inject(TaskService);
-  private readonly projectService = inject(ProjectService);
-  private readonly workspaceService = inject(WorkspaceService);
+  private readonly calendarService = inject(CalendarService);
   private readonly router = inject(Router);
-  tasks: Task[] = [];
+  events: CalendarEvent[] = [];
   calendarDays: CalendarDay[] = [];
   loading = true;
   viewDate = new Date();
@@ -107,17 +98,16 @@ export default class CalendarComponent implements OnInit {
   get monthName(): string { return this.viewDate.toLocaleString('default',{month:'long'}); }
   get year(): number { return this.viewDate.getFullYear(); }
   ngOnInit(): void {
-    this.workspaceService.getAll().pipe(
-      switchMap((workspaces: Workspace[]) =>
-        workspaces.length ? forkJoin(workspaces.map(ws => this.projectService.getByWorkspace(ws.id))) : of([] as Project[][])
-      ),
-      switchMap((projectArrays: Project[][]) => {
-        const projects = projectArrays.flat();
-        return projects.length ? forkJoin(projects.map(p => this.taskService.getByProject(p.id))) : of([] as Task[][]);
-      })
-    ).subscribe({
-      next: (taskArrays: Task[][]) => {
-        this.tasks = taskArrays.flat().filter(t => !!t.dueDate);
+    this.loadEvents();
+  }
+  loadEvents(): void {
+    this.loading = true;
+    const year = this.viewDate.getFullYear(), month = this.viewDate.getMonth();
+    const from = this.formatDate(new Date(year, month, 1));
+    const to = this.formatDate(new Date(year, month + 1, 0));
+    this.calendarService.getEvents(from, to).subscribe({
+      next: (events) => {
+        this.events = events;
         this.buildCalendar();
         this.loading = false;
       },
@@ -128,20 +118,23 @@ export default class CalendarComponent implements OnInit {
     const year = this.viewDate.getFullYear(), month = this.viewDate.getMonth(), today = new Date();
     const firstDay = new Date(year, month, 1), lastDay = new Date(year, month+1, 0);
     const days: CalendarDay[] = [];
-    for (let i = 0; i < firstDay.getDay(); i++) days.push({ date: new Date(year, month, i - firstDay.getDay() + 1), isCurrentMonth: false, isToday: false, tasks: [] });
+    for (let i = 0; i < firstDay.getDay(); i++) days.push({ date: new Date(year, month, i - firstDay.getDay() + 1), isCurrentMonth: false, isToday: false, events: [] });
     for (let d = 1; d <= lastDay.getDate(); d++) {
       const date = new Date(year, month, d);
-      days.push({ date, isCurrentMonth: true, isToday: date.toDateString() === today.toDateString(), tasks: this.tasks.filter(t => { const due = new Date(t.dueDate!); return due.getFullYear()===year && due.getMonth()===month && due.getDate()===d; }) });
+      days.push({ date, isCurrentMonth: true, isToday: date.toDateString() === today.toDateString(), events: this.events.filter(event => { const due = new Date(event.date); return due.getFullYear()===year && due.getMonth()===month && due.getDate()===d; }) });
     }
     const rem = 7 - (days.length % 7);
-    if (rem < 7) for (let i = 1; i <= rem; i++) days.push({ date: new Date(year, month+1, i), isCurrentMonth: false, isToday: false, tasks: [] });
+    if (rem < 7) for (let i = 1; i <= rem; i++) days.push({ date: new Date(year, month+1, i), isCurrentMonth: false, isToday: false, events: [] });
     this.calendarDays = days;
   }
-  prevMonth(): void { this.viewDate = new Date(this.viewDate.getFullYear(), this.viewDate.getMonth()-1, 1); this.buildCalendar(); }
-  nextMonth(): void { this.viewDate = new Date(this.viewDate.getFullYear(), this.viewDate.getMonth()+1, 1); this.buildCalendar(); }
-  goToday(): void { this.viewDate = new Date(); this.buildCalendar(); }
-  openTask(task: Task, event: Event): void {
+  prevMonth(): void { this.viewDate = new Date(this.viewDate.getFullYear(), this.viewDate.getMonth()-1, 1); this.loadEvents(); }
+  nextMonth(): void { this.viewDate = new Date(this.viewDate.getFullYear(), this.viewDate.getMonth()+1, 1); this.loadEvents(); }
+  goToday(): void { this.viewDate = new Date(); this.loadEvents(); }
+  openEvent(calendarEvent: CalendarEvent, event: Event): void {
     event.stopPropagation();
-    this.router.navigate(['/tasks', task.id]);
+    this.router.navigate([calendarEvent.type === 'TASK' ? '/tasks' : '/projects', calendarEvent.id]);
+  }
+  private formatDate(date: Date): string {
+    return date.toISOString().slice(0, 10);
   }
 }

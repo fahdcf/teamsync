@@ -222,7 +222,7 @@ Excluded by request:
   Frontend: clicking a task chip should open the task detail route/modal.
   Backend: no backend required if calendar events include task id; otherwise add id to calendar event response.
 
-- [ ] Task UI-AUDIT-091: Replace calendar's multi-request loading with a dedicated events endpoint.
+- [x] Task UI-AUDIT-091: Replace calendar's multi-request loading with a dedicated events endpoint.
   Frontend: stop loading all workspaces/projects/tasks just to render the calendar; query events for the visible month.
   Backend: add `GET /calendar/events?from=&to=&workspaceId=` returning task deadlines and project deadlines visible to the authenticated user.
 
