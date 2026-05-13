@@ -124,7 +124,7 @@ Excluded by request:
   Frontend: wire the controls to filter by manager/team member, due-date range, and sort order instead of rendering static buttons.
   Backend: extend `GET /projects` with `workspaceId`, `teamMemberId`, `dueFrom`, `dueTo`, `keyword`, and `sort` query params; current backend only supports status and managerId.
 
-- [ ] Task UI-AUDIT-043: Replace hardcoded project task counts.
+- [x] Task UI-AUDIT-043: Replace hardcoded project task counts.
   Frontend: remove the hardcoded `0 Tasks` value and show each project's actual task count.
   Backend: include `taskCount` in `ProjectResponseDTO` or add a lightweight project summary endpoint.
 

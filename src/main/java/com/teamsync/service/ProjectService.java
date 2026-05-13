@@ -218,6 +218,7 @@ public class ProjectService {
                 .status(p.getStatus())
                 .deadline(p.getDeadline())
                 .progress(p.getProgress())
+                .taskCount(taskRepository.countByProject(p))
                 .health(health)
                 .insight(insightForHealth(health))
                 .favorite(currentUser != null && projectFavoriteRepository.existsByProjectAndUser(p, currentUser))

@@ -131,6 +131,10 @@ import { User } from '../../../shared/models/user.model';
             <span class="project-avatar" *ngIf="project.manager">{{ initials(project.manager.username) }}</span>
             <span class="project-avatar" *ngIf="!project.manager">?</span>
             <div>
+              <small>Tasks</small>
+              <strong>{{ project.taskCount || 0 }}</strong>
+            </div>
+            <div>
               <small>Due date</small>
               <strong>{{ project.deadline ? (project.deadline | date:'MMM d, y') : 'No deadline' }}</strong>
             </div>
@@ -188,7 +192,7 @@ import { User } from '../../../shared/models/user.model';
           </div>
 
           <div class="project-cell project-task-cell">
-            <strong>0</strong>
+            <strong>{{ project.taskCount || 0 }}</strong>
             <small>Tasks</small>
           </div>
 

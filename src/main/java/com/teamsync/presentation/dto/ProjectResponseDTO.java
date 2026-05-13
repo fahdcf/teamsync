@@ -19,6 +19,7 @@ public class ProjectResponseDTO {
     private ProjectStatus status;
     private LocalDate deadline;
     private int progress;
+    private long taskCount;
     private String health;
     private String insight;
     private boolean favorite;
