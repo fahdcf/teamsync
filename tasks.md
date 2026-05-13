@@ -28,7 +28,7 @@ Excluded by request:
   Frontend: use the authenticated user for the sidebar bottom profile, use real current-workspace members for the navbar avatar stack, and remove static `Alex Johnson`/sample teammates.
   Backend: workspace responses already include members; add avatar/profile image fields to `UserResponseDTO` if real images are required.
 
-- [ ] Task UI-AUDIT-006: Make sidebar account/profile button open a real account menu.
+- [x] Task UI-AUDIT-006: Make sidebar account/profile button open a real account menu.
   Frontend: clicking the sidebar user card should open account actions such as Settings and Logout instead of doing nothing.
   Backend: no backend required unless adding profile image upload or account preference persistence.
 

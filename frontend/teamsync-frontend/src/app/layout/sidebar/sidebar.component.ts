@@ -1,10 +1,12 @@
 import { Component, HostListener, OnInit, inject } from '@angular/core';
 import { AsyncPipe, CommonModule } from '@angular/common';
-import { RouterLink, RouterLinkActive } from '@angular/router';
+import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { AuthStore } from '../../store/auth.store';
+import { TokenService } from '../../core/services/token.service';
 import { SidebarStateService } from '../../core/services/sidebar-state.service';
 import { AvatarComponent } from '../../shared/components/avatar/avatar.component';
+import { ClickOutsideDirective } from '../../shared/directives/click-outside.directive';
 import { UserRole } from '../../shared/models/user.model';
 
 interface NavItem {
@@ -18,7 +20,7 @@ interface NavItem {
 @Component({
   selector: 'app-sidebar',
   standalone: true,
-  imports: [CommonModule, AsyncPipe, RouterLink, RouterLinkActive, AvatarComponent],
+  imports: [CommonModule, AsyncPipe, RouterLink, RouterLinkActive, AvatarComponent, ClickOutsideDirective],
   template: `
     <div
       class="overlay-backdrop"
@@ -70,16 +72,23 @@ interface NavItem {
       <div class="separator"></div>
 
       <div class="sidebar-bottom">
-        <button class="user-item" type="button" [title]="isCollapsed ? ((user$ | async)?.username || 'Account') : ''">
-          <app-avatar [user]="(user$ | async)" size="sm"></app-avatar>
-          <span class="user-copy" *ngIf="!isCollapsed">
-            <span class="user-name">{{ (user$ | async)?.username || 'Account' }}</span>
-            <span class="user-role">{{ roleLabel((user$ | async)?.role) }}</span>
-          </span>
-          <span class="user-chevron" *ngIf="!isCollapsed">
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 6l4 4 4-4" stroke-linecap="round" stroke-linejoin="round"></path></svg>
-          </span>
-        </button>
+        <div class="account-menu" appClickOutside (clickOutside)="isUserMenuOpen = false">
+          <button class="user-item" type="button" [title]="isCollapsed ? ((user$ | async)?.username || 'Account') : ''" (click)="isUserMenuOpen = !isUserMenuOpen">
+            <app-avatar [user]="(user$ | async)" size="sm"></app-avatar>
+            <span class="user-copy" *ngIf="!isCollapsed">
+              <span class="user-name">{{ (user$ | async)?.username || 'Account' }}</span>
+              <span class="user-role">{{ roleLabel((user$ | async)?.role) }}</span>
+            </span>
+            <span class="user-chevron" *ngIf="!isCollapsed">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 6l4 4 4-4" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+            </span>
+          </button>
+
+          <div class="account-dropdown" *ngIf="isUserMenuOpen && !isCollapsed">
+            <button type="button" (click)="openSettings()">Settings</button>
+            <button type="button" class="danger" (click)="logout()">Logout</button>
+          </div>
+        </div>
       </div>
     </aside>
   `,
@@ -244,6 +253,10 @@ interface NavItem {
         gap: 6px;
       }
 
+      .account-menu {
+        position: relative;
+      }
+
       .ai-item,
       .user-item {
         margin: 0 12px;
@@ -402,6 +415,38 @@ interface NavItem {
         height: 14px;
       }
 
+      .account-dropdown {
+        position: absolute;
+        left: 12px;
+        right: 12px;
+        bottom: calc(100% + 8px);
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-lg);
+        background: var(--bg-surface);
+        box-shadow: var(--shadow-lg);
+        overflow: hidden;
+        z-index: 240;
+      }
+
+      .account-dropdown button {
+        width: 100%;
+        height: 38px;
+        border: 0;
+        background: transparent;
+        color: var(--text-primary);
+        text-align: left;
+        padding: 0 12px;
+        font-size: 13px;
+      }
+
+      .account-dropdown button:hover {
+        background: var(--bg-elevated);
+      }
+
+      .account-dropdown .danger {
+        color: var(--danger);
+      }
+
       .collapsed .logo {
         padding: 0;
         justify-content: center;
@@ -453,10 +498,13 @@ export class SidebarComponent implements OnInit {
   readonly authStore = inject(AuthStore);
   readonly sidebarState = inject(SidebarStateService);
   private readonly sanitizer = inject(DomSanitizer);
+  private readonly tokenService = inject(TokenService);
+  private readonly router = inject(Router);
   readonly user$ = this.authStore.user$;
 
   isCollapsed = false;
   isOverlay = false;
+  isUserMenuOpen = false;
 
   readonly navItems: NavItem[] = [
     {
@@ -524,6 +572,7 @@ export class SidebarComponent implements OnInit {
 
   toggleCollapse(): void {
     this.isCollapsed = !this.isCollapsed;
+    if (this.isCollapsed) this.isUserMenuOpen = false;
   }
 
   roleLabel(role?: UserRole): string {
@@ -532,6 +581,20 @@ export class SidebarComponent implements OnInit {
       .split('_')
       .map((part) => part.charAt(0) + part.slice(1).toLowerCase())
       .join(' ');
+  }
+
+  openSettings(): void {
+    this.isUserMenuOpen = false;
+    this.router.navigate(['/settings']);
+    if (this.isOverlay) this.sidebarState.close();
+  }
+
+  logout(): void {
+    this.isUserMenuOpen = false;
+    this.authStore.clearUser();
+    this.tokenService.removeToken();
+    this.router.navigate(['/login']);
+    if (this.isOverlay) this.sidebarState.close();
   }
 
   private updateLayout(): void {
