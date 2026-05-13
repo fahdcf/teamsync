@@ -8,7 +8,7 @@ Excluded by request:
 
 ## Global Layout
 
-- [ ] Task UI-AUDIT-001: Wire the top navbar global search to real data.
+- [x] Task UI-AUDIT-001: Wire the top navbar global search to real data.
   Frontend: make the `Search projects, tasks, people...` field query projects, tasks, and users, show grouped results, and navigate to the selected result.
   Backend: add a global search endpoint such as `GET /search?keyword=` returning typed results for projects, tasks, workspaces, and users visible to the authenticated user.
 

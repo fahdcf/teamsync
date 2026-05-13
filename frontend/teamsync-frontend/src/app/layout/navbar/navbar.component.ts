@@ -1,12 +1,16 @@
-import { Component, inject } from '@angular/core';
+import { Component, OnDestroy, inject } from '@angular/core';
 import { AsyncPipe, CommonModule } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
+import { Subject, of } from 'rxjs';
+import { catchError, debounceTime, distinctUntilChanged, switchMap, takeUntil, tap } from 'rxjs/operators';
 import { AuthStore } from '../../store/auth.store';
 import { NotificationStore } from '../../store/notification.store';
 import { TokenService } from '../../core/services/token.service';
 import { SidebarStateService } from '../../core/services/sidebar-state.service';
+import { SearchService } from '../../api/search.service';
 import { AvatarComponent } from '../../shared/components/avatar/avatar.component';
 import { ClickOutsideDirective } from '../../shared/directives/click-outside.directive';
+import { SearchResult, SearchResultType } from '../../shared/models/search.model';
 import { User } from '../../shared/models/user.model';
 import { RelativeTimePipe } from '../../shared/pipes/relative-time.pipe';
 
@@ -38,14 +42,48 @@ import { RelativeTimePipe } from '../../shared/pipes/relative-time.pipe';
         </div>
       </div>
 
-      <label class="search-bar" aria-label="Search">
-        <svg class="search-icon" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-          <circle cx="6" cy="6" r="4"></circle>
-          <path d="M9.5 9.5l3 3" stroke-linecap="round"></path>
-        </svg>
-        <input type="text" class="search-input" placeholder="Search projects, tasks, people..." />
-        <span class="search-shortcut">/</span>
-      </label>
+      <div class="search-wrap" appClickOutside (clickOutside)="closeSearch()">
+        <label class="search-bar" aria-label="Search">
+          <svg class="search-icon" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <circle cx="6" cy="6" r="4"></circle>
+            <path d="M9.5 9.5l3 3" stroke-linecap="round"></path>
+          </svg>
+          <input
+            type="text"
+            class="search-input"
+            placeholder="Search projects, tasks, people..."
+            [value]="searchQuery"
+            (input)="onSearchInput($event)"
+            (focus)="openSearch()"
+            (keydown.enter)="openFirstSearchResult()"
+            (keydown.escape)="closeSearch()"
+          />
+          <span class="search-shortcut">/</span>
+        </label>
+
+        <div class="search-dropdown" *ngIf="isSearchOpen && searchQuery.trim()">
+          <div class="search-state" *ngIf="isSearchLoading">Searching...</div>
+          <ng-container *ngIf="!isSearchLoading">
+            <ng-container *ngFor="let group of groupedSearchResults">
+              <div class="search-group-label">{{ group.label }}</div>
+              <button
+                *ngFor="let result of group.items"
+                class="search-result"
+                type="button"
+                (click)="openSearchResult(result)"
+              >
+                <span class="result-kind">{{ result.type.charAt(0) }}</span>
+                <span class="result-copy">
+                  <strong>{{ result.title }}</strong>
+                  <small>{{ result.subtitle }}</small>
+                </span>
+                <span class="result-route">{{ typeLabel(result.type) }}</span>
+              </button>
+            </ng-container>
+            <div class="search-state" *ngIf="!searchResults.length">No results found</div>
+          </ng-container>
+        </div>
+      </div>
 
       <div class="navbar-right">
         <button class="new-btn" type="button">
@@ -181,6 +219,11 @@ import { RelativeTimePipe } from '../../shared/pipes/relative-time.pipe';
         font-size: 13px;
       }
 
+      .search-wrap {
+        position: relative;
+        min-width: 0;
+      }
+
       .search-bar {
         height: 32px;
         padding: 0 12px;
@@ -223,6 +266,102 @@ import { RelativeTimePipe } from '../../shared/pipes/relative-time.pipe';
         padding: 0 8px;
         line-height: 18px;
         font-size: 11px;
+      }
+
+      .search-dropdown {
+        position: absolute;
+        top: calc(100% + 8px);
+        left: 50%;
+        width: min(460px, 90vw);
+        max-height: 440px;
+        overflow-y: auto;
+        transform: translateX(-50%);
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-xl);
+        background: var(--bg-surface);
+        box-shadow: var(--shadow-lg);
+        padding: 10px;
+        z-index: 260;
+      }
+
+      .search-group-label {
+        padding: 8px 8px 6px;
+        color: var(--text-tertiary);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .search-result {
+        width: 100%;
+        min-height: 52px;
+        border: 0;
+        border-radius: var(--radius-lg);
+        background: transparent;
+        color: var(--text-primary);
+        display: grid;
+        grid-template-columns: 32px minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 10px;
+        padding: 8px;
+        text-align: left;
+        cursor: pointer;
+      }
+
+      .search-result:hover {
+        background: var(--bg-elevated);
+      }
+
+      .result-kind {
+        width: 32px;
+        height: 32px;
+        border-radius: var(--radius-md);
+        border: 1px solid var(--border-subtle);
+        background: var(--accent-dim);
+        color: var(--accent);
+        display: grid;
+        place-items: center;
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .result-copy {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+
+      .result-copy strong,
+      .result-copy small {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .result-copy strong {
+        color: var(--text-primary);
+        font-size: 13px;
+        font-weight: 600;
+      }
+
+      .result-copy small,
+      .result-route,
+      .search-state {
+        color: var(--text-secondary);
+        font-size: 12px;
+      }
+
+      .result-route {
+        padding: 3px 8px;
+        border-radius: var(--radius-full);
+        background: var(--bg-elevated);
+      }
+
+      .search-state {
+        padding: 18px 12px;
+        text-align: center;
       }
 
       .navbar-right {
@@ -482,6 +621,12 @@ import { RelativeTimePipe } from '../../shared/pipes/relative-time.pipe';
           width: 100%;
         }
 
+        .search-dropdown {
+          left: 0;
+          width: 100%;
+          transform: none;
+        }
+
         .navbar-right {
           width: 100%;
           justify-content: flex-start;
@@ -490,12 +635,15 @@ import { RelativeTimePipe } from '../../shared/pipes/relative-time.pipe';
     `,
   ],
 })
-export class NavbarComponent {
+export class NavbarComponent implements OnDestroy {
   readonly authStore = inject(AuthStore);
   readonly notifStore = inject(NotificationStore);
   readonly sidebarState = inject(SidebarStateService);
+  private readonly searchService = inject(SearchService);
   private readonly tokenService = inject(TokenService);
   private readonly router = inject(Router);
+  private readonly searchInput$ = new Subject<string>();
+  private readonly destroy$ = new Subject<void>();
 
   readonly user$ = this.authStore.user$;
   readonly notifications$ = this.notifStore.notifications$;
@@ -509,10 +657,96 @@ export class NavbarComponent {
 
   isNotifOpen = false;
   isUserMenuOpen = false;
+  isSearchOpen = false;
+  isSearchLoading = false;
+  searchQuery = '';
+  searchResults: SearchResult[] = [];
+
+  readonly searchTypes: { type: SearchResultType; label: string }[] = [
+    { type: 'WORKSPACE', label: 'Workspaces' },
+    { type: 'PROJECT', label: 'Projects' },
+    { type: 'TASK', label: 'Tasks' },
+    { type: 'USER', label: 'People' },
+  ];
+
+  constructor() {
+    this.searchInput$
+      .pipe(
+        debounceTime(250),
+        distinctUntilChanged(),
+        tap((query) => {
+          this.isSearchOpen = !!query.trim();
+          this.isSearchLoading = !!query.trim();
+          if (!query.trim()) {
+            this.searchResults = [];
+            this.isSearchLoading = false;
+          }
+        }),
+        switchMap((query) => {
+          const trimmed = query.trim();
+          if (!trimmed) return of([] as SearchResult[]);
+          return this.searchService.search(trimmed).pipe(catchError(() => of([] as SearchResult[])));
+        }),
+        takeUntil(this.destroy$),
+      )
+      .subscribe((results) => {
+        this.searchResults = results;
+        this.isSearchLoading = false;
+      });
+  }
+
+  get groupedSearchResults(): { label: string; items: SearchResult[] }[] {
+    return this.searchTypes
+      .map((group) => ({
+        label: group.label,
+        items: this.searchResults.filter((result) => result.type === group.type),
+      }))
+      .filter((group) => group.items.length);
+  }
+
+  onSearchInput(event: Event): void {
+    this.searchQuery = (event.target as HTMLInputElement).value;
+    this.searchInput$.next(this.searchQuery);
+  }
+
+  openSearch(): void {
+    if (this.searchQuery.trim()) this.isSearchOpen = true;
+  }
+
+  closeSearch(): void {
+    this.isSearchOpen = false;
+  }
+
+  openFirstSearchResult(): void {
+    const [first] = this.searchResults;
+    if (first) this.openSearchResult(first);
+  }
+
+  openSearchResult(result: SearchResult): void {
+    this.searchQuery = '';
+    this.searchResults = [];
+    this.closeSearch();
+    this.router.navigateByUrl(result.route);
+  }
+
+  typeLabel(type: SearchResultType): string {
+    const labels: Record<SearchResultType, string> = {
+      WORKSPACE: 'Workspace',
+      PROJECT: 'Project',
+      TASK: 'Task',
+      USER: 'Person',
+    };
+    return labels[type];
+  }
 
   logout(): void {
     this.authStore.clearUser();
     this.tokenService.removeToken();
     this.router.navigate(['/login']);
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 }
