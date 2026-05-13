@@ -1,4 +1,4 @@
-import { Component, Input, OnInit, inject } from '@angular/core';
+import { Component, Input, OnChanges, OnInit, SimpleChanges, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -20,6 +20,15 @@ interface Column {
   tasks: Task[];
 }
 
+export interface TaskBoardFilters {
+  keyword?: string;
+  priority?: TaskPriority | '';
+  overdue?: boolean;
+}
+
+export type TaskBoardSort = 'updated' | 'dueDate' | 'priority' | 'title';
+export type TaskBoardGroup = 'status' | 'priority';
+
 @Component({
   selector: 'app-task-board',
   standalone: true,
@@ -38,13 +47,18 @@ interface Column {
   templateUrl: './task-board.component.html',
   styleUrl: './task-board.component.scss',
 })
-export default class TaskBoardComponent implements OnInit {
+export default class TaskBoardComponent implements OnInit, OnChanges {
   @Input() projectId = '';
+  @Input() externalFilters: TaskBoardFilters = {};
+  @Input() sortMode: TaskBoardSort = 'updated';
+  @Input() groupMode: TaskBoardGroup = 'status';
+  @Input() refreshToken = 0;
 
   private readonly taskService = inject(TaskService);
   private readonly route = inject(ActivatedRoute);
   private readonly fb = inject(FormBuilder);
   private readonly keywordSubject = new Subject<string>();
+  private initialized = false;
 
   readonly router = inject(Router);
 
@@ -55,7 +69,7 @@ export default class TaskBoardComponent implements OnInit {
     { status: 'DONE', label: 'Done', tasks: [] },
   ];
 
-  filters: { keyword?: string; priority?: string } = {};
+  filters: { keyword?: string; priority?: string; overdue?: boolean } = {};
   priorities: TaskPriority[] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
   isLoading = true;
   hasError = false;
@@ -76,16 +90,41 @@ export default class TaskBoardComponent implements OnInit {
   }
 
   get hasFilters(): boolean {
-    return !!(this.filters.keyword || this.filters.priority);
+    return !!(this.filters.keyword || this.filters.priority || this.filters.overdue);
+  }
+
+  get groupedPriorities(): TaskPriority[] {
+    return ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'];
   }
 
   ngOnInit(): void {
     this.projectId = this.projectId || this.route.snapshot.paramMap.get('id') || '';
+    this.applyExternalFilters();
+    this.initialized = true;
     this.loadTasks();
     this.keywordSubject.pipe(debounceTime(300), distinctUntilChanged()).subscribe((keyword) => {
       this.filters = { ...this.filters, keyword: keyword || undefined };
       this.loadTasks();
     });
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (!this.initialized) return;
+    if (!this.projectId) return;
+
+    if (changes['externalFilters']) {
+      this.applyExternalFilters();
+      this.loadTasks();
+      return;
+    }
+
+    if (changes['sortMode'] && !changes['sortMode'].firstChange) {
+      this.sortColumns();
+    }
+
+    if (changes['refreshToken'] && !changes['refreshToken'].firstChange) {
+      this.loadTasks();
+    }
   }
 
   loadTasks(): void {
@@ -102,6 +141,7 @@ export default class TaskBoardComponent implements OnInit {
         this.columns.forEach((column) => {
           column.tasks = tasks.filter((task) => task.status === column.status);
         });
+        this.sortColumns();
         this.isLoading = false;
       },
       error: () => {
@@ -195,5 +235,48 @@ export default class TaskBoardComponent implements OnInit {
   clearFilters(): void {
     this.filters = {};
     this.loadTasks();
+  }
+
+  tasksByPriority(tasks: Task[], priority: TaskPriority): Task[] {
+    return tasks.filter((task) => task.priority === priority);
+  }
+
+  priorityLabel(priority: TaskPriority): string {
+    return priority.charAt(0) + priority.slice(1).toLowerCase();
+  }
+
+  private applyExternalFilters(): void {
+    this.filters = {
+      keyword: this.externalFilters.keyword || undefined,
+      priority: this.externalFilters.priority || undefined,
+      overdue: this.externalFilters.overdue || undefined,
+    };
+  }
+
+  private sortColumns(): void {
+    this.columns.forEach((column) => {
+      column.tasks = [...column.tasks].sort((a, b) => this.compareTasks(a, b));
+    });
+  }
+
+  private compareTasks(a: Task, b: Task): number {
+    if (this.sortMode === 'dueDate') {
+      return this.dateValue(a.dueDate, Number.MAX_SAFE_INTEGER) - this.dateValue(b.dueDate, Number.MAX_SAFE_INTEGER);
+    }
+    if (this.sortMode === 'priority') {
+      return this.priorityValue(b.priority) - this.priorityValue(a.priority);
+    }
+    if (this.sortMode === 'title') {
+      return a.title.localeCompare(b.title);
+    }
+    return this.dateValue(b.updatedAt || b.createdAt, 0) - this.dateValue(a.updatedAt || a.createdAt, 0);
+  }
+
+  private priorityValue(priority: TaskPriority): number {
+    return { LOW: 1, MEDIUM: 2, HIGH: 3, CRITICAL: 4 }[priority];
+  }
+
+  private dateValue(value: string | null | undefined, fallback: number): number {
+    return value ? new Date(value).getTime() : fallback;
   }
 }

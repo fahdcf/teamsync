@@ -1,19 +1,20 @@
 import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ProjectService } from '../../../api/project.service';
 import { Project, ProjectStatus } from '../../../shared/models/project.model';
 import { AuthStore } from '../../../store/auth.store';
 import { ProjectAnalyticsComponent } from '../project-analytics/project-analytics.component';
 import { ProjectSettingsComponent } from '../project-settings/project-settings.component';
-import TaskBoardComponent from '../../task/task-board/task-board.component';
+import TaskBoardComponent, { TaskBoardFilters, TaskBoardGroup, TaskBoardSort } from '../../task/task-board/task-board.component';
 
 type Tab = 'board' | 'analytics' | 'settings';
 
 @Component({
   selector: 'app-project-detail',
   standalone: true,
-  imports: [CommonModule, ProjectAnalyticsComponent, ProjectSettingsComponent, TaskBoardComponent],
+  imports: [CommonModule, FormsModule, ProjectAnalyticsComponent, ProjectSettingsComponent, TaskBoardComponent],
   template: `
     <!-- Loading -->
     <div class="pd" *ngIf="isLoading">
@@ -66,16 +67,62 @@ type Tab = 'board' | 'analytics' | 'settings';
             (click)="activeTab = t.key" type="button">{{ t.label }}</button>
         </div>
         <div class="pd-tab-actions" *ngIf="activeTab === 'board'">
-          <button type="button" class="tab-action-btn">⊞ Filter</button>
-          <button type="button" class="tab-action-btn">↕ Sort</button>
-          <button type="button" class="tab-action-btn">⊟ Group</button>
-          <button type="button" class="tab-action-btn icon-btn">···</button>
+          <button type="button" class="tab-action-btn" [class.active]="openBoardPanel === 'filter'" (click)="toggleBoardPanel('filter')">Filter</button>
+          <button type="button" class="tab-action-btn" [class.active]="openBoardPanel === 'sort'" (click)="toggleBoardPanel('sort')">Sort</button>
+          <button type="button" class="tab-action-btn" (click)="toggleBoardGroup()">Group: {{ boardGroupMode === 'status' ? 'Status' : 'Priority' }}</button>
+          <button type="button" class="tab-action-btn icon-btn" [class.active]="openBoardPanel === 'more'" (click)="toggleBoardPanel('more')">...</button>
         </div>
+      </div>
+
+      <div class="pd-board-panel" *ngIf="activeTab === 'board' && openBoardPanel === 'filter'">
+        <label>
+          <span>Search</span>
+          <input type="text" placeholder="Search tasks..." [ngModel]="boardFilters.keyword || ''" (ngModelChange)="setBoardFilter('keyword', $event)" />
+        </label>
+        <label>
+          <span>Priority</span>
+          <select [ngModel]="boardFilters.priority || ''" (ngModelChange)="setBoardFilter('priority', $event)">
+            <option value="">All priorities</option>
+            <option value="LOW">Low</option>
+            <option value="MEDIUM">Medium</option>
+            <option value="HIGH">High</option>
+            <option value="CRITICAL">Critical</option>
+          </select>
+        </label>
+        <label class="check-control">
+          <input type="checkbox" [ngModel]="boardFilters.overdue || false" (ngModelChange)="setBoardFilter('overdue', $event)" />
+          <span>Overdue only</span>
+        </label>
+        <button type="button" class="panel-link-btn" (click)="clearBoardControls()">Clear</button>
+      </div>
+
+      <div class="pd-board-panel compact" *ngIf="activeTab === 'board' && openBoardPanel === 'sort'">
+        <label>
+          <span>Sort tasks by</span>
+          <select [ngModel]="boardSortMode" (ngModelChange)="setBoardSort($event)">
+            <option value="updated">Recently updated</option>
+            <option value="dueDate">Due date</option>
+            <option value="priority">Priority</option>
+            <option value="title">Title</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="pd-board-panel compact" *ngIf="activeTab === 'board' && openBoardPanel === 'more'">
+        <button type="button" class="panel-link-btn" (click)="refreshBoard()">Refresh board</button>
+        <button type="button" class="panel-link-btn" (click)="clearBoardControls()">Reset board view</button>
       </div>
 
       <!-- Content -->
       <div class="pd-content">
-        <app-task-board *ngIf="activeTab === 'board'" [projectId]="project.id"></app-task-board>
+        <app-task-board
+          *ngIf="activeTab === 'board'"
+          [projectId]="project.id"
+          [externalFilters]="boardFilters"
+          [sortMode]="boardSortMode"
+          [groupMode]="boardGroupMode"
+          [refreshToken]="boardRefreshToken">
+        </app-task-board>
         <app-project-analytics *ngIf="activeTab === 'analytics'" [projectId]="project.id"></app-project-analytics>
         <app-project-settings *ngIf="activeTab === 'settings'" [project]="project" (updated)="project = $event"></app-project-settings>
       </div>
@@ -201,7 +248,65 @@ type Tab = 'board' | 'analytics' | 'settings';
       transition: all 0.15s; display: inline-flex; align-items: center; gap: 4px;
     }
     .tab-action-btn:hover { border-color: var(--border-default); color: var(--text-primary); }
+    .tab-action-btn.active {
+      border-color: rgba(212,168,83,0.35);
+      background: var(--accent-dim);
+      color: var(--accent);
+    }
     .icon-btn { padding: 0 8px; letter-spacing: 2px; }
+
+    .pd-board-panel {
+      min-height: 58px;
+      margin-top: 10px;
+      padding: 10px;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      background: rgba(255,255,255,0.025);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .pd-board-panel.compact {
+      width: max-content;
+      max-width: 100%;
+    }
+
+    .pd-board-panel label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-secondary);
+      font-size: 12px;
+    }
+
+    .pd-board-panel input[type='text'],
+    .pd-board-panel select {
+      height: 32px;
+      min-width: 150px;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      background: var(--bg-elevated);
+      color: var(--text-primary);
+      padding: 0 10px;
+      outline: none;
+    }
+
+    .check-control input {
+      accent-color: var(--accent);
+    }
+
+    .panel-link-btn {
+      height: 32px;
+      padding: 0 12px;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      background: transparent;
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 700;
+    }
 
     /* Content — fill remaining space */
     .pd-content {
@@ -221,6 +326,11 @@ export default class ProjectDetailComponent implements OnInit {
   hasError = false;
   isEditingTitle = false;
   activeTab: Tab = 'board';
+  openBoardPanel: 'filter' | 'sort' | 'more' | null = null;
+  boardFilters: TaskBoardFilters = {};
+  boardSortMode: TaskBoardSort = 'updated';
+  boardGroupMode: TaskBoardGroup = 'status';
+  boardRefreshToken = 0;
 
   readonly tabs = [
     { key: 'board' as Tab, label: 'Board' },
@@ -259,6 +369,43 @@ export default class ProjectDetailComponent implements OnInit {
     this.projectService.archive(this.project!.id).subscribe({
       next: p => { this.project = p; }
     });
+  }
+
+  toggleBoardPanel(panel: 'filter' | 'sort' | 'more'): void {
+    this.openBoardPanel = this.openBoardPanel === panel ? null : panel;
+  }
+
+  setBoardFilter(key: keyof TaskBoardFilters, value: string | boolean): void {
+    if (key === 'overdue') {
+      this.boardFilters = { ...this.boardFilters, overdue: Boolean(value) || undefined };
+      return;
+    }
+    if (key === 'priority') {
+      this.boardFilters = { ...this.boardFilters, priority: (value || undefined) as TaskBoardFilters['priority'] };
+      return;
+    }
+    this.boardFilters = { ...this.boardFilters, keyword: String(value || '').trim() || undefined };
+  }
+
+  setBoardSort(value: TaskBoardSort): void {
+    this.boardSortMode = value;
+  }
+
+  toggleBoardGroup(): void {
+    this.boardGroupMode = this.boardGroupMode === 'status' ? 'priority' : 'status';
+  }
+
+  refreshBoard(): void {
+    this.boardRefreshToken += 1;
+    this.openBoardPanel = null;
+  }
+
+  clearBoardControls(): void {
+    this.boardFilters = {};
+    this.boardSortMode = 'updated';
+    this.boardGroupMode = 'status';
+    this.boardRefreshToken += 1;
+    this.openBoardPanel = null;
   }
 
   statusLabel(status: ProjectStatus): string {

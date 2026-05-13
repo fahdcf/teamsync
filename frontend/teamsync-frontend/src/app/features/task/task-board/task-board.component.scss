@@ -105,6 +105,27 @@
 .task-card-drag { cursor: grab; }
 .task-card-drag:active { cursor: grabbing; }
 
+.priority-group {
+  min-height: 26px;
+  margin-top: 4px;
+  padding: 0 8px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.024);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.priority-group small {
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+
 .empty-column {
   min-height: 60px;
   border: 1px dashed var(--border-subtle);

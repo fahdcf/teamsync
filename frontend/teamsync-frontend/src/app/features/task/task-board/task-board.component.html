@@ -37,14 +37,33 @@
         [cdkDropListData]="col.tasks"
         [cdkDropListConnectedTo]="columnIds"
         (cdkDropListDropped)="onDrop($event)">
-        <div *ngFor="let task of col.tasks" cdkDrag [cdkDragData]="task" class="task-card-drag">
-          <app-task-card
-            [task]="task"
-            [commentCount]="commentCountFor(task)"
-            (cardClick)="openTask(task)"
-            (deleted)="deleteTask(task)">
-          </app-task-card>
-        </div>
+        <ng-container *ngIf="groupMode === 'status'; else priorityGroupedColumn">
+          <div *ngFor="let task of col.tasks" cdkDrag [cdkDragData]="task" class="task-card-drag">
+            <app-task-card
+              [task]="task"
+              [commentCount]="commentCountFor(task)"
+              (cardClick)="openTask(task)"
+              (deleted)="deleteTask(task)">
+            </app-task-card>
+          </div>
+        </ng-container>
+
+        <ng-template #priorityGroupedColumn>
+          <ng-container *ngFor="let priority of groupedPriorities">
+            <div class="priority-group" *ngIf="tasksByPriority(col.tasks, priority).length">
+              <span>{{ priorityLabel(priority) }}</span>
+              <small>{{ tasksByPriority(col.tasks, priority).length }}</small>
+            </div>
+            <div *ngFor="let task of tasksByPriority(col.tasks, priority)" cdkDrag [cdkDragData]="task" class="task-card-drag">
+              <app-task-card
+                [task]="task"
+                [commentCount]="commentCountFor(task)"
+                (cardClick)="openTask(task)"
+                (deleted)="deleteTask(task)">
+              </app-task-card>
+            </div>
+          </ng-container>
+        </ng-template>
 
         <div *ngIf="!col.tasks.length" class="empty-column">
           <span>No tasks</span>

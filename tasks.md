@@ -142,7 +142,7 @@ Excluded by request:
   Frontend: tabs for `Timeline`, `Overview`, and `Files` are listed but do not render real content; implement them or hide them until supported.
   Backend: add project timeline/activity and project file attachment endpoints if keeping those tabs.
 
-- [ ] Task UI-AUDIT-051: Make project board toolbar actions work.
+- [x] Task UI-AUDIT-051: Make project board toolbar actions work.
   Frontend: wire `Filter`, `Sort`, `Group`, and `...` actions above the board to the task board filters/layout instead of static buttons.
   Backend: existing `GET /projects/{projectId}/tasks` supports status, priority, assigneeId, keyword, and overdue; add sort/group parameters if backend-side ordering is required.
 
