@@ -28,6 +28,11 @@ import { NavbarComponent } from '../navbar/navbar.component';
       min-height: 0;
     }
     .shell {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      height: 100dvh;
       display: flex;
       flex-direction: row;
       flex: 1;

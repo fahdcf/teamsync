@@ -112,7 +112,7 @@ interface BoardColumn {
                 *ngFor="let task of column.tasks"
                 [task]="task"
                 [readonly]="true"
-                [commentCount]="task.dependencies?.length || 0">
+                [commentCount]="task.dependencies.length || 0">
               </app-task-card>
               <div *ngIf="!column.tasks.length" class="kanban-empty-col">
                 <span>No tasks</span>
