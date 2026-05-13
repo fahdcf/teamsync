@@ -266,7 +266,7 @@ Excluded by request:
   Frontend: replace hardcoded `Profile updated`, `Logged in from Chrome on macOS`, and `Password changed` rows with real account activity.
   Backend: use `GET /users/me/activity` for product activity and add account/security audit logs if login/password events should be shown.
 
-- [ ] Task UI-AUDIT-114: Make workspace membership ownership labels accurate.
+- [x] Task UI-AUDIT-114: Make workspace membership ownership labels accurate.
   Frontend: show `Owner` only for workspaces the current user owns, otherwise show member role/status.
   Backend: include current user's membership role/ownership in `WorkspaceResponseDTO` or derive it reliably from owner id.
 

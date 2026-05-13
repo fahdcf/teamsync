@@ -126,7 +126,7 @@ import { Workspace } from '../../shared/models/workspace.model';
             <div class="workspace-row" *ngFor="let workspace of visibleWorkspaces">
               <div class="workspace-avatar">{{ firstLetter(workspace.name) }}</div>
               <div><strong>{{ workspace.name }}</strong><span>Workspace</span></div>
-              <em>Owner</em>
+              <em>{{ workspaceMembershipLabel(workspace) }}</em>
             </div>
             <div class="workspace-row empty" *ngIf="!visibleWorkspaces.length">
               <div class="workspace-avatar">W</div>
@@ -875,6 +875,12 @@ export default class SettingsComponent implements OnInit {
 
   firstLetter(value: string): string {
     return (value || 'W').charAt(0).toUpperCase();
+  }
+
+  workspaceMembershipLabel(workspace: Workspace): string {
+    if (this.user?.id && workspace.owner?.id === this.user.id) return 'Owner';
+    if (this.user?.id && workspace.members?.some((member) => member.id === this.user?.id)) return 'Member';
+    return 'Viewer';
   }
 
   roleLabelFor(role?: string): string {
