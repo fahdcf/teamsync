@@ -58,7 +58,7 @@ interface Testimonial {
 
             <div class="hero-cta">
               <a routerLink="/register" class="primary-cta">Start free trial -></a>
-              <a routerLink="/login" class="secondary-cta">Book a demo</a>
+              <a href="mailto:demo@teamsync.app?subject=TeamSync%20demo%20request" class="secondary-cta">Book a demo</a>
             </div>
 
             <div class="social-proof">
@@ -131,7 +131,7 @@ interface Testimonial {
             <p>
               Powerful features designed to help you plan, collaborate, and deliver your best work.
             </p>
-            <a href="#">Explore all features -></a>
+            <a href="#collaboration">Explore all features -></a>
           </div>
 
           <div class="feature-grid">
@@ -148,7 +148,7 @@ interface Testimonial {
             <span>ANALYTICS</span>
             <h2>Data that drives better decisions</h2>
             <p>Beautiful, real-time insights into your projects, teams, and performance.</p>
-            <a href="#">View all reports -></a>
+            <a routerLink="/register">View all reports -></a>
           </div>
 
           <div class="analytics-panel">
@@ -188,7 +188,7 @@ interface Testimonial {
             <span>COLLABORATION</span>
             <h2>Work together, anywhere</h2>
             <p>Real-time collaboration, seamless communication, and a shared understanding.</p>
-            <a href="#">Learn more -></a>
+            <a href="#testimonials">Learn more -></a>
           </div>
         </section>
 
@@ -197,7 +197,7 @@ interface Testimonial {
             <span>KANBAN BOARD</span>
             <h2>Visualize work. Deliver results.</h2>
             <p>Intuitive boards that adapt to your workflow and keep your team in the zone.</p>
-            <a href="#">View full board -></a>
+            <a routerLink="/register">View full board -></a>
           </div>
 
           <div class="kanban-panel">

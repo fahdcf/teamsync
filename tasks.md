@@ -272,7 +272,7 @@ Excluded by request:
 
 ## Landing / Public Pages
 
-- [ ] Task UI-AUDIT-120: Decide which marketing CTAs are real.
+- [x] Task UI-AUDIT-120: Decide which marketing CTAs are real.
   Frontend: `Book a demo`, `Explore all features`, `View all reports`, `Learn more`, and `View full board` currently use `href="#"`; route them to real pages/sections or remove them.
   Backend: no backend required unless demo requests or contact forms are added.
 
