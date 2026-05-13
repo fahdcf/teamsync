@@ -178,7 +178,7 @@ Excluded by request:
 
 ## Task List Page
 
-- [ ] Task UI-AUDIT-070: Add efficient all-tasks querying for the task list.
+- [x] Task UI-AUDIT-070: Add efficient all-tasks querying for the task list.
   Frontend: the page currently loads every workspace, then every project, then every project task; replace this with one paginated task list call.
   Backend: add `GET /tasks` for the authenticated user with filters for status, priority, projectId, workspaceId, assigneeId, keyword, overdue, due date, sort, and pagination.
 

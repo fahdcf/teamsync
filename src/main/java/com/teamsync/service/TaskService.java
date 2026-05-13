@@ -24,9 +24,14 @@ import com.teamsync.repository.TaskRepository;
 import com.teamsync.repository.TaskSpecification;
 import com.teamsync.repository.UserRepository;
 import com.teamsync.repository.CommentRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
@@ -183,6 +188,27 @@ public class TaskService implements com.teamsync.patterns.structural.proxy.TaskS
         return taskRepository.findAll(spec).stream().map(this::toDTO).collect(Collectors.toList());
     }
 
+    public Page<TaskResponseDTO> findVisibleTasks(String userEmail, TaskStatus status, TaskPriority priority,
+                                                  UUID projectId, UUID workspaceId, UUID assigneeId,
+                                                  String keyword, Boolean overdue, LocalDate dueFrom,
+                                                  LocalDate dueTo, String sort, int page, int size) {
+        User currentUser = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new NoSuchElementException("User not found: " + userEmail));
+        Specification<Task> spec = Specification.where(TaskSpecification.visibleTo(currentUser));
+        if (status != null) spec = spec.and(TaskSpecification.hasStatus(status));
+        if (priority != null) spec = spec.and(TaskSpecification.hasPriority(priority));
+        if (projectId != null) spec = spec.and(TaskSpecification.hasProjectId(projectId));
+        if (workspaceId != null) spec = spec.and(TaskSpecification.hasWorkspaceId(workspaceId));
+        if (assigneeId != null) spec = spec.and(TaskSpecification.hasAssignee(assigneeId));
+        if (keyword != null && !keyword.isBlank()) spec = spec.and(TaskSpecification.hasKeyword(keyword));
+        if (Boolean.TRUE.equals(overdue)) spec = spec.and(TaskSpecification.isOverdue());
+        if (dueFrom != null) spec = spec.and(TaskSpecification.dueFrom(dueFrom));
+        if (dueTo != null) spec = spec.and(TaskSpecification.dueTo(dueTo));
+
+        Pageable pageable = PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), 200), sortForTaskList(sort));
+        return taskRepository.findAll(spec, pageable).map(this::toDTO);
+    }
+
     public TaskResponseDTO findById(UUID id) {
         return toDTO(getTask(id));
     }
@@ -235,6 +261,22 @@ public class TaskService implements com.teamsync.patterns.structural.proxy.TaskS
             return (int) taskRepository.countByProject(project);
         }
         return last.getPosition() + 1;
+    }
+
+    private Sort sortForTaskList(String sort) {
+        if ("dueDate".equalsIgnoreCase(sort)) {
+            return Sort.by(Sort.Order.asc("dueDate").nullsLast());
+        }
+        if ("priority".equalsIgnoreCase(sort)) {
+            return Sort.by(Sort.Order.desc("priority"));
+        }
+        if ("title".equalsIgnoreCase(sort)) {
+            return Sort.by(Sort.Order.asc("title"));
+        }
+        if ("created".equalsIgnoreCase(sort)) {
+            return Sort.by(Sort.Order.desc("createdAt"));
+        }
+        return Sort.by(Sort.Order.desc("updatedAt"));
     }
 
     public TaskResponseDTO toDTO(Task t) {

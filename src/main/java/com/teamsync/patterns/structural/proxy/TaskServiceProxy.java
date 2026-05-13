@@ -9,10 +9,12 @@ import com.teamsync.presentation.dto.TaskRequestDTO;
 import com.teamsync.presentation.dto.TaskResponseDTO;
 import com.teamsync.repository.TaskRepository;
 import com.teamsync.repository.UserRepository;
+import org.springframework.data.domain.Page;
 import org.springframework.context.annotation.Primary;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
@@ -98,6 +100,15 @@ public class TaskServiceProxy implements TaskService {
     public List<TaskResponseDTO> findByProject(UUID projectId, TaskStatus status, TaskPriority priority,
                                                UUID assigneeId, String keyword, Boolean overdue) {
         return delegate.findByProject(projectId, status, priority, assigneeId, keyword, overdue);
+    }
+
+    @Override
+    public Page<TaskResponseDTO> findVisibleTasks(String userEmail, TaskStatus status, TaskPriority priority,
+                                                  UUID projectId, UUID workspaceId, UUID assigneeId,
+                                                  String keyword, Boolean overdue, LocalDate dueFrom,
+                                                  LocalDate dueTo, String sort, int page, int size) {
+        return delegate.findVisibleTasks(userEmail, status, priority, projectId, workspaceId, assigneeId,
+                keyword, overdue, dueFrom, dueTo, sort, page, size);
     }
 
     @Override

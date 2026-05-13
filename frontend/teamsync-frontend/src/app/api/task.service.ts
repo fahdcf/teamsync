@@ -2,7 +2,30 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
-import { Task, CreateTaskRequest, ChangeStatusRequest, CreateSubtaskRequest, Subtask } from '../shared/models/task.model';
+import { Task, CreateTaskRequest, ChangeStatusRequest, CreateSubtaskRequest, Subtask, TaskPriority, TaskStatus } from '../shared/models/task.model';
+
+export interface TaskQuery {
+  status?: TaskStatus;
+  priority?: TaskPriority;
+  projectId?: string;
+  workspaceId?: string;
+  assigneeId?: string;
+  keyword?: string;
+  overdue?: boolean;
+  dueFrom?: string;
+  dueTo?: string;
+  sort?: string;
+  page?: number;
+  size?: number;
+}
+
+export interface TaskPage {
+  content: Task[];
+  totalElements: number;
+  totalPages: number;
+  number: number;
+  size: number;
+}
 
 @Injectable({ providedIn: 'root' })
 export class TaskService {
@@ -19,6 +42,19 @@ export class TaskService {
       });
     }
     return this.http.get<Task[]>(`${this.base}/projects/${projectId}/tasks`, { params });
+  }
+
+  getAll(filters?: TaskQuery): Observable<TaskPage> {
+    let params = new HttpParams();
+    if (filters) {
+      Object.keys(filters).forEach(key => {
+        const value = filters[key as keyof TaskQuery];
+        if (value !== undefined && value !== '') {
+          params = params.set(key, String(value));
+        }
+      });
+    }
+    return this.http.get<TaskPage>(`${this.base}/tasks`, { params });
   }
 
   getBlockedByProject(projectId: string): Observable<Task[]> {

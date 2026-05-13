@@ -6,7 +6,9 @@ import com.teamsync.domain.enums.TaskStatus;
 import com.teamsync.presentation.dto.TaskRequestDTO;
 import com.teamsync.presentation.dto.TaskResponseDTO;
 import com.teamsync.repository.TaskRepository;
+import org.springframework.data.domain.Page;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -23,6 +25,10 @@ public interface TaskService {
     void undo(UUID userId);
     List<TaskResponseDTO> findByProject(UUID projectId, TaskStatus status, TaskPriority priority,
                                         UUID assigneeId, String keyword, Boolean overdue);
+    Page<TaskResponseDTO> findVisibleTasks(String userEmail, TaskStatus status, TaskPriority priority,
+                                           UUID projectId, UUID workspaceId, UUID assigneeId,
+                                           String keyword, Boolean overdue, LocalDate dueFrom,
+                                           LocalDate dueTo, String sort, int page, int size);
     TaskResponseDTO findById(UUID id);
     Task getTask(UUID id);
     TaskRepository getTaskRepository();

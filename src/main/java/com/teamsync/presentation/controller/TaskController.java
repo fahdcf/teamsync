@@ -24,10 +24,13 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -88,6 +91,26 @@ public class TaskController {
     public void reorder(@PathVariable UUID projectId,
                         @Valid @RequestBody ReorderTasksRequestDTO request) {
         taskService.reorder(projectId, request.getTaskIds());
+    }
+
+    @Operation(summary = "List visible tasks for the authenticated user with filters and pagination")
+    @ApiResponse(responseCode = "200", description = "Task page returned")
+    @GetMapping("/tasks")
+    public Page<TaskResponseDTO> listVisibleTasks(@RequestParam(required = false) TaskStatus status,
+                                                  @RequestParam(required = false) TaskPriority priority,
+                                                  @RequestParam(required = false) UUID projectId,
+                                                  @RequestParam(required = false) UUID workspaceId,
+                                                  @RequestParam(required = false) UUID assigneeId,
+                                                  @RequestParam(required = false) String keyword,
+                                                  @RequestParam(required = false) Boolean overdue,
+                                                  @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dueFrom,
+                                                  @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dueTo,
+                                                  @RequestParam(defaultValue = "updated") String sort,
+                                                  @RequestParam(defaultValue = "0") int page,
+                                                  @RequestParam(defaultValue = "50") int size,
+                                                  Authentication auth) {
+        return taskService.findVisibleTasks(auth.getName(), status, priority, projectId, workspaceId, assigneeId,
+                keyword, overdue, dueFrom, dueTo, sort, page, size);
     }
 
     @Operation(summary = "Get task details by ID")

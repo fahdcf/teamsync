@@ -2,12 +2,8 @@ import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { forkJoin, of, switchMap } from 'rxjs';
 import { TaskService } from '../../../api/task.service';
-import { ProjectService } from '../../../api/project.service';
-import { WorkspaceService } from '../../../api/workspace.service';
 import { Task, TaskStatus, TaskPriority } from '../../../shared/models/task.model';
-import { Project } from '../../../shared/models/project.model';
 
 @Component({
   selector: 'app-task-list',
@@ -19,7 +15,7 @@ import { Project } from '../../../shared/models/project.model';
       <header class="page-header">
         <div class="header-left">
           <h1>Tasks</h1>
-          <span class="count-badge">{{ filtered.length }}</span>
+          <span class="count-badge">{{ totalTasks }}</span>
         </div>
       </header>
 
@@ -54,14 +50,14 @@ import { Project } from '../../../shared/models/project.model';
       </div>
 
       <!-- Empty -->
-      <div class="empty-state" *ngIf="!loading && !filtered.length">
+      <div class="empty-state" *ngIf="!loading && !tasks.length">
         <div class="empty-icon">✓</div>
         <p>No tasks found</p>
         <span>Try adjusting the filters.</span>
       </div>
 
       <!-- Table -->
-      <div class="table-wrapper" *ngIf="!loading && filtered.length">
+      <div class="table-wrapper" *ngIf="!loading && tasks.length">
         <table class="tasks-table">
           <thead>
             <tr>
@@ -75,7 +71,7 @@ import { Project } from '../../../shared/models/project.model';
           </thead>
           <tbody>
             <tr
-              *ngFor="let task of filtered"
+              *ngFor="let task of tasks"
               class="task-row"
               (click)="open(task.id)"
               tabindex="0"
@@ -86,7 +82,7 @@ import { Project } from '../../../shared/models/project.model';
                 <span class="task-id" *ngIf="task.taskIdentifier">{{ task.taskIdentifier }}</span>
               </td>
               <td class="project-cell">
-                <span class="project-tag">{{ task.project?.title || '—' }}</span>
+                <span class="project-tag">{{ task.projectTitle || '—' }}</span>
               </td>
               <td>
                 <span class="priority-badge" [class]="task.priority.toLowerCase()">
@@ -386,13 +382,10 @@ import { Project } from '../../../shared/models/project.model';
 })
 export default class TaskListComponent implements OnInit {
   private readonly taskService = inject(TaskService);
-  private readonly projectService = inject(ProjectService);
-  private readonly workspaceService = inject(WorkspaceService);
   private readonly router = inject(Router);
 
   tasks: Task[] = [];
-  filtered: Task[] = [];
-  projects: Project[] = [];
+  totalTasks = 0;
   loading = true;
   activeStatus = 'ALL';
   activePriority = 'ALL';
@@ -415,22 +408,21 @@ export default class TaskListComponent implements OnInit {
   ];
 
   ngOnInit(): void {
-    this.workspaceService.getAll().pipe(
-      switchMap(workspaces => {
-        if (!workspaces.length) return of([] as Project[][]);
-        return forkJoin(workspaces.map(ws => this.projectService.getByWorkspace(ws.id)));
-      })
-    ).pipe(
-      switchMap((projectArrays) => {
-        const projects = (projectArrays as Project[][]).flat();
-        this.projects = projects;
-        if (!projects.length) return of([] as Task[][]);
-        return forkJoin(projects.map(p => this.taskService.getByProject(p.id)));
-      })
-    ).subscribe({
-      next: (taskArrays) => {
-        this.tasks = (taskArrays as Task[][]).flat();
-        this.applyFilters();
+    this.loadTasks();
+  }
+
+  loadTasks(): void {
+    this.loading = true;
+    this.taskService.getAll({
+      status: this.activeStatus !== 'ALL' ? this.activeStatus as TaskStatus : undefined,
+      priority: this.activePriority !== 'ALL' ? this.activePriority as TaskPriority : undefined,
+      sort: 'updated',
+      page: 0,
+      size: 200,
+    }).subscribe({
+      next: (page) => {
+        this.tasks = page.content;
+        this.totalTasks = page.totalElements;
         this.loading = false;
       },
       error: () => { this.loading = false; }
@@ -439,20 +431,12 @@ export default class TaskListComponent implements OnInit {
 
   setStatus(value: string): void {
     this.activeStatus = value;
-    this.applyFilters();
+    this.loadTasks();
   }
 
   setPriority(value: string): void {
     this.activePriority = value;
-    this.applyFilters();
-  }
-
-  applyFilters(): void {
-    this.filtered = this.tasks.filter(t => {
-      const statusOk = this.activeStatus === 'ALL' || t.status === this.activeStatus;
-      const priorityOk = this.activePriority === 'ALL' || t.priority === this.activePriority;
-      return statusOk && priorityOk;
-    });
+    this.loadTasks();
   }
 
   open(id: string): void {
