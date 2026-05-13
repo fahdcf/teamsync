@@ -80,7 +80,7 @@ Excluded by request:
   Frontend: implement the `...` workspace menu with edit workspace, invite member, archive/delete if supported, and refresh after actions.
   Backend: add workspace update/archive/delete endpoints if those actions should exist; currently only create, get, add member, and remove member are exposed.
 
-- [ ] Task UI-AUDIT-024: Show more than one workspace or provide a real list switcher.
+- [x] Task UI-AUDIT-024: Show more than one workspace or provide a real list switcher.
   Frontend: the page currently focuses only on `primaryWorkspace`; add a real workspace list/grid for all returned workspaces or a carousel/switcher.
   Backend: `GET /workspaces` already returns multiple workspaces; no backend change unless pagination/filtering is needed.
 

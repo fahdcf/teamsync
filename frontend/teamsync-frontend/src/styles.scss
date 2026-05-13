@@ -1812,6 +1812,50 @@ $wide:    1280px;
   background: var(--bg-elevated);
   color: var(--text-primary);
 }
+
+.workspace-switcher {
+  position: relative;
+  z-index: 1;
+  max-width: 1216px;
+  margin: -34px auto 26px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 12px;
+}
+
+.workspace-switcher button {
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  gap: 4px 10px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: rgba(255,255,255,0.025);
+  color: var(--text-primary);
+  text-align: left;
+}
+
+.workspace-switcher button.active {
+  border-color: rgba(212,168,83,0.54);
+  background: rgba(212,168,83,0.1);
+}
+
+.workspace-switcher span {
+  grid-row: span 2;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: var(--accent-dim);
+  color: var(--accent);
+  font-weight: 800;
+}
+
+.workspace-switcher small {
+  color: var(--text-secondary);
+}
 /* Landing page styles */
 .landing-page {
         color: var(--text-primary);

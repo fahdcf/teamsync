@@ -53,6 +53,19 @@ import { User } from '../../../shared/models/user.model';
         <button class="new-workspace-btn" (click)="isCreateOpen = true" type="button">New Workspace</button>
       </section>
 
+      <section class="workspace-switcher" *ngIf="!isLoading && !hasError && workspaces.length > 1" aria-label="Workspace list">
+        <button
+          type="button"
+          *ngFor="let workspace of workspaces"
+          [class.active]="workspace.id === primaryWorkspace?.id"
+          (click)="selectWorkspace(workspace.id)"
+        >
+          <span>{{ firstLetter(workspace.name) }}</span>
+          <strong>{{ workspace.name }}</strong>
+          <small>{{ memberCount(workspace) }} members</small>
+        </button>
+      </section>
+
       <section class="workspace-dashboard" *ngIf="!isLoading && !hasError && primaryWorkspace as ws">
         <article class="workspace-feature-card">
           <div class="card-glow"></div>
@@ -183,7 +196,7 @@ import { User } from '../../../shared/models/user.model';
               <span class="metric-icon members" aria-hidden="true"></span>
               <div>
                 <small>Team Members</small>
-                <strong>{{ totalMembers }}</strong>
+                <strong>{{ memberCount(ws) }}</strong>
               </div>
             </div>
           </article>
@@ -1115,6 +1128,7 @@ export default class WorkspaceListComponent implements OnInit {
   workspaces: Workspace[] = [];
   workspaceSummaries: Record<string, WorkspaceSummary> = {};
   workspaceActivities: Record<string, WorkspaceActivity[]> = {};
+  selectedWorkspaceId = '';
   isLoading = true;
   hasError = false;
   isCreateOpen = false;
@@ -1140,16 +1154,7 @@ export default class WorkspaceListComponent implements OnInit {
   ngOnInit(): void { this.load(); }
 
   get primaryWorkspace(): Workspace | null {
-    return this.workspaces[0] ?? null;
-  }
-
-  get totalMembers(): number {
-    const memberIds = new Set<string>();
-    this.workspaces.forEach((workspace) => {
-      workspace.members.forEach((member) => memberIds.add(member.id));
-      if (workspace.owner) memberIds.add(workspace.owner.id);
-    });
-    return memberIds.size;
+    return this.workspaces.find((workspace) => workspace.id === this.selectedWorkspaceId) ?? this.workspaces[0] ?? null;
   }
 
   load(): void {
@@ -1158,6 +1163,9 @@ export default class WorkspaceListComponent implements OnInit {
     this.workspaceService.getAll().subscribe({
       next: ws => {
         this.workspaces = ws;
+        if (!this.selectedWorkspaceId || !ws.some((workspace) => workspace.id === this.selectedWorkspaceId)) {
+          this.selectedWorkspaceId = ws[0]?.id || '';
+        }
         this.loadSummaries(ws);
         this.loadActivities(ws);
         this.isLoading = false;
@@ -1173,6 +1181,7 @@ export default class WorkspaceListComponent implements OnInit {
     this.workspaceService.create({ name: name!, description: description || '' }).subscribe({
       next: ws => {
         this.workspaces = [ws, ...this.workspaces];
+        this.selectedWorkspaceId = ws.id;
         this.workspaceSummaries = {
           ...this.workspaceSummaries,
           [ws.id]: this.emptySummary(),
@@ -1189,6 +1198,10 @@ export default class WorkspaceListComponent implements OnInit {
 
   openWorkspace(id: string): void {
     this.router.navigate(['/workspaces', id]);
+  }
+
+  selectWorkspace(id: string): void {
+    this.selectedWorkspaceId = id;
   }
 
   toggleWorkspaceMenu(id: string): void {
