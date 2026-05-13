@@ -196,7 +196,7 @@ Excluded by request:
   Frontend: implement the `...` task options menu with delete, duplicate/from-template, add dependency, save as template, and undo where permissions allow.
   Backend: existing delete, dependency, undo, template, and create-from-template endpoints exist; add duplicate endpoint only if needed.
 
-- [ ] Task UI-AUDIT-082: Make task detail `Create` button functional or remove it.
+- [x] Task UI-AUDIT-082: Make task detail `Create` button functional or remove it.
   Frontend: define whether `Create` creates a subtask, related task, or template, then wire it to the correct modal/action.
   Backend: reuse subtask/task/template endpoints depending on the chosen behavior.
 

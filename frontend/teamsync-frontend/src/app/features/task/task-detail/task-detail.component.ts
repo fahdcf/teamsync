@@ -128,6 +128,10 @@ export default class TaskDetailComponent implements OnInit {
     this.actionMessage = '';
   }
 
+  startSubtaskCreate(): void {
+    this.isAddingSubtask = true;
+  }
+
   loadProject(task: Task): void {
     const projectId = task.projectId || task.project?.id;
     if (!projectId) return;
