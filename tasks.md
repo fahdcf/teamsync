@@ -106,7 +106,7 @@ Excluded by request:
   Frontend: stop using `Math.min(5, memberCount)` as active members and show real online/recently-active counts or rename the label.
   Backend: add user presence/lastActiveAt fields or a workspace active-members endpoint.
 
-- [ ] Task UI-AUDIT-035: Make `View all activity` navigate and show full activity.
+- [x] Task UI-AUDIT-035: Make `View all activity` navigate and show full activity.
   Frontend: route `View all activity` to a full activity page/panel for the workspace instead of `href="#"`.
   Backend: `GET /workspaces/{id}/activity` exists; verify pagination and filtering support for a full activity feed.
 

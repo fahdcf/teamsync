@@ -1587,7 +1587,7 @@ $wide:    1280px;
 .timeline-row strong { display: block; color: var(--text-primary); font-size: 15px; font-weight: 700; }
 .timeline-row p { margin-top: 8px; color: var(--text-secondary); font-size: 13px; }
 .timeline-row.muted strong { color: var(--text-secondary); font-weight: 400; }
-.view-activity-link { display: inline-flex; margin-top: 34px; color: var(--accent); font-size: 14px; font-weight: 500; }
+.view-activity-link { display: inline-flex; margin-top: 34px; border: 0; background: transparent; padding: 0; color: var(--accent); font: inherit; font-size: 14px; font-weight: 500; }
 
 .ai-recommendation-card {
   min-height: 236px;

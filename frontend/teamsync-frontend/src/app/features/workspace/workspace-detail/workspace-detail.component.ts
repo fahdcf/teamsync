@@ -208,7 +208,7 @@ import { SkeletonComponent } from '../../../shared/components/skeleton/skeleton.
             </div>
           </ng-template>
 
-          <a class="view-activity-link" href="#">View all activity -></a>
+          <button class="view-activity-link" type="button" (click)="isActivityOpen = true">View all activity -></button>
         </article>
 
         <article class="ai-recommendation-card">
@@ -234,6 +234,21 @@ import { SkeletonComponent } from '../../../shared/components/skeleton/skeleton.
           <app-button type="submit" size="sm" [loading]="isAddingMember">Add</app-button>
         </div>
       </form>
+    </app-modal>
+
+    <app-modal [isOpen]="isActivityOpen" title="Workspace Activity" (closed)="isActivityOpen = false">
+      <div class="activity-timeline" *ngIf="activity.length; else noFullActivity">
+        <article class="timeline-row" *ngFor="let item of activity">
+          <span class="timeline-icon" [class]="activityIcon(item.action)" aria-hidden="true"></span>
+          <div>
+            <strong>{{ readableActivity(item.action) }}</strong>
+            <p>{{ item.user?.username || 'TeamSync' }} · {{ item.createdAt | date:'short' }}</p>
+          </div>
+        </article>
+      </div>
+      <ng-template #noFullActivity>
+        <app-empty-state title="No activity yet" description="Workspace activity will appear here as your team works."></app-empty-state>
+      </ng-template>
     </app-modal>
 
     <app-modal [isOpen]="isSettingsOpen" title="Workspace Settings" size="sm" (closed)="isSettingsOpen = false">
@@ -308,6 +323,7 @@ export default class WorkspaceDetailComponent implements OnInit {
   isAddMemberOpen = false;
   isCreateProjectOpen = false;
   isSettingsOpen = false;
+  isActivityOpen = false;
   isAddingMember = false;
   isCreatingProject = false;
   isSavingSettings = false;
