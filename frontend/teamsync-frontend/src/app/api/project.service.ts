@@ -8,6 +8,8 @@ export interface WorkspaceProjectFilters {
   status?: string;
   health?: string;
   managerId?: string;
+  teamMemberId?: string;
+  workspaceId?: string;
   dueFrom?: string;
   dueTo?: string;
   keyword?: string;
@@ -27,8 +29,12 @@ export class ProjectService {
     return this.http.get<Project[]>(`${this.base}/workspaces/${workspaceId}/projects`, { params });
   }
 
-  search(): Observable<Project[]> {
-    return this.http.get<Project[]>(`${this.base}/projects`);
+  search(filters: WorkspaceProjectFilters = {}): Observable<Project[]> {
+    let params = new HttpParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value) params = params.set(key, value);
+    });
+    return this.http.get<Project[]>(`${this.base}/projects`, { params });
   }
 
   getById(id: string): Observable<Project> {

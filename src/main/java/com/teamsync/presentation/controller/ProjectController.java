@@ -35,9 +35,16 @@ public class ProjectController {
     @Operation(summary = "Search all projects with optional status and managerId filters")
     @ApiResponse(responseCode = "200", description = "Project list returned")
     @GetMapping("/projects")
-    public List<ProjectResponseDTO> search(@RequestParam(required = false) ProjectStatus status,
-                                           @RequestParam(required = false) UUID managerId) {
-        return projectService.search(status, managerId);
+    public List<ProjectResponseDTO> search(@RequestParam(required = false) UUID workspaceId,
+                                           @RequestParam(required = false) ProjectStatus status,
+                                           @RequestParam(required = false) UUID managerId,
+                                           @RequestParam(required = false) UUID teamMemberId,
+                                           @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dueFrom,
+                                           @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dueTo,
+                                           @RequestParam(required = false) String keyword,
+                                           @RequestParam(required = false) String sort,
+                                           Authentication auth) {
+        return projectService.search(workspaceId, status, managerId, teamMemberId, dueFrom, dueTo, keyword, sort, auth.getName());
     }
 
     @Operation(summary = "Create a project in a workspace")

@@ -2,8 +2,8 @@ import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
-import { Subject, forkJoin, of, switchMap, takeUntil, finalize } from 'rxjs';
-import { ProjectService } from '../../../api/project.service';
+import { Subject, switchMap, takeUntil, finalize } from 'rxjs';
+import { ProjectService, WorkspaceProjectFilters } from '../../../api/project.service';
 import { WorkspaceService } from '../../../api/workspace.service';
 import { WorkspaceContextService } from '../../../core/services/workspace-context.service';
 import { Project, ProjectStatus } from '../../../shared/models/project.model';
@@ -50,7 +50,7 @@ import { User } from '../../../shared/models/user.model';
       <section class="project-filter-panel">
         <div class="project-search-box">
           <span aria-hidden="true">⌕</span>
-          <input type="text" placeholder="Search projects..." [(ngModel)]="searchText" (ngModelChange)="applyFilter()" />
+          <input type="text" placeholder="Search projects..." [(ngModel)]="searchText" (ngModelChange)="onFilterControlsChanged()" />
         </div>
 
         <div class="project-status-tabs">
@@ -64,9 +64,33 @@ import { User } from '../../../shared/models/user.model';
         </div>
 
         <div class="project-filter-row">
-          <button type="button"><span aria-hidden="true">♙</span> Team: All <b>⌄</b></button>
-          <button type="button"><span aria-hidden="true">□</span> Due date <b>⌄</b></button>
-          <button type="button">Sort: Recent <b>⌄</b></button>
+          <label class="project-filter-control">
+            <span>Team</span>
+            <select [(ngModel)]="teamMemberId" (ngModelChange)="onFilterControlsChanged()">
+              <option value="">All members</option>
+              <option *ngFor="let member of filterMembers" [value]="member.id">{{ member.username }}</option>
+            </select>
+          </label>
+
+          <label class="project-filter-control compact-date">
+            <span>Due from</span>
+            <input type="date" [(ngModel)]="dueFrom" (ngModelChange)="onFilterControlsChanged()" />
+          </label>
+
+          <label class="project-filter-control compact-date">
+            <span>Due to</span>
+            <input type="date" [(ngModel)]="dueTo" (ngModelChange)="onFilterControlsChanged()" />
+          </label>
+
+          <label class="project-filter-control">
+            <span>Sort</span>
+            <select [(ngModel)]="sortOrder" (ngModelChange)="onFilterControlsChanged()">
+              <option value="recent">Recent</option>
+              <option value="deadline">Due date</option>
+              <option value="progress">Progress</option>
+              <option value="title">Title</option>
+            </select>
+          </label>
         </div>
       </section>
 
@@ -425,23 +449,42 @@ import { User } from '../../../shared/models/user.model';
       gap: 12px;
     }
 
-    .project-filter-row button {
-      height: 38px;
-      min-width: 132px;
+    .project-filter-control {
+      min-width: 150px;
+      min-height: 40px;
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-md);
       background: rgba(255,255,255,0.022);
       color: var(--text-primary);
-      display: inline-flex;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
       align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      font-size: 13px;
-      padding: 0 14px;
+      gap: 10px;
+      padding: 0 12px;
     }
 
-    .project-filter-row button span,
-    .project-filter-row button b { color: var(--text-secondary); font-weight: 500; }
+    .project-filter-control span {
+      color: var(--text-secondary);
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .project-filter-control select,
+    .project-filter-control input {
+      min-width: 0;
+      height: 36px;
+      border: 0;
+      outline: 0;
+      background: transparent;
+      color: var(--text-primary);
+      font: inherit;
+      font-size: 13px;
+    }
+
+    .compact-date {
+      min-width: 174px;
+    }
 
     .loading-row {
       min-height: 240px;
@@ -672,6 +715,10 @@ export default class ProjectListComponent implements OnInit, OnDestroy {
   activeFilter: string = 'ALL';
   searchText = '';
   viewMode: 'grid' | 'list' = this.readStoredViewMode();
+  teamMemberId = '';
+  dueFrom = '';
+  dueTo = '';
+  sortOrder = 'recent';
 
   readonly createProjectForm = this.fb.nonNullable.group({
     workspaceId: ['', Validators.required],
@@ -698,8 +745,7 @@ export default class ProjectListComponent implements OnInit, OnDestroy {
         switchMap((workspaceId) => {
           this.currentWorkspaceId = workspaceId;
           this.loading = true;
-          if (workspaceId) return this.projectService.getByWorkspace(workspaceId);
-          return this.loadAllWorkspaceProjects();
+          return this.loadProjectsForWorkspace(workspaceId);
         }),
         takeUntil(this.destroy$),
       )
@@ -735,22 +781,17 @@ export default class ProjectListComponent implements OnInit, OnDestroy {
   }
 
   private loadAllWorkspaceProjects() {
-    return this.workspaceService.getAll().pipe(
-      switchMap(workspaces => {
-        const selected = this.workspaceContext.syncAvailableWorkspaces(workspaces);
-        if (selected) return this.projectService.getByWorkspace(selected.id);
-        if (!workspaces.length) return of([] as Project[]);
-        return forkJoin(workspaces.map(ws => this.projectService.getByWorkspace(ws.id)))
-          .pipe(switchMap((projectGroups) => of(projectGroups.flat())));
-      })
-    );
+    return this.projectService.search(this.projectSearchFilters());
+  }
+
+  private loadProjectsForWorkspace(workspaceId: string | null) {
+    if (workspaceId) return this.projectService.getByWorkspace(workspaceId, this.workspaceProjectFilters());
+    return this.loadAllWorkspaceProjects();
   }
 
   private refreshProjects(): void {
     this.loading = true;
-    const source = this.currentWorkspaceId
-      ? this.projectService.getByWorkspace(this.currentWorkspaceId)
-      : this.loadAllWorkspaceProjects();
+    const source = this.loadProjectsForWorkspace(this.currentWorkspaceId);
 
     source
       .pipe(takeUntil(this.destroy$))
@@ -764,6 +805,21 @@ export default class ProjectListComponent implements OnInit, OnDestroy {
           this.loading = false;
         },
       });
+  }
+
+  get filterMembers(): User[] {
+    const scopedWorkspace = this.currentWorkspaceId
+      ? this.workspaces.find((workspace) => workspace.id === this.currentWorkspaceId)
+      : null;
+    const source = scopedWorkspace ? [scopedWorkspace] : this.workspaces;
+    const users = new Map<string, User>();
+
+    source.forEach((workspace) => {
+      if (workspace.owner) users.set(workspace.owner.id, workspace.owner);
+      (workspace.members || []).forEach((member) => users.set(member.id, member));
+    });
+
+    return Array.from(users.values());
   }
 
   get selectedWorkspaceMembers(): User[] {
@@ -839,6 +895,35 @@ export default class ProjectListComponent implements OnInit, OnDestroy {
     return workspace.owner?.id || workspace.members?.[0]?.id || '';
   }
 
+  onFilterControlsChanged(): void {
+    this.refreshProjects();
+  }
+
+  private baseProjectFilters(): WorkspaceProjectFilters {
+    return {
+      status: this.activeFilter === 'ALL' ? undefined : this.activeFilter,
+      keyword: this.searchText.trim() || undefined,
+      dueFrom: this.dueFrom || undefined,
+      dueTo: this.dueTo || undefined,
+      sort: this.sortOrder || undefined,
+    };
+  }
+
+  private workspaceProjectFilters(): WorkspaceProjectFilters {
+    return {
+      ...this.baseProjectFilters(),
+      managerId: this.teamMemberId || undefined,
+    };
+  }
+
+  private projectSearchFilters(): WorkspaceProjectFilters {
+    return {
+      ...this.baseProjectFilters(),
+      workspaceId: this.currentWorkspaceId || undefined,
+      teamMemberId: this.teamMemberId || undefined,
+    };
+  }
+
   setViewMode(mode: 'grid' | 'list'): void {
     this.viewMode = mode;
     this.storeViewMode(mode);
@@ -863,7 +948,7 @@ export default class ProjectListComponent implements OnInit, OnDestroy {
 
   setFilter(value: string): void {
     this.activeFilter = value;
-    this.applyFilter();
+    this.refreshProjects();
   }
 
   applyFilter(): void {

@@ -120,7 +120,7 @@ Excluded by request:
   Frontend: implement both grid and list/table views, persist the user's selected view, and keep filters working in both modes.
   Backend: no backend required unless saving preferences server-side.
 
-- [ ] Task UI-AUDIT-042: Make projects page Team, Due date, and Sort filters real.
+- [x] Task UI-AUDIT-042: Make projects page Team, Due date, and Sort filters real.
   Frontend: wire the controls to filter by manager/team member, due-date range, and sort order instead of rendering static buttons.
   Backend: extend `GET /projects` with `workspaceId`, `teamMemberId`, `dueFrom`, `dueTo`, `keyword`, and `sort` query params; current backend only supports status and managerId.
 

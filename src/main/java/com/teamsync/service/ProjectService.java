@@ -143,10 +143,23 @@ public class ProjectService {
     }
 
     public List<ProjectResponseDTO> search(ProjectStatus status, UUID managerId) {
+        return search(null, status, managerId, null, null, null, null, null, null);
+    }
+
+    public List<ProjectResponseDTO> search(UUID workspaceId, ProjectStatus status, UUID managerId, UUID teamMemberId,
+                                           LocalDate dueFrom, LocalDate dueTo, String keyword, String sort, String userEmail) {
         Specification<Project> spec = Specification.where(null);
+        if (workspaceId != null) spec = spec.and(ProjectSpecification.hasWorkspace(workspaceService.getWorkspace(workspaceId)));
         if (status != null) spec = spec.and(ProjectSpecification.hasStatus(status));
         if (managerId != null) spec = spec.and(ProjectSpecification.hasManager(managerId));
-        return projectRepository.findAll(spec).stream().map(this::toDTO).collect(Collectors.toList());
+        if (teamMemberId != null) spec = spec.and(ProjectSpecification.hasManager(teamMemberId));
+        if (dueFrom != null) spec = spec.and(ProjectSpecification.deadlineFrom(dueFrom));
+        if (dueTo != null) spec = spec.and(ProjectSpecification.deadlineTo(dueTo));
+        if (keyword != null && !keyword.isBlank()) spec = spec.and(ProjectSpecification.hasKeyword(keyword));
+        User currentUser = resolveActor(userEmail, null);
+        return projectRepository.findAll(spec, sortForWorkspaceProjects(sort)).stream()
+                .map(project -> toDTO(project, currentUser))
+                .collect(Collectors.toList());
     }
 
     public ProjectResponseDTO findById(UUID id) {
