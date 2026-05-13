@@ -50,7 +50,7 @@ Excluded by request:
   Frontend: stop calculating `timeTracked` as `Math.max(24, tasks.length * 4)` and show real tracked time only when available.
   Backend: add a time tracking model/endpoints or add aggregated tracked-hours fields to dashboard analytics.
 
-- [ ] Task UI-AUDIT-014: Make dashboard team member work summaries real.
+- [x] Task UI-AUDIT-014: Make dashboard team member work summaries real.
   Frontend: replace `Working on {{ firstTaskTitle }}` repeated for every member with each member's current active task or workload summary.
   Backend: add a per-member current work endpoint or extend dashboard/team workload data with each member's current task titles/counts.
 

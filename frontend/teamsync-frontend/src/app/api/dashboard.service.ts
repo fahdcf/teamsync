@@ -5,6 +5,7 @@ import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { TaskPriority } from '../shared/models/task.model';
 import { ProjectStatus } from '../shared/models/project.model';
+import { User } from '../shared/models/user.model';
 
 export interface DashboardStats {
   activeTasks: number;
@@ -46,6 +47,12 @@ export interface DashboardChartSeries {
   workloadSeries: number[];
 }
 
+export interface DashboardTeamWorkSummary {
+  user: User;
+  activeTaskTitle: string | null;
+  activeTaskCount: number;
+}
+
 @Injectable({ providedIn: 'root' })
 export class DashboardService {
   private readonly http = inject(HttpClient);
@@ -65,6 +72,10 @@ export class DashboardService {
 
   getChartSeries(range?: DashboardDateRange): Observable<DashboardChartSeries> {
     return this.http.get<DashboardChartSeries>(`${this.base}/dashboard/chart-series`, { params: this.rangeParams(range) });
+  }
+
+  getTeamWorkload(): Observable<DashboardTeamWorkSummary[]> {
+    return this.http.get<DashboardTeamWorkSummary[]>(`${this.base}/dashboard/team-workload`);
   }
 
   private rangeParams(range?: DashboardDateRange): HttpParams {

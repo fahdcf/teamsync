@@ -181,16 +181,54 @@ public class DashboardService {
         return result;
     }
 
+    public List<Map<String, Object>> getTeamWorkload(String userEmail) {
+        User currentUser = userService.findByEmail(userEmail);
+        Set<Workspace> workspaces = getUserWorkspaces(currentUser);
+        Map<UUID, User> members = new LinkedHashMap<>();
+        for (Workspace workspace : workspaces) {
+            if (workspace.getOwner() != null) {
+                members.put(workspace.getOwner().getId(), workspace.getOwner());
+            }
+            workspace.getMembers().forEach(member -> members.put(member.getId(), member));
+        }
+
+        return members.values().stream()
+                .limit(6)
+                .map(member -> {
+                    List<Task> activeTasks = taskRepository.findByAssigneeAndStatus(member, TaskStatus.IN_PROGRESS);
+                    Task latestActiveTask = activeTasks.stream()
+                            .max(Comparator.comparing(Task::getUpdatedAt, Comparator.nullsLast(Comparator.naturalOrder())))
+                            .orElse(null);
+                    Map<String, Object> dto = new LinkedHashMap<>();
+                    dto.put("user", Map.of(
+                            "id", member.getId(),
+                            "username", member.getUsername(),
+                            "email", member.getEmail(),
+                            "role", member.getRole(),
+                            "createdAt", member.getCreatedAt()
+                    ));
+                    dto.put("activeTaskTitle", latestActiveTask != null ? latestActiveTask.getTitle() : null);
+                    dto.put("activeTaskCount", activeTasks.size());
+                    return dto;
+                })
+                .toList();
+    }
+
     private Set<Project> getUserProjects(User user) {
-        Set<Workspace> workspaces = new LinkedHashSet<>();
-        workspaces.addAll(workspaceRepository.findByOwner(user));
-        workspaces.addAll(workspaceRepository.findByMembersContaining(user));
+        Set<Workspace> workspaces = getUserWorkspaces(user);
 
         Set<Project> projects = new LinkedHashSet<>();
         for (Workspace workspace : workspaces) {
             projects.addAll(projectRepository.findByWorkspace(workspace));
         }
         return projects;
+    }
+
+    private Set<Workspace> getUserWorkspaces(User user) {
+        Set<Workspace> workspaces = new LinkedHashSet<>();
+        workspaces.addAll(workspaceRepository.findByOwner(user));
+        workspaces.addAll(workspaceRepository.findByMembersContaining(user));
+        return workspaces;
     }
 
     private long teamVelocity(Set<Project> userProjects, DateRange range) {

@@ -4,7 +4,7 @@ import { Router } from '@angular/router';
 import { forkJoin, of, switchMap } from 'rxjs';
 import { AuthStore } from '../../store/auth.store';
 import { ActivityService } from '../../api/activity.service';
-import { DashboardChartSeries, DashboardDateRange, DashboardDeadline, DashboardProjectOverview, DashboardService, DashboardStats } from '../../api/dashboard.service';
+import { DashboardChartSeries, DashboardDateRange, DashboardDeadline, DashboardProjectOverview, DashboardService, DashboardStats, DashboardTeamWorkSummary } from '../../api/dashboard.service';
 import { ProjectService } from '../../api/project.service';
 import { TaskService } from '../../api/task.service';
 import { WorkspaceService } from '../../api/workspace.service';
@@ -198,10 +198,10 @@ import { Workspace } from '../../shared/models/workspace.model';
 
           <article class="dash-card members-card">
             <header><h2>Team Members</h2><a href="#">View all -></a></header>
-            <div class="member-row" *ngFor="let member of teamMembers">
-              <span>{{ initials(member) }}</span>
-              <div><strong>{{ member.username }}</strong><small>{{ member.role }}</small></div>
-              <p><i></i> Working on {{ firstTaskTitle }}</p>
+            <div class="member-row" *ngFor="let summary of teamWorkSummaries">
+              <span>{{ initials(summary.user) }}</span>
+              <div><strong>{{ summary.user.username }}</strong><small>{{ summary.user.role }}</small></div>
+              <p><i></i> {{ summary.activeTaskTitle ? ('Working on ' + summary.activeTaskTitle) : 'No active task' }}</p>
             </div>
           </article>
 
@@ -247,6 +247,7 @@ export default class DashboardComponent implements OnInit {
   workspaces: Workspace[] = [];
   tasks: Task[] = [];
   recentActivity: ActivityLog[] = [];
+  teamWorkSummaries: DashboardTeamWorkSummary[] = [];
   selectedProjectId = '';
   dashboardCalendarDate = new Date();
 
@@ -288,10 +289,6 @@ export default class DashboardComponent implements OnInit {
     const members = this.workspaces.flatMap((workspace) => workspace.members || []);
     const unique = new Map(members.map((member) => [member.id, member]));
     return Array.from(unique.values()).slice(0, 4);
-  }
-
-  get firstTaskTitle(): string {
-    return this.tasks.find((task) => task.status === 'IN_PROGRESS')?.title || 'current priorities';
   }
 
   get workloadBars(): number[] {
@@ -364,6 +361,7 @@ export default class DashboardComponent implements OnInit {
       workspaces: this.workspaceService.getAll(),
       activity: this.activityService.getMyActivity(),
       chartSeries: this.dashboardService.getChartSeries(range),
+      teamWorkload: this.dashboardService.getTeamWorkload(),
     })
       .pipe(
         switchMap((data) => {
@@ -374,6 +372,7 @@ export default class DashboardComponent implements OnInit {
           this.workspaces = data.workspaces;
           this.recentActivity = data.activity;
           this.chartSeries = data.chartSeries;
+          this.teamWorkSummaries = data.teamWorkload;
           const workspaceId = data.workspaces[0]?.id;
           if (!workspaceId) return of([] as Project[]);
           return this.projectService.getByWorkspace(workspaceId);

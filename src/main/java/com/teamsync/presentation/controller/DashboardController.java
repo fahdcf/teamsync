@@ -59,4 +59,11 @@ public class DashboardController {
                                               @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
         return dashboardService.getChartSeries(auth.getName(), from, to);
     }
+
+    @Operation(summary = "Get current work summaries for dashboard team members")
+    @ApiResponse(responseCode = "200", description = "Team workload summaries returned")
+    @GetMapping("/team-workload")
+    public List<Map<String, Object>> getTeamWorkload(Authentication auth) {
+        return dashboardService.getTeamWorkload(auth.getName());
+    }
 }
