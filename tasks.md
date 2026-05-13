@@ -12,7 +12,7 @@ Excluded by request:
   Frontend: make the `Search projects, tasks, people...` field query projects, tasks, and users, show grouped results, and navigate to the selected result.
   Backend: add a global search endpoint such as `GET /search?keyword=` returning typed results for projects, tasks, workspaces, and users visible to the authenticated user.
 
-- [ ] Task UI-AUDIT-002: Replace hardcoded navbar breadcrumbs with current workspace/project context.
+- [x] Task UI-AUDIT-002: Replace hardcoded navbar breadcrumbs with current workspace/project context.
   Frontend: derive breadcrumb labels from the active route and loaded entity instead of always showing `Product Design Workspace` and `Design:System 2.0`.
   Backend: ensure project/task detail responses include enough workspace/project identifiers and names to build breadcrumbs without extra placeholder text.
 

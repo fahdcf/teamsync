@@ -139,6 +139,7 @@ public class ProjectService {
                 .health(health)
                 .insight(insightForHealth(health))
                 .workspaceId(p.getWorkspace().getId())
+                .workspaceName(p.getWorkspace().getName())
                 .manager(userToDTO(p.getManager()))
                 .createdAt(p.getCreatedAt())
                 .build();

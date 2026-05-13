@@ -22,6 +22,7 @@ public class ProjectResponseDTO {
     private String health;
     private String insight;
     private UUID workspaceId;
+    private String workspaceName;
     private UserResponseDTO manager;
     private LocalDateTime createdAt;
 }

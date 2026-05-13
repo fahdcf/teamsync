@@ -14,6 +14,7 @@ export interface Project {
   insight?: string;
   workspace: Workspace;
   workspaceId?: string;
+  workspaceName?: string;
   manager: User;
   createdAt: string;
 }

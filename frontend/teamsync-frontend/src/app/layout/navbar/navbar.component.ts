@@ -1,18 +1,26 @@
 import { Component, OnDestroy, inject } from '@angular/core';
 import { AsyncPipe, CommonModule } from '@angular/common';
-import { Router, RouterLink } from '@angular/router';
+import { NavigationEnd, Router, RouterLink } from '@angular/router';
 import { Subject, of } from 'rxjs';
-import { catchError, debounceTime, distinctUntilChanged, switchMap, takeUntil, tap } from 'rxjs/operators';
+import { catchError, debounceTime, distinctUntilChanged, filter, switchMap, takeUntil, tap } from 'rxjs/operators';
 import { AuthStore } from '../../store/auth.store';
 import { NotificationStore } from '../../store/notification.store';
 import { TokenService } from '../../core/services/token.service';
 import { SidebarStateService } from '../../core/services/sidebar-state.service';
 import { SearchService } from '../../api/search.service';
+import { ProjectService } from '../../api/project.service';
+import { TaskService } from '../../api/task.service';
+import { WorkspaceService } from '../../api/workspace.service';
 import { AvatarComponent } from '../../shared/components/avatar/avatar.component';
 import { ClickOutsideDirective } from '../../shared/directives/click-outside.directive';
 import { SearchResult, SearchResultType } from '../../shared/models/search.model';
 import { User } from '../../shared/models/user.model';
 import { RelativeTimePipe } from '../../shared/pipes/relative-time.pipe';
+
+interface BreadcrumbItem {
+  label: string;
+  route: string;
+}
 
 @Component({
   selector: 'app-navbar',
@@ -30,15 +38,16 @@ import { RelativeTimePipe } from '../../shared/pipes/relative-time.pipe';
         </button>
 
         <div class="breadcrumb">
-          <a routerLink="/workspaces" class="crumb">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">
-              <path d="M2 6.2 8 2l6 4.2V14H2V6.2Z"></path>
-              <path d="M5.2 8.6h5.6"></path>
-            </svg>
-            <span>Product Design Workspace</span>
-          </a>
-          <span class="crumb-sep">&#8250;</span>
-          <a routerLink="/dashboard" class="crumb current">Design:System 2.0</a>
+          <ng-container *ngFor="let crumb of breadcrumbs; let first = first; let last = last">
+            <a [routerLink]="crumb.route" class="crumb" [class.current]="last">
+              <svg *ngIf="first" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">
+                <path d="M2 6.2 8 2l6 4.2V14H2V6.2Z"></path>
+                <path d="M5.2 8.6h5.6"></path>
+              </svg>
+              <span>{{ crumb.label }}</span>
+            </a>
+            <span class="crumb-sep" *ngIf="!last">&#8250;</span>
+          </ng-container>
         </div>
       </div>
 
@@ -640,6 +649,9 @@ export class NavbarComponent implements OnDestroy {
   readonly notifStore = inject(NotificationStore);
   readonly sidebarState = inject(SidebarStateService);
   private readonly searchService = inject(SearchService);
+  private readonly projectService = inject(ProjectService);
+  private readonly taskService = inject(TaskService);
+  private readonly workspaceService = inject(WorkspaceService);
   private readonly tokenService = inject(TokenService);
   private readonly router = inject(Router);
   private readonly searchInput$ = new Subject<string>();
@@ -661,6 +673,7 @@ export class NavbarComponent implements OnDestroy {
   isSearchLoading = false;
   searchQuery = '';
   searchResults: SearchResult[] = [];
+  breadcrumbs: BreadcrumbItem[] = [{ label: 'Dashboard', route: '/dashboard' }];
 
   readonly searchTypes: { type: SearchResultType; label: string }[] = [
     { type: 'WORKSPACE', label: 'Workspaces' },
@@ -670,6 +683,14 @@ export class NavbarComponent implements OnDestroy {
   ];
 
   constructor() {
+    this.updateBreadcrumbs(this.router.url);
+    this.router.events
+      .pipe(
+        filter((event): event is NavigationEnd => event instanceof NavigationEnd),
+        takeUntil(this.destroy$),
+      )
+      .subscribe((event) => this.updateBreadcrumbs(event.urlAfterRedirects));
+
     this.searchInput$
       .pipe(
         debounceTime(250),
@@ -737,6 +758,82 @@ export class NavbarComponent implements OnDestroy {
       USER: 'Person',
     };
     return labels[type];
+  }
+
+  private updateBreadcrumbs(url: string): void {
+    const cleanUrl = url.split('?')[0].split('#')[0];
+    const segments = cleanUrl.split('/').filter(Boolean);
+    const [section, id, child] = segments;
+
+    if (!section || section === 'dashboard') {
+      this.breadcrumbs = [{ label: 'Dashboard', route: '/dashboard' }];
+      return;
+    }
+
+    if (section === 'workspaces') {
+      this.breadcrumbs = [{ label: 'Workspaces', route: '/workspaces' }];
+      if (id) this.loadWorkspaceBreadcrumb(id);
+      return;
+    }
+
+    if (section === 'projects') {
+      this.breadcrumbs = [{ label: 'Projects', route: '/projects' }];
+      if (id) this.loadProjectBreadcrumb(id, child);
+      return;
+    }
+
+    if (section === 'tasks') {
+      this.breadcrumbs = [{ label: 'Tasks', route: '/tasks' }];
+      if (id) this.loadTaskBreadcrumb(id);
+      return;
+    }
+
+    this.breadcrumbs = [{ label: this.titleFromSegment(section), route: cleanUrl }];
+  }
+
+  private loadWorkspaceBreadcrumb(id: string): void {
+    this.workspaceService.getById(id).pipe(takeUntil(this.destroy$)).subscribe({
+      next: (workspace) => {
+        this.breadcrumbs = [
+          { label: 'Workspaces', route: '/workspaces' },
+          { label: workspace.name, route: `/workspaces/${workspace.id}` },
+        ];
+      },
+    });
+  }
+
+  private loadProjectBreadcrumb(id: string, child?: string): void {
+    this.projectService.getById(id).pipe(takeUntil(this.destroy$)).subscribe({
+      next: (project) => {
+        const workspaceId = project.workspaceId || project.workspace?.id;
+        const workspaceName = project.workspaceName || project.workspace?.name || 'Workspace';
+        this.breadcrumbs = [
+          { label: workspaceName, route: workspaceId ? `/workspaces/${workspaceId}` : '/workspaces' },
+          { label: project.title, route: `/projects/${project.id}` },
+          ...(child ? [{ label: this.titleFromSegment(child), route: `/projects/${project.id}/${child}` }] : []),
+        ];
+      },
+    });
+  }
+
+  private loadTaskBreadcrumb(id: string): void {
+    this.taskService.getById(id).pipe(takeUntil(this.destroy$)).subscribe({
+      next: (task) => {
+        const projectId = task.projectId || task.project?.id;
+        this.breadcrumbs = [
+          { label: task.workspaceName || task.project?.workspaceName || task.project?.workspace?.name || 'Workspace', route: task.workspaceId ? `/workspaces/${task.workspaceId}` : '/workspaces' },
+          { label: task.projectTitle || task.project?.title || 'Project', route: projectId ? `/projects/${projectId}` : '/projects' },
+          { label: task.title, route: `/tasks/${task.id}` },
+        ];
+      },
+    });
+  }
+
+  private titleFromSegment(segment: string): string {
+    return segment
+      .split('-')
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ');
   }
 
   logout(): void {

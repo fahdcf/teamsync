@@ -14,6 +14,9 @@ export interface Task {
   assignee: User | null;
   project: Project;
   projectId?: string;
+  projectTitle?: string;
+  workspaceId?: string;
+  workspaceName?: string;
   dependencies: Task[];
   subtasks?: Subtask[];
   dueDate: string | null;

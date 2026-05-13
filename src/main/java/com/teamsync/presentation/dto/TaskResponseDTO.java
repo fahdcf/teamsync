@@ -23,6 +23,9 @@ public class TaskResponseDTO {
     private TaskStatus status;
     private UserResponseDTO assignee;
     private UUID projectId;
+    private String projectTitle;
+    private UUID workspaceId;
+    private String workspaceName;
     private List<SubtaskResponseDTO> subtasks;
     private LocalDate dueDate;
     private LocalDateTime createdAt;
