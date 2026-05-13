@@ -2,6 +2,7 @@ package com.teamsync.service;
 
 import com.teamsync.domain.enums.Role;
 import com.teamsync.infrastructure.exception.ValidationException;
+import com.teamsync.presentation.dto.AccountOverviewResponseDTO;
 import com.teamsync.presentation.dto.UpdateProfileRequestDTO;
 import com.teamsync.domain.entity.User;
 import com.teamsync.presentation.dto.UserResponseDTO;
@@ -10,6 +11,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -26,6 +28,37 @@ public class UserService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found: " + email));
         return toDTO(user);
+    }
+
+    public AccountOverviewResponseDTO getAccountOverview(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + email));
+
+        List<String> missingFields = new ArrayList<>();
+        int completion = 0;
+
+        completion += scoreField(user.getUsername(), "Username", 25, missingFields);
+        completion += scoreField(user.getEmail(), "Email", 25, missingFields);
+        completion += scoreField(user.getAvatarUrl(), "Avatar", 20, missingFields);
+        if (user.getRole() != null) {
+            completion += 15;
+        } else {
+            missingFields.add("Role");
+        }
+        if (user.getCreatedAt() != null) {
+            completion += 15;
+        }
+
+        boolean secure = clean(user.getEmail()) != null && clean(user.getPassword()) != null && user.getRole() != null;
+
+        return AccountOverviewResponseDTO.builder()
+                .profileCompletion(Math.min(100, completion))
+                .securityStatus(secure ? "Secure" : "Needs attention")
+                .securityMessage(secure
+                        ? "Your account has the required sign-in details."
+                        : "Complete the missing sign-in details to improve account security.")
+                .missingProfileFields(missingFields)
+                .build();
     }
 
     public UserResponseDTO updateUsername(String email, String newUsername) {
@@ -104,6 +137,14 @@ public class UserService {
         if (value == null) return null;
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private int scoreField(String value, String label, int score, List<String> missingFields) {
+        if (clean(value) != null) {
+            return score;
+        }
+        missingFields.add(label);
+        return 0;
     }
 
     private int roleRank(Role role) {

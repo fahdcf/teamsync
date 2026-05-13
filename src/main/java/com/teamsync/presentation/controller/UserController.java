@@ -1,5 +1,6 @@
 package com.teamsync.presentation.controller;
 
+import com.teamsync.presentation.dto.AccountOverviewResponseDTO;
 import com.teamsync.presentation.dto.UpdateProfileRequestDTO;
 import com.teamsync.presentation.dto.UserResponseDTO;
 import com.teamsync.service.UserService;
@@ -33,6 +34,16 @@ public class UserController {
     @GetMapping("/me")
     public UserResponseDTO getCurrentUser(Authentication auth) {
         return userService.getCurrentUser(auth.getName());
+    }
+
+    @Operation(summary = "Get current authenticated user's account overview")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Account overview returned"),
+        @ApiResponse(responseCode = "401", description = "Not authenticated")
+    })
+    @GetMapping("/me/account-overview")
+    public AccountOverviewResponseDTO getCurrentUserAccountOverview(Authentication auth) {
+        return userService.getAccountOverview(auth.getName());
     }
 
     @Operation(summary = "Update current user's profile")

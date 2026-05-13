@@ -4,6 +4,13 @@ import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { User, LoginRequest, RegisterRequest, LoginResponse } from '../shared/models/user.model';
 
+export interface AccountOverview {
+  profileCompletion: number;
+  securityStatus: string;
+  securityMessage: string;
+  missingProfileFields: string[];
+}
+
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly http = inject(HttpClient);
@@ -19,6 +26,10 @@ export class AuthService {
 
   getMe(): Observable<User> {
     return this.http.get<User>(`${this.base}/users/me`);
+  }
+
+  getAccountOverview(): Observable<AccountOverview> {
+    return this.http.get<AccountOverview>(`${this.base}/users/me/account-overview`);
   }
 
   updateMe(data: Partial<User>): Observable<User> {

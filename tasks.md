@@ -254,7 +254,7 @@ Excluded by request:
   Frontend: edit buttons for username, email, role, and avatar are currently visual; implement editable states and save/cancel behavior.
   Backend: `PUT /users/me` currently updates username only; add email update, avatar upload/profile image, and role-change rules if role editing is allowed.
 
-- [ ] Task UI-AUDIT-111: Replace static profile completion/security values.
+- [x] Task UI-AUDIT-111: Replace static profile completion/security values.
   Frontend: compute or fetch profile completion and security status instead of always showing `70%` and `Secure`.
   Backend: add account overview fields to `GET /users/me` or add `GET /users/me/account-overview` with profile completion and security status.
 

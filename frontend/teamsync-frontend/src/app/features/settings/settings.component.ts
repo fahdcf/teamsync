@@ -2,7 +2,7 @@ import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AuthStore } from '../../store/auth.store';
-import { AuthService } from '../../api/auth.service';
+import { AccountOverview, AuthService } from '../../api/auth.service';
 import { WorkspaceService } from '../../api/workspace.service';
 import { User, UserRole } from '../../shared/models/user.model';
 import { Workspace } from '../../shared/models/workspace.model';
@@ -50,10 +50,10 @@ import { Workspace } from '../../shared/models/workspace.model';
             <div class="completion-block">
               <div class="completion-top">
                 <span>Profile Completion</span>
-                <strong>70%</strong>
+                <strong>{{ profileCompletion }}%</strong>
               </div>
-              <div class="completion-track"><i></i></div>
-              <p>Complete your profile to get the most out of TeamSync.</p>
+              <div class="completion-track"><i [style.width.%]="profileCompletion"></i></div>
+              <p>{{ completionMessage }}</p>
             </div>
           </div>
 
@@ -108,14 +108,15 @@ import { Workspace } from '../../shared/models/workspace.model';
             <div class="overview-row">
               <span class="soft-icon box"></span>
               <div>
-                <div class="row-head"><span>Profile Completion</span><strong>70%</strong></div>
-                <div class="mini-progress"><i></i></div>
+                <div class="row-head"><span>Profile Completion</span><strong>{{ profileCompletion }}%</strong></div>
+                <div class="mini-progress"><i [style.width.%]="profileCompletion"></i></div>
               </div>
             </div>
             <div class="overview-row">
               <span class="soft-icon shield"></span>
-              <div class="row-head"><span>Security Status</span><strong class="secure"><i></i>Secure</strong></div>
+              <div class="row-head"><span>Security Status</span><strong class="secure" [class.warn]="!isSecuritySecure"><i></i>{{ securityStatus }}</strong></div>
             </div>
+            <p class="security-note">{{ securityMessage }}</p>
           </article>
 
           <article class="side-card membership-card">
@@ -538,6 +539,17 @@ import { Workspace } from '../../shared/models/workspace.model';
       background: var(--success);
     }
 
+    .secure.warn i {
+      background: var(--warning);
+    }
+
+    .security-note {
+      margin: 14px 0 0 52px;
+      color: var(--text-tertiary);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
     .workspace-row {
       display: grid;
       grid-template-columns: 40px minmax(0, 1fr) auto;
@@ -666,6 +678,7 @@ export default class SettingsComponent implements OnInit {
   private readonly workspaceService = inject(WorkspaceService);
 
   user: User | null = null;
+  accountOverview: AccountOverview | null = null;
   workspaces: Workspace[] = [];
   activeTab = 'profile';
   editingField: 'username' | 'email' | 'role' | 'avatar' | null = null;
@@ -700,6 +713,7 @@ export default class SettingsComponent implements OnInit {
       next: (workspaces) => (this.workspaces = workspaces),
       error: () => (this.workspaces = []),
     });
+    this.loadAccountOverview();
   }
 
   get initials(): string {
@@ -717,6 +731,28 @@ export default class SettingsComponent implements OnInit {
 
   get visibleWorkspaces(): Workspace[] {
     return this.workspaces.slice(0, 1);
+  }
+
+  get profileCompletion(): number {
+    return this.accountOverview?.profileCompletion ?? 0;
+  }
+
+  get completionMessage(): string {
+    const missing = this.accountOverview?.missingProfileFields ?? [];
+    if (!missing.length) return 'Your profile is complete and ready for collaboration.';
+    return `Complete ${missing.join(', ')} to get the most out of TeamSync.`;
+  }
+
+  get securityStatus(): string {
+    return this.accountOverview?.securityStatus ?? 'Unknown';
+  }
+
+  get securityMessage(): string {
+    return this.accountOverview?.securityMessage ?? 'Security details will appear after your account overview loads.';
+  }
+
+  get isSecuritySecure(): boolean {
+    return this.securityStatus.toLowerCase() === 'secure';
   }
 
   get activeLabel(): string {
@@ -755,6 +791,7 @@ export default class SettingsComponent implements OnInit {
         this.user = user;
         this.editingField = null;
         this.profileMessage = 'Profile updated successfully.';
+        this.loadAccountOverview();
       },
       error: () => {
         this.profileMessage = 'Could not update profile. Check the value and try again.';
@@ -770,5 +807,19 @@ export default class SettingsComponent implements OnInit {
       role: this.user.role,
       avatarUrl: this.user.avatarUrl || '',
     };
+  }
+
+  private loadAccountOverview(): void {
+    this.authService.getAccountOverview().subscribe({
+      next: (overview) => (this.accountOverview = overview),
+      error: () => {
+        this.accountOverview = {
+          profileCompletion: 0,
+          securityStatus: 'Unknown',
+          securityMessage: 'Could not load account overview.',
+          missingProfileFields: [],
+        };
+      },
+    });
   }
 }
