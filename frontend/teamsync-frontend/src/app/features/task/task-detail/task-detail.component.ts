@@ -1,7 +1,7 @@
 import { Component, Input, Output, EventEmitter, OnInit, inject } from '@angular/core';
 import { CommonModule, DatePipe, Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { TaskService } from '../../../api/task.service';
 import { CommentService } from '../../../api/comment.service';
 import { ProjectService } from '../../../api/project.service';
@@ -34,6 +34,7 @@ export default class TaskDetailComponent implements OnInit {
   private readonly workspaceService = inject(WorkspaceService);
   private readonly authStore = inject(AuthStore);
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly location = inject(Location);
 
   task: Task | null = null;
@@ -111,6 +112,12 @@ export default class TaskDetailComponent implements OnInit {
     if (!this.closed.observed) {
       this.location.back();
     }
+  }
+
+  expandTask(): void {
+    if (!this.task) return;
+    this.closed.emit();
+    this.router.navigate(['/tasks', this.task.id]);
   }
 
   loadProject(task: Task): void {

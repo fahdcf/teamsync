@@ -188,7 +188,7 @@ Excluded by request:
 
 ## Task Detail Page
 
-- [ ] Task UI-AUDIT-080: Make task detail expand button functional.
+- [x] Task UI-AUDIT-080: Make task detail expand button functional.
   Frontend: the expand icon should switch between modal/drawer and full-page task detail, or be removed.
   Backend: no backend required.
 

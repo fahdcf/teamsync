@@ -14,7 +14,7 @@
 <div class="td-wrapper" *ngIf="!isLoading && !hasError && task">
   <header class="td-header">
     <div class="td-header-left">
-      <button class="td-icon-btn" type="button" aria-label="Expand task">
+      <button class="td-icon-btn" type="button" aria-label="Expand task" (click)="expandTask()">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
       </button>
       <button class="td-icon-btn" type="button" aria-label="Copy task link" (click)="copyLink()">
