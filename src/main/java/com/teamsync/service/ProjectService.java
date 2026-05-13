@@ -5,6 +5,7 @@ import com.teamsync.domain.entity.ProjectFavorite;
 import com.teamsync.domain.entity.Task;
 import com.teamsync.domain.entity.User;
 import com.teamsync.domain.entity.Workspace;
+import com.teamsync.domain.entity.ActivityLog;
 import com.teamsync.domain.enums.ProjectEventType;
 import com.teamsync.domain.enums.ProjectStatus;
 import com.teamsync.domain.enums.TaskStatus;
@@ -211,6 +212,7 @@ public class ProjectService {
 
     private ProjectResponseDTO toDTO(Project p, User currentUser) {
         String health = calculateHealth(p);
+        ActivityLog latestActivity = activityLogService.findLatestForEntity("PROJECT", p.getId());
         return ProjectResponseDTO.builder()
                 .id(p.getId())
                 .title(p.getTitle())
@@ -225,6 +227,8 @@ public class ProjectService {
                 .workspaceId(p.getWorkspace().getId())
                 .workspaceName(p.getWorkspace().getName())
                 .manager(userToDTO(p.getManager()))
+                .lastActivityAction(latestActivity != null ? latestActivity.getAction() : null)
+                .lastActivityAt(latestActivity != null ? latestActivity.getCreatedAt() : null)
                 .createdAt(p.getCreatedAt())
                 .build();
     }

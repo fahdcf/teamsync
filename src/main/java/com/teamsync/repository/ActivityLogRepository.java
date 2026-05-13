@@ -9,6 +9,7 @@ import java.util.UUID;
 
 public interface ActivityLogRepository extends JpaRepository<ActivityLog, UUID> {
     List<ActivityLog> findByEntityId(UUID entityId);
+    ActivityLog findTopByEntityTypeAndEntityIdOrderByCreatedAtDesc(String entityType, UUID entityId);
     List<ActivityLog> findTop50ByEntityTypeAndEntityIdOrderByCreatedAtDesc(String entityType, UUID entityId);
     List<ActivityLog> findTop50ByEntityTypeAndEntityIdInOrderByCreatedAtDesc(String entityType, Collection<UUID> entityIds);
     List<ActivityLog> findTop50ByOrderByCreatedAtDesc();

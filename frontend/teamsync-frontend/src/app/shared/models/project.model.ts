@@ -18,6 +18,8 @@ export interface Project {
   workspaceId?: string;
   workspaceName?: string;
   manager: User;
+  lastActivityAction?: string;
+  lastActivityAt?: string;
   createdAt: string;
 }
 

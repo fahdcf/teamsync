@@ -26,5 +26,7 @@ public class ProjectResponseDTO {
     private UUID workspaceId;
     private String workspaceName;
     private UserResponseDTO manager;
+    private String lastActivityAction;
+    private LocalDateTime lastActivityAt;
     private LocalDateTime createdAt;
 }

@@ -198,7 +198,8 @@ import { User } from '../../../shared/models/user.model';
 
           <div class="project-cell project-activity-cell">
             <i></i>
-            <span>Just now</span>
+            <span>{{ project.lastActivityAction ? readableActivity(project.lastActivityAction) : 'No activity' }}</span>
+            <small *ngIf="project.lastActivityAt">{{ project.lastActivityAt | date:'short' }}</small>
           </div>
 
           <button class="project-more-btn" type="button" aria-label="Project options" (click)="$event.stopPropagation()">⋮</button>
@@ -648,6 +649,19 @@ import { User } from '../../../shared/models/user.model';
 
     .project-activity-cell i { background: var(--success); }
 
+    .project-activity-cell {
+      display: grid;
+      grid-template-columns: 7px minmax(0, 1fr);
+      gap: 3px 9px;
+      align-items: center;
+    }
+
+    .project-activity-cell small {
+      grid-column: 2;
+      color: var(--text-tertiary);
+      font-size: 11px;
+    }
+
     .project-more-btn {
       width: 30px;
       height: 30px;
@@ -981,6 +995,14 @@ export default class ProjectListComponent implements OnInit, OnDestroy {
 
   initials(name: string): string {
     return name.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase();
+  }
+
+  readableActivity(action: string): string {
+    return action
+      .toLowerCase()
+      .split('_')
+      .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ');
   }
 
   ngOnDestroy(): void {

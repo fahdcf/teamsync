@@ -51,6 +51,10 @@ public class ActivityLogService {
         return activityLogRepository.findByEntityId(entityId);
     }
 
+    public ActivityLog findLatestForEntity(String entityType, UUID entityId) {
+        return activityLogRepository.findTopByEntityTypeAndEntityIdOrderByCreatedAtDesc(entityType, entityId);
+    }
+
     public List<ActivityLogResponseDTO> findDTOsByEntityId(UUID entityId) {
         return activityLogRepository.findByEntityId(entityId).stream()
                 .sorted(Comparator.comparing(ActivityLog::getCreatedAt).reversed())

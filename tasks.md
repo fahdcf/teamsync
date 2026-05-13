@@ -128,7 +128,7 @@ Excluded by request:
   Frontend: remove the hardcoded `0 Tasks` value and show each project's actual task count.
   Backend: include `taskCount` in `ProjectResponseDTO` or add a lightweight project summary endpoint.
 
-- [ ] Task UI-AUDIT-044: Replace hardcoded project activity timestamps.
+- [x] Task UI-AUDIT-044: Replace hardcoded project activity timestamps.
   Frontend: remove `Just now` from every project row and render the last activity timestamp/action.
   Backend: include last activity metadata in project list responses or add `GET /projects/{id}/activity` usage for project rows.
 
