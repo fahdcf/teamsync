@@ -1,8 +1,9 @@
 import { Component, OnDestroy, inject } from '@angular/core';
 import { AsyncPipe, CommonModule } from '@angular/common';
+import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { NavigationEnd, Router, RouterLink } from '@angular/router';
-import { Subject, of } from 'rxjs';
-import { catchError, debounceTime, distinctUntilChanged, filter, switchMap, takeUntil, tap } from 'rxjs/operators';
+import { Subject, forkJoin, of } from 'rxjs';
+import { catchError, debounceTime, distinctUntilChanged, filter, finalize, switchMap, takeUntil, tap } from 'rxjs/operators';
 import { AuthStore } from '../../store/auth.store';
 import { NotificationStore } from '../../store/notification.store';
 import { TokenService } from '../../core/services/token.service';
@@ -13,8 +14,12 @@ import { TaskService } from '../../api/task.service';
 import { WorkspaceService } from '../../api/workspace.service';
 import { AvatarComponent } from '../../shared/components/avatar/avatar.component';
 import { ClickOutsideDirective } from '../../shared/directives/click-outside.directive';
+import { ModalComponent } from '../../shared/components/modal/modal.component';
+import { Project } from '../../shared/models/project.model';
 import { SearchResult, SearchResultType } from '../../shared/models/search.model';
+import { TaskPriority } from '../../shared/models/task.model';
 import { User } from '../../shared/models/user.model';
+import { Workspace } from '../../shared/models/workspace.model';
 import { RelativeTimePipe } from '../../shared/pipes/relative-time.pipe';
 
 interface BreadcrumbItem {
@@ -25,7 +30,7 @@ interface BreadcrumbItem {
 @Component({
   selector: 'app-navbar',
   standalone: true,
-  imports: [CommonModule, AsyncPipe, RouterLink, AvatarComponent, ClickOutsideDirective, RelativeTimePipe],
+  imports: [CommonModule, AsyncPipe, RouterLink, ReactiveFormsModule, AvatarComponent, ClickOutsideDirective, ModalComponent, RelativeTimePipe],
   template: `
     <nav class="navbar">
       <div class="navbar-left">
@@ -95,10 +100,27 @@ interface BreadcrumbItem {
       </div>
 
       <div class="navbar-right">
-        <button class="new-btn" type="button">
-          <span>+ New</span>
-          <span class="caret">v</span>
-        </button>
+        <div class="new-menu" appClickOutside (clickOutside)="isNewMenuOpen = false">
+          <button class="new-btn" type="button" (click)="toggleNewMenu()">
+            <span>+ New</span>
+            <span class="caret">v</span>
+          </button>
+
+          <div class="new-dropdown" *ngIf="isNewMenuOpen">
+            <button type="button" (click)="openCreate('workspace')">
+              <strong>Workspace</strong>
+              <span>Start a new team space</span>
+            </button>
+            <button type="button" (click)="openCreate('project')">
+              <strong>Project</strong>
+              <span>Plan work inside a workspace</span>
+            </button>
+            <button type="button" (click)="openCreate('task')">
+              <strong>Task</strong>
+              <span>Add work to a project</span>
+            </button>
+          </div>
+        </div>
 
         <div
           class="notif-trigger"
@@ -157,6 +179,101 @@ interface BreadcrumbItem {
         </div>
       </div>
     </nav>
+
+    <app-modal [isOpen]="activeCreateModal === 'workspace'" title="New Workspace" size="sm" (closed)="closeCreateModal()">
+      <form class="quick-create-form" [formGroup]="workspaceForm" (ngSubmit)="createWorkspace()">
+        <label>
+          <span>Name</span>
+          <input type="text" formControlName="name" placeholder="Design Team" />
+        </label>
+        <label>
+          <span>Description</span>
+          <textarea formControlName="description" placeholder="What is this workspace for?"></textarea>
+        </label>
+        <p class="quick-error" *ngIf="createError">{{ createError }}</p>
+        <div class="quick-actions">
+          <button class="quick-secondary" type="button" (click)="closeCreateModal()">Cancel</button>
+          <button class="quick-primary" type="submit" [disabled]="workspaceForm.invalid || isCreating">{{ isCreating ? 'Creating...' : 'Create Workspace' }}</button>
+        </div>
+      </form>
+    </app-modal>
+
+    <app-modal [isOpen]="activeCreateModal === 'project'" title="New Project" size="md" (closed)="closeCreateModal()">
+      <form class="quick-create-form" [formGroup]="projectForm" (ngSubmit)="createProject()">
+        <label>
+          <span>Workspace</span>
+          <select formControlName="workspaceId">
+            <option value="">Select workspace</option>
+            <option *ngFor="let workspace of workspaces" [value]="workspace.id">{{ workspace.name }}</option>
+          </select>
+        </label>
+        <label>
+          <span>Title</span>
+          <input type="text" formControlName="title" placeholder="Project name" />
+        </label>
+        <label>
+          <span>Description</span>
+          <textarea formControlName="description" placeholder="What is this project about?"></textarea>
+        </label>
+        <div class="quick-grid">
+          <label>
+            <span>Deadline</span>
+            <input type="date" formControlName="deadline" />
+          </label>
+          <label>
+            <span>Manager</span>
+            <select formControlName="managerId">
+              <option value="">No manager</option>
+              <option *ngFor="let member of selectedWorkspaceMembers" [value]="member.id">{{ member.username }}</option>
+            </select>
+          </label>
+        </div>
+        <p class="quick-empty" *ngIf="!workspaces.length">Create a workspace before adding projects.</p>
+        <p class="quick-error" *ngIf="createError">{{ createError }}</p>
+        <div class="quick-actions">
+          <button class="quick-secondary" type="button" (click)="closeCreateModal()">Cancel</button>
+          <button class="quick-primary" type="submit" [disabled]="projectForm.invalid || isCreating || !workspaces.length">{{ isCreating ? 'Creating...' : 'Create Project' }}</button>
+        </div>
+      </form>
+    </app-modal>
+
+    <app-modal [isOpen]="activeCreateModal === 'task'" title="New Task" size="md" (closed)="closeCreateModal()">
+      <form class="quick-create-form" [formGroup]="taskForm" (ngSubmit)="createTask()">
+        <label>
+          <span>Project</span>
+          <select formControlName="projectId">
+            <option value="">Select project</option>
+            <option *ngFor="let project of projects" [value]="project.id">{{ project.title }}</option>
+          </select>
+        </label>
+        <label>
+          <span>Title</span>
+          <input type="text" formControlName="title" placeholder="Task title" />
+        </label>
+        <label>
+          <span>Description</span>
+          <textarea formControlName="description" placeholder="Optional description"></textarea>
+        </label>
+        <div class="quick-grid">
+          <label>
+            <span>Priority</span>
+            <select formControlName="priority">
+              <option *ngFor="let priority of priorities" [value]="priority">{{ priority }}</option>
+            </select>
+          </label>
+          <label>
+            <span>Due Date</span>
+            <input type="date" formControlName="dueDate" />
+          </label>
+        </div>
+        <p class="quick-empty" *ngIf="!projects.length">Create a project before adding tasks.</p>
+        <p class="quick-error" *ngIf="createError">{{ createError }}</p>
+        <div class="quick-actions">
+          <button class="quick-secondary" type="button" (click)="closeCreateModal()">Cancel</button>
+          <button class="quick-primary" type="submit" [disabled]="taskForm.invalid || isCreating || !projects.length">{{ isCreating ? 'Creating...' : 'Create Task' }}</button>
+        </div>
+      </form>
+    </app-modal>
   `,
   styles: [
     `
@@ -381,6 +498,10 @@ interface BreadcrumbItem {
         gap: 8px;
       }
 
+      .new-menu {
+        position: relative;
+      }
+
       .new-btn,
       .workspace-btn {
         height: 32px;
@@ -404,6 +525,49 @@ interface BreadcrumbItem {
       .new-btn:hover,
       .workspace-btn:hover {
         border-color: var(--border-strong);
+      }
+
+      .new-dropdown {
+        position: absolute;
+        top: calc(100% + 8px);
+        right: 0;
+        width: 250px;
+        padding: 8px;
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-xl);
+        background: var(--bg-surface);
+        box-shadow: var(--shadow-lg);
+        z-index: 260;
+      }
+
+      .new-dropdown button {
+        width: 100%;
+        min-height: 56px;
+        border: 0;
+        border-radius: var(--radius-lg);
+        background: transparent;
+        color: var(--text-primary);
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        justify-content: center;
+        gap: 4px;
+        padding: 10px 12px;
+        text-align: left;
+        cursor: pointer;
+      }
+
+      .new-dropdown button:hover {
+        background: var(--bg-elevated);
+      }
+
+      .new-dropdown strong {
+        font-size: 13px;
+      }
+
+      .new-dropdown span {
+        color: var(--text-secondary);
+        font-size: 12px;
       }
 
       .caret {
@@ -654,6 +818,7 @@ export class NavbarComponent implements OnDestroy {
   private readonly workspaceService = inject(WorkspaceService);
   private readonly tokenService = inject(TokenService);
   private readonly router = inject(Router);
+  private readonly fb = inject(FormBuilder);
   private readonly searchInput$ = new Subject<string>();
   private readonly destroy$ = new Subject<void>();
 
@@ -671,9 +836,38 @@ export class NavbarComponent implements OnDestroy {
   isUserMenuOpen = false;
   isSearchOpen = false;
   isSearchLoading = false;
+  isNewMenuOpen = false;
+  isCreating = false;
+  activeCreateModal: 'workspace' | 'project' | 'task' | null = null;
+  createError = '';
   searchQuery = '';
   searchResults: SearchResult[] = [];
   breadcrumbs: BreadcrumbItem[] = [{ label: 'Dashboard', route: '/dashboard' }];
+  workspaces: Workspace[] = [];
+  projects: Project[] = [];
+
+  readonly priorities: TaskPriority[] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
+
+  readonly workspaceForm = this.fb.group({
+    name: ['', Validators.required],
+    description: [''],
+  });
+
+  readonly projectForm = this.fb.group({
+    workspaceId: ['', Validators.required],
+    title: ['', Validators.required],
+    description: [''],
+    deadline: [''],
+    managerId: [''],
+  });
+
+  readonly taskForm = this.fb.group({
+    projectId: ['', Validators.required],
+    title: ['', Validators.required],
+    description: [''],
+    priority: ['MEDIUM' as TaskPriority],
+    dueDate: [''],
+  });
 
   readonly searchTypes: { type: SearchResultType; label: string }[] = [
     { type: 'WORKSPACE', label: 'Workspaces' },
@@ -723,6 +917,127 @@ export class NavbarComponent implements OnDestroy {
         items: this.searchResults.filter((result) => result.type === group.type),
       }))
       .filter((group) => group.items.length);
+  }
+
+  get selectedWorkspaceMembers(): User[] {
+    const workspace = this.workspaces.find((candidate) => candidate.id === this.projectForm.value.workspaceId);
+    if (!workspace) return [];
+    const users = new Map<string, User>();
+    if (workspace.owner) users.set(workspace.owner.id, workspace.owner);
+    (workspace.members || []).forEach((member) => users.set(member.id, member));
+    return Array.from(users.values());
+  }
+
+  toggleNewMenu(): void {
+    this.isNewMenuOpen = !this.isNewMenuOpen;
+    if (this.isNewMenuOpen) this.loadCreateOptions();
+  }
+
+  openCreate(type: 'workspace' | 'project' | 'task'): void {
+    this.isNewMenuOpen = false;
+    this.createError = '';
+    this.activeCreateModal = type;
+    if (type !== 'workspace') this.loadCreateOptions();
+  }
+
+  closeCreateModal(): void {
+    if (this.isCreating) return;
+    this.activeCreateModal = null;
+    this.createError = '';
+  }
+
+  createWorkspace(): void {
+    if (this.workspaceForm.invalid) {
+      this.workspaceForm.markAllAsTouched();
+      return;
+    }
+
+    const { name, description } = this.workspaceForm.value;
+    this.isCreating = true;
+    this.createError = '';
+    this.workspaceService.create({ name: name!, description: description || '' })
+      .pipe(finalize(() => (this.isCreating = false)))
+      .subscribe({
+        next: (workspace) => {
+          this.workspaceForm.reset();
+          this.activeCreateModal = null;
+          this.router.navigate(['/workspaces', workspace.id]);
+        },
+        error: () => (this.createError = 'Workspace could not be created. Please try again.'),
+      });
+  }
+
+  createProject(): void {
+    if (this.projectForm.invalid) {
+      this.projectForm.markAllAsTouched();
+      return;
+    }
+
+    const { workspaceId, title, description, deadline, managerId } = this.projectForm.value;
+    this.isCreating = true;
+    this.createError = '';
+    this.projectService.create(workspaceId!, {
+      title: title!,
+      description: description || '',
+      deadline: deadline || '',
+      managerId: managerId || '',
+    })
+      .pipe(finalize(() => (this.isCreating = false)))
+      .subscribe({
+        next: (project) => {
+          this.projectForm.reset();
+          this.activeCreateModal = null;
+          this.router.navigate(['/projects', project.id]);
+        },
+        error: () => (this.createError = 'Project could not be created. Please check the fields and try again.'),
+      });
+  }
+
+  createTask(): void {
+    if (this.taskForm.invalid) {
+      this.taskForm.markAllAsTouched();
+      return;
+    }
+
+    const { projectId, title, description, priority, dueDate } = this.taskForm.value;
+    this.isCreating = true;
+    this.createError = '';
+    this.taskService.create(projectId!, {
+      title: title!,
+      description: description || '',
+      priority: priority as TaskPriority,
+      dueDate: dueDate || undefined,
+    })
+      .pipe(finalize(() => (this.isCreating = false)))
+      .subscribe({
+        next: (task) => {
+          this.taskForm.reset({ priority: 'MEDIUM' });
+          this.activeCreateModal = null;
+          this.router.navigate(['/tasks', task.id]);
+        },
+        error: () => (this.createError = 'Task could not be created. Please check the fields and try again.'),
+      });
+  }
+
+  private loadCreateOptions(): void {
+    this.workspaceService.getAll()
+      .pipe(
+        switchMap((workspaces) => {
+          this.workspaces = workspaces;
+          if (!this.projectForm.value.workspaceId && workspaces[0]) {
+            this.projectForm.patchValue({ workspaceId: workspaces[0].id, managerId: workspaces[0].owner?.id || '' });
+          }
+          if (!workspaces.length) return of([] as Project[][]);
+          return forkJoin(workspaces.map((workspace) => this.projectService.getByWorkspace(workspace.id).pipe(catchError(() => of([] as Project[])))));
+        }),
+        takeUntil(this.destroy$),
+      )
+      .subscribe((projectGroups) => {
+        this.projects = projectGroups.flat();
+        if (!this.taskForm.value.projectId && this.projects[0]) {
+          this.taskForm.patchValue({ projectId: this.projects[0].id });
+        }
+      });
   }
 
   onSearchInput(event: Event): void {

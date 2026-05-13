@@ -16,7 +16,7 @@ Excluded by request:
   Frontend: derive breadcrumb labels from the active route and loaded entity instead of always showing `Product Design Workspace` and `Design:System 2.0`.
   Backend: ensure project/task detail responses include enough workspace/project identifiers and names to build breadcrumbs without extra placeholder text.
 
-- [ ] Task UI-AUDIT-003: Make the navbar `+ New` button functional.
+- [x] Task UI-AUDIT-003: Make the navbar `+ New` button functional.
   Frontend: open a create menu for workspace, project, and task actions, route each choice to the right modal/page, and refresh the current page after creation.
   Backend: reuse existing create endpoints where possible; add any missing quick-create DTO support if the menu needs workspace/project/task creation from any page.
 
