@@ -184,11 +184,9 @@ interface BreadcrumbItem {
 
         <div class="avatar-stack" aria-label="Team members">
           <div class="stack-avatars">
-            <app-avatar [user]="avatarUsers[0]" size="sm"></app-avatar>
-            <app-avatar [user]="avatarUsers[1]" size="sm"></app-avatar>
-            <app-avatar [user]="avatarUsers[2]" size="sm"></app-avatar>
+            <app-avatar *ngFor="let member of visibleWorkspaceMembers" [user]="member" size="sm"></app-avatar>
           </div>
-          <span class="overflow-badge">+2</span>
+          <span class="overflow-badge" *ngIf="hiddenWorkspaceMemberCount > 0">+{{ hiddenWorkspaceMemberCount }}</span>
         </div>
 
         <div class="user-menu" appClickOutside (clickOutside)="isUserMenuOpen = false">
@@ -853,12 +851,6 @@ export class NavbarComponent implements OnDestroy {
   readonly notifications$ = this.notifStore.notifications$;
   readonly unreadCount$ = this.notifStore.unreadCount$;
 
-  readonly avatarUsers: User[] = [
-    { id: 'team-1', username: 'Emma Wilson', email: 'emma@teamsync.app', role: 'TEAM_MEMBER', createdAt: '2026-05-12T00:00:00Z' },
-    { id: 'team-2', username: 'Mike Johnson', email: 'mike@teamsync.app', role: 'TEAM_MEMBER', createdAt: '2026-05-12T00:00:00Z' },
-    { id: 'team-3', username: 'Sarah Chen', email: 'sarah@teamsync.app', role: 'PROJECT_MANAGER', createdAt: '2026-05-12T00:00:00Z' },
-  ];
-
   isNotifOpen = false;
   isUserMenuOpen = false;
   isSearchOpen = false;
@@ -955,6 +947,22 @@ export class NavbarComponent implements OnDestroy {
     const users = new Map<string, User>();
     if (workspace.owner) users.set(workspace.owner.id, workspace.owner);
     (workspace.members || []).forEach((member) => users.set(member.id, member));
+    return Array.from(users.values());
+  }
+
+  get visibleWorkspaceMembers(): User[] {
+    return this.currentWorkspaceMembers.slice(0, 3);
+  }
+
+  get hiddenWorkspaceMemberCount(): number {
+    return Math.max(0, this.currentWorkspaceMembers.length - this.visibleWorkspaceMembers.length);
+  }
+
+  private get currentWorkspaceMembers(): User[] {
+    if (!this.selectedWorkspace) return [];
+    const users = new Map<string, User>();
+    if (this.selectedWorkspace.owner) users.set(this.selectedWorkspace.owner.id, this.selectedWorkspace.owner);
+    (this.selectedWorkspace.members || []).forEach((member) => users.set(member.id, member));
     return Array.from(users.values());
   }
 

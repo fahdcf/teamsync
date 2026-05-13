@@ -4,6 +4,8 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { AuthStore } from '../../store/auth.store';
 import { SidebarStateService } from '../../core/services/sidebar-state.service';
+import { AvatarComponent } from '../../shared/components/avatar/avatar.component';
+import { UserRole } from '../../shared/models/user.model';
 
 interface NavItem {
   label: string;
@@ -16,7 +18,7 @@ interface NavItem {
 @Component({
   selector: 'app-sidebar',
   standalone: true,
-  imports: [CommonModule, AsyncPipe, RouterLink, RouterLinkActive],
+  imports: [CommonModule, AsyncPipe, RouterLink, RouterLinkActive, AvatarComponent],
   template: `
     <div
       class="overlay-backdrop"
@@ -68,11 +70,11 @@ interface NavItem {
       <div class="separator"></div>
 
       <div class="sidebar-bottom">
-        <button class="user-item" type="button" [title]="isCollapsed ? 'Alex Johnson' : ''">
-          <img class="user-img" src="https://i.pravatar.cc/150?u=a042581f4e29026704d" alt="Alex Johnson" />
+        <button class="user-item" type="button" [title]="isCollapsed ? ((user$ | async)?.username || 'Account') : ''">
+          <app-avatar [user]="(user$ | async)" size="sm"></app-avatar>
           <span class="user-copy" *ngIf="!isCollapsed">
-            <span class="user-name">Alex Johnson</span>
-            <span class="user-role">Product Designer</span>
+            <span class="user-name">{{ (user$ | async)?.username || 'Account' }}</span>
+            <span class="user-role">{{ roleLabel((user$ | async)?.role) }}</span>
           </span>
           <span class="user-chevron" *ngIf="!isCollapsed">
             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 6l4 4 4-4" stroke-linecap="round" stroke-linejoin="round"></path></svg>
@@ -522,6 +524,14 @@ export class SidebarComponent implements OnInit {
 
   toggleCollapse(): void {
     this.isCollapsed = !this.isCollapsed;
+  }
+
+  roleLabel(role?: UserRole): string {
+    if (!role) return 'TeamSync member';
+    return role
+      .split('_')
+      .map((part) => part.charAt(0) + part.slice(1).toLowerCase())
+      .join(' ');
   }
 
   private updateLayout(): void {

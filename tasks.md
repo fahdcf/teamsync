@@ -24,7 +24,7 @@ Excluded by request:
   Frontend: replace the static `Product Design` selector with the authenticated user's workspaces, allow switching active workspace, and update page queries/breadcrumbs.
   Backend: `GET /workspaces` already exists; add/persist a current/default workspace preference if the selected workspace should survive refresh/login.
 
-- [ ] Task UI-AUDIT-005: Replace hardcoded navbar and sidebar team/user preview data.
+- [x] Task UI-AUDIT-005: Replace hardcoded navbar and sidebar team/user preview data.
   Frontend: use the authenticated user for the sidebar bottom profile, use real current-workspace members for the navbar avatar stack, and remove static `Alex Johnson`/sample teammates.
   Backend: workspace responses already include members; add avatar/profile image fields to `UserResponseDTO` if real images are required.
 
