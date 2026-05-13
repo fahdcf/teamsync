@@ -172,7 +172,7 @@ Excluded by request:
   Frontend: same-column drag/drop currently only reorders locally; persist the order and reload it consistently.
   Backend: add a `position` field on tasks and an endpoint such as `PUT /projects/{projectId}/tasks/reorder`.
 
-- [ ] Task UI-AUDIT-064: Add blocked tasks visibility to the board.
+- [x] Task UI-AUDIT-064: Add blocked tasks visibility to the board.
   Frontend: either add a `Blocked` column or a visible blocked filter using the existing blocked status/dependency state.
   Backend: `GET /projects/{id}/tasks/blocked` exists; ensure it is wired into the board if using dependency-blocked tasks.
 

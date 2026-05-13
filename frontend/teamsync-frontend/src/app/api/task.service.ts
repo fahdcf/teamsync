@@ -21,6 +21,10 @@ export class TaskService {
     return this.http.get<Task[]>(`${this.base}/projects/${projectId}/tasks`, { params });
   }
 
+  getBlockedByProject(projectId: string): Observable<Task[]> {
+    return this.http.get<Task[]>(`${this.base}/projects/${projectId}/tasks/blocked`);
+  }
+
   getById(id: string): Observable<Task> {
     return this.http.get<Task>(`${this.base}/tasks/${id}`);
   }

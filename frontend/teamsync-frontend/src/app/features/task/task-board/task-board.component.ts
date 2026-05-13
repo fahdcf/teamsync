@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { DragDropModule, CdkDragDrop, moveItemInArray, transferArrayItem } from '@angular/cdk/drag-drop';
-import { debounceTime, distinctUntilChanged, Subject } from 'rxjs';
+import { debounceTime, distinctUntilChanged, forkJoin, Subject } from 'rxjs';
 import { TaskService } from '../../../api/task.service';
 import { Task, TaskStatus, TaskPriority } from '../../../shared/models/task.model';
 import { TaskCardComponent } from '../task-card/task-card.component';
@@ -65,6 +65,7 @@ export default class TaskBoardComponent implements OnInit, OnChanges {
   columns: Column[] = [
     { status: 'TODO', label: 'To Do', tasks: [] },
     { status: 'IN_PROGRESS', label: 'In Progress', tasks: [] },
+    { status: 'BLOCKED', label: 'Blocked', tasks: [] },
     { status: 'IN_REVIEW', label: 'Review', tasks: [] },
     { status: 'DONE', label: 'Done', tasks: [] },
   ];
@@ -136,10 +137,14 @@ export default class TaskBoardComponent implements OnInit, OnChanges {
 
     this.isLoading = true;
     this.hasError = false;
-    this.taskService.getByProject(this.projectId, this.filters).subscribe({
-      next: (tasks) => {
+    forkJoin({
+      tasks: this.taskService.getByProject(this.projectId, this.filters),
+      blockedTasks: this.taskService.getBlockedByProject(this.projectId),
+    }).subscribe({
+      next: ({ tasks, blockedTasks }) => {
+        const blockedIds = new Set(blockedTasks.map((task) => task.id));
         this.columns.forEach((column) => {
-          column.tasks = tasks.filter((task) => task.status === column.status);
+          column.tasks = tasks.filter((task) => this.taskBelongsInColumn(task, column.status, blockedIds));
         });
         this.sortColumns();
         this.isLoading = false;
@@ -283,6 +288,13 @@ export default class TaskBoardComponent implements OnInit, OnChanges {
 
   private dateValue(value: string | null | undefined, fallback: number): number {
     return value ? new Date(value).getTime() : fallback;
+  }
+
+  private taskBelongsInColumn(task: Task, status: TaskStatus, blockedIds: Set<string>): boolean {
+    if (status === 'BLOCKED') {
+      return task.status === 'BLOCKED' || blockedIds.has(task.id);
+    }
+    return task.status === status && !blockedIds.has(task.id);
   }
 
   private persistColumnOrder(tasks: Task[]): void {
