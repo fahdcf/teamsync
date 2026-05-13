@@ -224,9 +224,7 @@ export default class ProjectDetailComponent implements OnInit {
 
   readonly tabs = [
     { key: 'board' as Tab, label: 'Board' },
-    { key: 'timeline' as Tab, label: 'Timeline' },
-    { key: 'overview' as Tab, label: 'Overview' },
-    { key: 'files' as Tab, label: 'Files' },
+    { key: 'analytics' as Tab, label: 'Analytics' },
     { key: 'settings' as Tab, label: 'Settings' },
   ];
 

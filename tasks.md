@@ -138,7 +138,7 @@ Excluded by request:
 
 ## Project Detail Page
 
-- [ ] Task UI-AUDIT-050: Remove or implement inactive project tabs.
+- [x] Task UI-AUDIT-050: Remove or implement inactive project tabs.
   Frontend: tabs for `Timeline`, `Overview`, and `Files` are listed but do not render real content; implement them or hide them until supported.
   Backend: add project timeline/activity and project file attachment endpoints if keeping those tabs.
 
