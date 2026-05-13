@@ -38,7 +38,7 @@ Excluded by request:
   Frontend: load recent activity from a service instead of the hardcoded `recentActivity` array, show real actor/action/time, and link each activity to its entity.
   Backend: `GET /users/me/activity` exists; verify it returns authenticated-user-scoped activity, entity type/id, actor, and timestamps for dashboard rendering.
 
-- [ ] Task UI-AUDIT-011: Make dashboard time range controls work.
+- [x] Task UI-AUDIT-011: Make dashboard time range controls work.
   Frontend: wire the `This week` analytics selector to a real selected date range and refresh stats/charts when changed.
   Backend: extend dashboard/analytics endpoints with `from` and `to` query parameters so trends and cards are calculated for the chosen range.
 

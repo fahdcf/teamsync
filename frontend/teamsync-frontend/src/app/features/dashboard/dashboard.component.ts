@@ -4,7 +4,7 @@ import { Router } from '@angular/router';
 import { forkJoin, of, switchMap } from 'rxjs';
 import { AuthStore } from '../../store/auth.store';
 import { ActivityService } from '../../api/activity.service';
-import { DashboardDeadline, DashboardProjectOverview, DashboardService, DashboardStats } from '../../api/dashboard.service';
+import { DashboardDateRange, DashboardDeadline, DashboardProjectOverview, DashboardService, DashboardStats } from '../../api/dashboard.service';
 import { ProjectService } from '../../api/project.service';
 import { TaskService } from '../../api/task.service';
 import { WorkspaceService } from '../../api/workspace.service';
@@ -119,7 +119,9 @@ import { Workspace } from '../../shared/models/workspace.model';
       <section class="analytics-overview">
         <div class="section-toolbar">
           <h2>Analytics Overview</h2>
-          <button type="button">This week v</button>
+          <select [value]="selectedRangeKey" (change)="setDashboardRange($event)">
+            <option *ngFor="let option of rangeOptions" [value]="option.key">{{ option.label }}</option>
+          </select>
         </div>
         <div class="analytics-grid">
           <article class="dash-card analytic-card">
@@ -258,6 +260,12 @@ export default class DashboardComponent implements OnInit {
   readonly bars = [20, 34, 28, 40, 18, 36, 25, 31];
   readonly days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
   readonly calendarWeekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  readonly rangeOptions = [
+    { key: 'week', label: 'This week' },
+    { key: 'month', label: 'This month' },
+    { key: 'quarter', label: 'Last 90 days' },
+  ];
+  selectedRangeKey = 'week';
 
   ngOnInit(): void {
     this.authStore.user$.subscribe((user) => (this.currentUser = user));
@@ -344,9 +352,10 @@ export default class DashboardComponent implements OnInit {
   }
 
   load(): void {
+    const range = this.currentDateRange();
     forkJoin({
-      stats: this.dashboardService.getStats(),
-      deadlines: this.dashboardService.getUpcomingDeadlines(),
+      stats: this.dashboardService.getStats(range),
+      deadlines: this.dashboardService.getUpcomingDeadlines(range),
       overview: this.dashboardService.getProjectsOverview(),
       workspaces: this.workspaceService.getAll(),
       activity: this.activityService.getMyActivity(),
@@ -430,6 +439,32 @@ export default class DashboardComponent implements OnInit {
 
   goToCurrentDashboardMonth(): void {
     this.dashboardCalendarDate = new Date();
+  }
+
+  setDashboardRange(event: Event): void {
+    this.selectedRangeKey = (event.target as HTMLSelectElement).value;
+    this.load();
+  }
+
+  currentDateRange(): DashboardDateRange {
+    const today = new Date();
+    const to = this.formatDate(today);
+    if (this.selectedRangeKey === 'month') {
+      return { from: this.formatDate(new Date(today.getFullYear(), today.getMonth(), 1)), to };
+    }
+    if (this.selectedRangeKey === 'quarter') {
+      const from = new Date(today);
+      from.setDate(today.getDate() - 89);
+      return { from: this.formatDate(from), to };
+    }
+    const day = today.getDay() || 7;
+    const from = new Date(today);
+    from.setDate(today.getDate() - day + 1);
+    return { from: this.formatDate(from), to };
+  }
+
+  private formatDate(date: Date): string {
+    return date.toISOString().slice(0, 10);
   }
 
   eventsForCalendarDay(date: Date): { title: string; priority: Task['priority'] }[] {

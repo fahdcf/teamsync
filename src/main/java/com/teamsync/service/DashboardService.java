@@ -14,6 +14,7 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -23,7 +24,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ThreadLocalRandom;
 
 @Service
 public class DashboardService {
@@ -43,49 +43,61 @@ public class DashboardService {
         this.workspaceRepository = workspaceRepository;
     }
 
-    public Map<String, Object> getStats(String userEmail) {
+    public Map<String, Object> getStats(String userEmail, LocalDate fromDate, LocalDate toDate) {
         User currentUser = userService.findByEmail(userEmail);
         Set<Project> userProjects = getUserProjects(currentUser);
 
-        long activeTasks = taskRepository.countByAssigneeAndStatus(currentUser, TaskStatus.IN_PROGRESS);
-        long totalMyTasks = taskRepository.countByAssignee(currentUser);
-        long doneMyTasks = taskRepository.countByAssigneeAndStatus(currentUser, TaskStatus.DONE);
-        long overdueItems = taskRepository.countByAssigneeAndStatusNotAndDueDateBefore(
-                currentUser, TaskStatus.DONE, LocalDate.now());
+        DateRange range = normalizeRange(fromDate, toDate);
+        DateRange previousRange = previousRange(range);
 
-        LocalDate today = LocalDate.now();
-        LocalDate weekStart = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
-        LocalDate weekEnd = today.with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY));
-        LocalDateTime from = LocalDateTime.of(weekStart, LocalTime.MIN);
-        LocalDateTime to = LocalDateTime.of(weekEnd, LocalTime.MAX);
+        long activeTasks = taskRepository.countByAssigneeAndStatusAndUpdatedAtBetween(
+                currentUser, TaskStatus.IN_PROGRESS, range.startDateTime(), range.endDateTime());
+        long previousActiveTasks = taskRepository.countByAssigneeAndStatusAndUpdatedAtBetween(
+                currentUser, TaskStatus.IN_PROGRESS, previousRange.startDateTime(), previousRange.endDateTime());
 
-        long teamVelocity = 0;
-        if (!userProjects.isEmpty()) {
-            teamVelocity = taskRepository.findByProjectInAndStatusAndUpdatedAtBetween(
-                    userProjects, TaskStatus.DONE, from, to).size();
-        }
+        long totalMyTasks = taskRepository.countByAssigneeAndUpdatedAtBetween(
+                currentUser, range.startDateTime(), range.endDateTime());
+        long doneMyTasks = taskRepository.countByAssigneeAndStatusAndUpdatedAtBetween(
+                currentUser, TaskStatus.DONE, range.startDateTime(), range.endDateTime());
+        long previousTotalMyTasks = taskRepository.countByAssigneeAndUpdatedAtBetween(
+                currentUser, previousRange.startDateTime(), previousRange.endDateTime());
+        long previousDoneMyTasks = taskRepository.countByAssigneeAndStatusAndUpdatedAtBetween(
+                currentUser, TaskStatus.DONE, previousRange.startDateTime(), previousRange.endDateTime());
 
-        int completionRate = totalMyTasks == 0 ? 0 : (int) Math.round((doneMyTasks * 100.0) / totalMyTasks);
+        long overdueItems = taskRepository.countByAssigneeAndStatusNotAndDueDateBetween(
+                currentUser, TaskStatus.DONE, range.from(), range.to());
+        long previousOverdueItems = taskRepository.countByAssigneeAndStatusNotAndDueDateBetween(
+                currentUser, TaskStatus.DONE, previousRange.from(), previousRange.to());
+
+        long teamVelocity = teamVelocity(userProjects, range);
+        long previousTeamVelocity = teamVelocity(userProjects, previousRange);
+
+        int completionRate = completionRate(doneMyTasks, totalMyTasks);
+        int previousCompletionRate = completionRate(previousDoneMyTasks, previousTotalMyTasks);
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("activeTasks", activeTasks);
         result.put("completionRate", completionRate);
         result.put("teamVelocity", teamVelocity);
         result.put("overdueItems", overdueItems);
-        result.put("trendActiveTasks", randomTrend());
-        result.put("trendCompletion", randomTrend());
-        result.put("trendVelocity", randomTrend());
-        result.put("trendOverdue", randomTrend());
+        result.put("trendActiveTasks", trend(activeTasks, previousActiveTasks));
+        result.put("trendCompletion", completionRate - previousCompletionRate);
+        result.put("trendVelocity", trend(teamVelocity, previousTeamVelocity));
+        result.put("trendOverdue", trend(overdueItems, previousOverdueItems));
         return result;
     }
 
-    public List<Map<String, Object>> getUpcomingDeadlines(String userEmail) {
+    public List<Map<String, Object>> getUpcomingDeadlines(String userEmail, LocalDate fromDate, LocalDate toDate) {
         User currentUser = userService.findByEmail(userEmail);
         LocalDate today = LocalDate.now();
-        LocalDate nextWeek = today.plusDays(7);
+        LocalDate start = fromDate != null ? fromDate : today;
+        LocalDate end = toDate != null ? toDate : today.plusDays(7);
+        if (end.isBefore(start)) {
+            end = start;
+        }
 
         List<Task> tasks = taskRepository.findTop5ByAssigneeAndStatusNotAndDueDateBetweenOrderByDueDateAsc(
-                currentUser, TaskStatus.DONE, today, nextWeek);
+                currentUser, TaskStatus.DONE, start, end);
 
         return tasks.stream().map(task -> {
             Map<String, Object> dto = new LinkedHashMap<>();
@@ -139,9 +151,53 @@ public class DashboardService {
         return projects;
     }
 
-    private int randomTrend() {
-        return ThreadLocalRandom.current().nextInt(-20, 21);
+    private long teamVelocity(Set<Project> userProjects, DateRange range) {
+        if (userProjects.isEmpty()) {
+            return 0;
+        }
+        return taskRepository.findByProjectInAndStatusAndUpdatedAtBetween(
+                userProjects, TaskStatus.DONE, range.startDateTime(), range.endDateTime()).size();
+    }
+
+    private int completionRate(long doneTasks, long totalTasks) {
+        return totalTasks == 0 ? 0 : (int) Math.round((doneTasks * 100.0) / totalTasks);
+    }
+
+    private int trend(long current, long previous) {
+        if (previous == 0) {
+            return current == 0 ? 0 : 100;
+        }
+        return (int) Math.round(((current - previous) * 100.0) / previous);
+    }
+
+    private DateRange normalizeRange(LocalDate fromDate, LocalDate toDate) {
+        LocalDate today = LocalDate.now();
+        LocalDate defaultStart = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        LocalDate defaultEnd = today.with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY));
+        LocalDate from = fromDate != null ? fromDate : defaultStart;
+        LocalDate to = toDate != null ? toDate : defaultEnd;
+        if (to.isBefore(from)) {
+            to = from;
+        }
+        return new DateRange(from, to);
+    }
+
+    private DateRange previousRange(DateRange range) {
+        long days = ChronoUnit.DAYS.between(range.from(), range.to()) + 1;
+        LocalDate previousTo = range.from().minusDays(1);
+        LocalDate previousFrom = previousTo.minusDays(days - 1);
+        return new DateRange(previousFrom, previousTo);
     }
 
     private record ProjectSnapshot(Project project, LocalDateTime updatedAt, long taskCount) {}
+
+    private record DateRange(LocalDate from, LocalDate to) {
+        LocalDateTime startDateTime() {
+            return LocalDateTime.of(from, LocalTime.MIN);
+        }
+
+        LocalDateTime endDateTime() {
+            return LocalDateTime.of(to, LocalTime.MAX);
+        }
+    }
 }

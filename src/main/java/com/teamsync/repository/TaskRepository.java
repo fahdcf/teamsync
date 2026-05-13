@@ -21,10 +21,14 @@ public interface TaskRepository extends JpaRepository<Task, UUID>, JpaSpecificat
     long countByProject(Project project);
     long countByAssignee(User assignee);
     long countByAssigneeAndStatus(User assignee, TaskStatus status);
+    long countByAssigneeAndUpdatedAtBetween(User assignee, LocalDateTime start, LocalDateTime end);
+    long countByAssigneeAndStatusAndUpdatedAtBetween(User assignee, TaskStatus status,
+                                                     LocalDateTime start, LocalDateTime end);
     List<Task> findByProjectInAndStatusAndUpdatedAtBetween(Set<Project> projects, TaskStatus status,
                                                            LocalDateTime start, LocalDateTime end);
     List<Task> findTop5ByAssigneeAndStatusNotAndDueDateBetweenOrderByDueDateAsc(User assignee, TaskStatus status,
                                                                                  LocalDate start, LocalDate end);
     long countByAssigneeAndStatusNotAndDueDateBefore(User assignee, TaskStatus status, LocalDate date);
+    long countByAssigneeAndStatusNotAndDueDateBetween(User assignee, TaskStatus status, LocalDate start, LocalDate end);
     Task findTopByProjectOrderByUpdatedAtDesc(Project project);
 }

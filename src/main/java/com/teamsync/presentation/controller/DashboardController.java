@@ -4,11 +4,14 @@ import com.teamsync.service.DashboardService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
@@ -26,15 +29,19 @@ public class DashboardController {
     @Operation(summary = "Get dashboard summary metrics for the authenticated user")
     @ApiResponse(responseCode = "200", description = "Dashboard stats returned")
     @GetMapping("/stats")
-    public Map<String, Object> getStats(Authentication auth) {
-        return dashboardService.getStats(auth.getName());
+    public Map<String, Object> getStats(Authentication auth,
+                                        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+                                        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return dashboardService.getStats(auth.getName(), from, to);
     }
 
     @Operation(summary = "List upcoming task deadlines (next 7 days) for the authenticated user")
     @ApiResponse(responseCode = "200", description = "Upcoming deadlines returned")
     @GetMapping("/upcoming-deadlines")
-    public List<Map<String, Object>> getUpcomingDeadlines(Authentication auth) {
-        return dashboardService.getUpcomingDeadlines(auth.getName());
+    public List<Map<String, Object>> getUpcomingDeadlines(Authentication auth,
+                                                          @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+                                                          @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return dashboardService.getUpcomingDeadlines(auth.getName(), from, to);
     }
 
     @Operation(summary = "List up to 5 project overview entries for the authenticated user")

@@ -11,6 +11,7 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
@@ -59,6 +60,14 @@ public class GlobalExceptionHandler {
         Map<String, Object> body = buildError(400, "Bad Request", "Validation failed", request.getRequestURI());
         body.put("fieldErrors", fieldErrors);
         return ResponseEntity.badRequest().body(body);
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<Map<String, Object>> handleTypeMismatch(
+            MethodArgumentTypeMismatchException ex, HttpServletRequest request) {
+        String message = "Invalid value for parameter: " + ex.getName();
+        return ResponseEntity.badRequest()
+                .body(buildError(400, "Bad Request", message, request.getRequestURI()));
     }
 
     @ExceptionHandler({IllegalStateException.class, IllegalArgumentException.class})
