@@ -1,4 +1,3 @@
-<!-- Task Detail Modal Content -->
 <div *ngIf="isLoading" class="td-loading">
   <app-skeleton type="text"></app-skeleton>
   <app-skeleton type="text"></app-skeleton>
@@ -15,100 +14,114 @@
 <div class="td-wrapper" *ngIf="!isLoading && !hasError && task">
   <header class="td-header">
     <div class="td-header-left">
-      <button class="td-icon-btn">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+      <button class="td-icon-btn" type="button" aria-label="Expand task">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
       </button>
-      <button class="td-icon-btn" (click)="copyLink()">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+      <button class="td-icon-btn" type="button" aria-label="Copy task link" (click)="copyLink()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
       </button>
-      <button class="td-icon-btn">...</button>
+      <button class="td-icon-btn" type="button" aria-label="Task options">...</button>
     </div>
     <div class="td-header-right">
-      <button class="td-create-btn">✨ Create</button>
-      <button class="td-icon-btn" (click)="closeDrawer()">✕</button>
+      <button class="td-create-btn" type="button">Create</button>
+      <button class="td-icon-btn close" type="button" aria-label="Close task details" (click)="closeDrawer()">x</button>
     </div>
   </header>
 
-  <div class="td-content">
-    <!-- Title section -->
-    <div class="td-breadcrumb">
-      <span class="td-badge">{{ task.taskIdentifier || 'DES-120' }}</span>
-      <span class="td-doc-icon">📄</span>
-      <span class="td-project-name">{{ projectName }}</span>
-    </div>
+  <main class="td-content">
+    <section class="td-hero-card">
+      <div class="td-breadcrumb">
+        <span class="td-badge">{{ task.taskIdentifier || 'DES-120' }}</span>
+        <span class="td-doc-icon" aria-hidden="true"></span>
+        <span class="td-project-name">{{ projectName }}</span>
+      </div>
 
-    <h1 *ngIf="!isEditingTitle" class="td-title">
-      {{ task.title }} 
-      <button class="td-edit-icon" (click)="isEditingTitle = true">✎</button>
-    </h1>
-    <input *ngIf="isEditingTitle" class="title-input" [value]="task.title" (blur)="onTitleBlur($event)" autofocus>
-    
-    <p *ngIf="!isEditingDescription" class="td-description" (click)="isEditingDescription = true">
-      {{ task.description || 'Add a clear description for this task...' }}
-    </p>
-    <textarea *ngIf="isEditingDescription" class="description-input" [value]="task.description || ''" (blur)="onDescBlur($event)" autofocus></textarea>
+      <div class="td-title-row">
+        <div class="td-title-copy">
+          <h1 *ngIf="!isEditingTitle" class="td-title">
+            {{ task.title }}
+            <button class="td-edit-icon" type="button" aria-label="Edit title" (click)="isEditingTitle = true">Edit</button>
+          </h1>
+          <input *ngIf="isEditingTitle" class="title-input" [value]="task.title" (blur)="onTitleBlur($event)" autofocus>
 
-    <!-- Meta grid -->
-    <div class="td-meta-grid">
-      <div class="td-meta-item">
-        <label>Priority</label>
-        <div class="td-meta-btn">
-          <span class="td-dot" [class]="dotClass(task.priority)"></span>
-          {{ priorityLabel(task.priority) }}
-          <span class="chevron">⌄</span>
-          <select [ngModel]="task.priority" (ngModelChange)="onPriorityChange($event)">
-            <option *ngFor="let p of priorities" [value]="p">{{ priorityLabel(p) }}</option>
-          </select>
+          <p *ngIf="!isEditingDescription" class="td-description" (click)="isEditingDescription = true">
+            {{ task.description || 'Add a clear description for this task...' }}
+          </p>
+          <textarea *ngIf="isEditingDescription" class="description-input" [value]="task.description || ''" (blur)="onDescBlur($event)" autofocus></textarea>
         </div>
-      </div>
-      <div class="td-meta-item">
-        <label>Status</label>
-        <div class="td-meta-btn">
-          <span class="td-dot" [class]="dotClass(task.status)"></span>
-          {{ statusLabel(task.status) }}
-          <span class="chevron">⌄</span>
-          <select [ngModel]="task.status" (ngModelChange)="onStatusChange($event)">
-            <option *ngFor="let s of statuses" [value]="s">{{ statusLabel(s) }}</option>
-          </select>
-        </div>
-      </div>
-      <div class="td-meta-item">
-        <label>Assignees</label>
-        <div class="td-assignee-stack">
-          <span class="td-av" *ngIf="task.assignee">{{ initials(task.assignee) }}</span>
-          <span class="td-av" *ngIf="!task.assignee">?</span>
-        </div>
-      </div>
-      <div class="td-meta-item">
-        <label>Due date</label>
-        <div class="td-meta-btn td-date-btn">
-          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M5 1.5v3M11 1.5v3M2 7h12"/></svg>
-          {{ task.dueDate ? (task.dueDate | date:'MMM d, yyyy') : 'No date' }}
-          <input type="date" [ngModel]="task.dueDate" (ngModelChange)="onDueDateChange($event)">
-        </div>
-      </div>
-    </div>
 
-    <!-- Subtasks -->
-    <div class="td-subtasks">
+        <div class="td-status-summary">
+          <span class="td-summary-label">Current status</span>
+          <strong><i class="td-dot" [class]="dotClass(task.status)"></i>{{ statusLabel(task.status) }}</strong>
+          <small>{{ completedSubtasks }} of {{ subtasks.length }} subtasks done</small>
+        </div>
+      </div>
+
+      <div class="td-meta-grid">
+        <div class="td-meta-item">
+          <label>Priority</label>
+          <div class="td-meta-btn">
+            <span class="td-dot" [class]="dotClass(task.priority)"></span>
+            {{ priorityLabel(task.priority) }}
+            <span class="chevron">v</span>
+            <select [ngModel]="task.priority" (ngModelChange)="onPriorityChange($event)">
+              <option *ngFor="let p of priorities" [value]="p">{{ priorityLabel(p) }}</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="td-meta-item">
+          <label>Status</label>
+          <div class="td-meta-btn">
+            <span class="td-dot" [class]="dotClass(task.status)"></span>
+            {{ statusLabel(task.status) }}
+            <span class="chevron">v</span>
+            <select [ngModel]="task.status" (ngModelChange)="onStatusChange($event)">
+              <option *ngFor="let s of statuses" [value]="s">{{ statusLabel(s) }}</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="td-meta-item">
+          <label>Assignee</label>
+          <div class="td-assignee-stack">
+            <span class="td-av" *ngIf="task.assignee">{{ initials(task.assignee) }}</span>
+            <span class="td-av muted" *ngIf="!task.assignee">?</span>
+            <strong>{{ task.assignee?.username || 'Unassigned' }}</strong>
+          </div>
+        </div>
+
+        <div class="td-meta-item">
+          <label>Due date</label>
+          <div class="td-meta-btn td-date-btn">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M5 1.5v3M11 1.5v3M2 7h12"/></svg>
+            {{ task.dueDate ? (task.dueDate | date:'MMM d, yyyy') : 'No date' }}
+            <input type="date" [ngModel]="task.dueDate" (ngModelChange)="onDueDateChange($event)">
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="td-subtasks td-card">
       <div class="td-subtasks-header">
         <div class="td-subtasks-title">
           <strong>Subtasks</strong>
           <span class="td-subtasks-count">{{ completedSubtasks }} / {{ subtasks.length }}</span>
           <div class="td-progress-bar"><div class="td-progress-fill" [style.width.%]="subtaskProgress"></div></div>
         </div>
-        <button class="td-icon-btn">...</button>
+        <button class="td-icon-btn" type="button" aria-label="Subtask options">...</button>
       </div>
+
       <div class="td-subtask-list">
         <div *ngFor="let subtask of subtasks" class="td-subtask-row" [class.checked]="subtask.completed">
-          <button class="td-check-btn-wrapper" (click)="toggleSubtask(subtask)">
-            <span *ngIf="subtask.completed" class="td-check-icon">✓</span>
+          <button class="td-check-btn-wrapper" type="button" (click)="toggleSubtask(subtask)" [attr.aria-label]="subtask.completed ? 'Mark incomplete' : 'Mark complete'">
+            <span *ngIf="subtask.completed" class="td-check-icon">&#10003;</span>
             <span *ngIf="!subtask.completed" class="td-uncheck-icon"></span>
           </button>
           <span class="td-subtask-name">{{ subtask.title }}</span>
           <span class="td-av-small">{{ initials(subtask.assignee) }}</span>
           <span class="td-subtask-date">{{ subtask.dueDate ? (subtask.dueDate | date:'MMM d') : 'No date' }}</span>
-          <button class="td-delete-subtask" (click)="deleteSubtask(subtask)">✕</button>
+          <button class="td-delete-subtask" type="button" (click)="deleteSubtask(subtask)" aria-label="Delete subtask">x</button>
         </div>
 
         <button *ngIf="!isAddingSubtask" class="add-subtask-placeholder" type="button" (click)="isAddingSubtask = true">
@@ -116,61 +129,81 @@
         </button>
         <input *ngIf="isAddingSubtask" class="add-subtask-input" [(ngModel)]="newSubtaskTitle" placeholder="Add a subtask..." (keydown.enter)="addSubtask()" (keydown.escape)="cancelSubtask($event)" autofocus>
       </div>
-    </div>
+    </section>
 
-    <!-- Bottom layout -->
-    <div class="td-bottom-split">
-      <div class="td-bottom-left">
-        <!-- Tabs -->
+    <section class="td-bottom-split">
+      <div class="td-bottom-left td-card">
         <div class="td-tabs">
-          <button class="td-tab active">Comments {{ comments.length || 4 }}</button>
-          <button class="td-tab">Activity</button>
-          <button class="td-tab">Files 3</button>
-          <button class="td-tab">AI Assistant</button>
+          <button *ngFor="let tab of tabs" class="td-tab" type="button" [class.active]="activeTab === tab.key" (click)="activeTab = tab.key">
+            {{ tab.label }} <span *ngIf="tab.key === 'comments'">{{ comments.length }}</span><span *ngIf="tab.key === 'files'">3</span>
+          </button>
         </div>
 
-        <div class="td-comment-input-row">
-          <span class="td-av">{{ initials(currentUser) || 'MJ' }}</span>
-          <input class="td-comment-input" placeholder="Add a comment..." [(ngModel)]="newCommentText" (keydown.enter)="submitComment()" />
-        </div>
+        <ng-container [ngSwitch]="activeTab">
+          <div *ngSwitchCase="'comments'" class="td-tab-panel">
+            <div class="td-comment-input-row">
+              <span class="td-av">{{ initials(currentUser) }}</span>
+              <input class="td-comment-input" placeholder="Add a comment..." [(ngModel)]="newCommentText" (keydown.enter)="submitComment()" />
+            </div>
 
-        <!-- Comments list -->
-        <div class="td-comments-list">
-          <div *ngFor="let comment of comments" class="td-comment-item">
-            <span class="td-av">{{ initials(comment.author) }}</span>
-            <div class="td-comment-body">
-              <div class="td-comment-meta">
-                <strong>{{ comment.author.username }}</strong> <span class="time">{{ comment.createdAt | date:'shortTime' }}</span>
-              </div>
-              <p>{{ comment.content }}</p>
-              <div class="td-comment-actions">
-                <button (click)="replyingToId = comment.id">Reply</button>
-                <button *ngIf="canDeleteComment(comment)" (click)="deleteComment(comment.id)">Delete</button>
+            <div class="td-comments-list" *ngIf="comments.length; else noComments">
+              <div *ngFor="let comment of comments" class="td-comment-item">
+                <span class="td-av">{{ initials(comment.author) }}</span>
+                <div class="td-comment-body">
+                  <div class="td-comment-meta">
+                    <strong>{{ comment.author.username }}</strong>
+                    <span class="time">{{ comment.createdAt | date:'shortTime' }}</span>
+                  </div>
+                  <p>{{ comment.content }}</p>
+                  <div class="td-comment-actions">
+                    <button type="button" (click)="replyingToId = comment.id">Reply</button>
+                    <button type="button" *ngIf="canDeleteComment(comment)" (click)="deleteComment(comment.id)">Delete</button>
+                  </div>
+                </div>
               </div>
             </div>
+            <ng-template #noComments><p class="td-empty-copy">No comments yet. Start the discussion above.</p></ng-template>
           </div>
-        </div>
+
+          <div *ngSwitchCase="'activity'" class="td-tab-panel td-activity-panel">
+            <div class="td-activity-item" *ngFor="let item of activity">
+              <span></span>
+              <div><strong>{{ item.action }}</strong><small>{{ item.createdAt | date:'medium' }}</small></div>
+            </div>
+            <p class="td-empty-copy" *ngIf="!activity.length">No activity recorded for this task yet.</p>
+          </div>
+
+          <div *ngSwitchCase="'files'" class="td-tab-panel td-files-panel">
+            <article><strong>Design brief.pdf</strong><span>Attached to this task</span></article>
+            <article><strong>Wireframe.png</strong><span>Reference asset</span></article>
+            <article><strong>Notes.md</strong><span>Project notes</span></article>
+          </div>
+
+          <div *ngSwitchCase="'assistant'" class="td-tab-panel">
+            <p class="td-empty-copy">Use the AI recommendations panel to the right for suggested next steps.</p>
+          </div>
+        </ng-container>
       </div>
 
-      <div class="td-bottom-right">
+      <aside class="td-bottom-right">
         <div class="td-ai-panel">
           <div class="td-ai-header">
-            <strong><span class="ai-icon">✨</span> AI Assistant</strong>
+            <strong><span class="ai-icon">*</span> AI Assistant</strong>
             <span class="beta-badge">BETA</span>
           </div>
           <h3 class="td-ai-title">Design system recommendations</h3>
           <p class="td-ai-desc">Based on similar projects and best practices in design systems.</p>
           <div class="td-ai-card">
-            <span class="card-icon">◇</span>
-            Consider adding semantic color tokens for states (success, warning, error).
+            <span class="card-icon">&loz;</span>
+            <p>Consider adding semantic color tokens for states like success, warning, and error.</p>
           </div>
           <div class="td-ai-card">
-            <span class="card-icon">⌁</span>
-            Add focus states for accessibility compliance.
+            <span class="card-icon">~</span>
+            <p>Add focus states for accessibility compliance.</p>
           </div>
-          <button class="td-ai-link">View full recommendations →</button>
+          <button class="td-ai-link" type="button">View full recommendations -></button>
         </div>
-      </div>
-    </div>
-  </div>
+      </aside>
+    </section>
+  </main>
 </div>

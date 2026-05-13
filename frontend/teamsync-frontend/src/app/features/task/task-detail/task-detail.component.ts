@@ -10,9 +10,7 @@ import { AuthStore } from '../../../store/auth.store';
 import { Task, TaskStatus, TaskPriority, Subtask } from '../../../shared/models/task.model';
 import { Comment } from '../../../shared/models/comment.model';
 import { User } from '../../../shared/models/user.model';
-import { ButtonComponent } from '../../../shared/components/button/button.component';
 import { SkeletonComponent } from '../../../shared/components/skeleton/skeleton.component';
-import { RelativeTimePipe } from '../../../shared/pipes/relative-time.pipe';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { slideInRight } from '../../../app.animations';
 
@@ -21,7 +19,7 @@ type TaskDetailTab = 'comments' | 'activity' | 'files' | 'assistant';
 @Component({
   selector: 'app-task-detail',
   standalone: true,
-  imports: [CommonModule, DatePipe, FormsModule, ButtonComponent, SkeletonComponent, RelativeTimePipe, EmptyStateComponent],
+  imports: [CommonModule, DatePipe, FormsModule, SkeletonComponent, EmptyStateComponent],
   animations: [slideInRight],
   templateUrl: './task-detail.component.html',
   styleUrl: './task-detail.component.scss',

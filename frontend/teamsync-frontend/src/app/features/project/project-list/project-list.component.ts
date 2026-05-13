@@ -1,5 +1,6 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { forkJoin, of, switchMap } from 'rxjs';
 import { ProjectService } from '../../../api/project.service';
@@ -9,399 +10,533 @@ import { Project, ProjectStatus } from '../../../shared/models/project.model';
 @Component({
   selector: 'app-project-list',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   template: `
-    <div class="projects-page">
-      <!-- Header -->
-      <header class="page-header">
-        <div class="header-left">
-          <h1>Projects</h1>
-          <span class="count-badge">{{ filtered.length }}</span>
+    <div class="projects-page redesigned-projects-page">
+      <header class="projects-header">
+        <div>
+          <div class="projects-title-row">
+            <h1>Projects</h1>
+            <span>{{ filtered.length }}</span>
+          </div>
+          <p>Track and manage workspace projects.</p>
         </div>
-        <div class="header-actions">
-          <div class="filter-group">
-            <button
-              *ngFor="let f of filters"
-              class="filter-btn"
-              [class.active]="activeFilter === f.value"
-              (click)="setFilter(f.value)"
-              type="button"
-            >{{ f.label }}</button>
+
+        <div class="projects-header-actions">
+          <button class="new-project-btn" type="button">
+            <span aria-hidden="true">+</span>
+            New Project
+          </button>
+          <div class="project-view-toggle" aria-label="Project view toggle">
+            <button type="button" aria-label="Grid view">▦</button>
+            <button class="active" type="button" aria-label="List view">☰</button>
           </div>
         </div>
       </header>
 
-      <!-- Loading -->
+      <section class="project-filter-panel">
+        <div class="project-search-box">
+          <span aria-hidden="true">⌕</span>
+          <input type="text" placeholder="Search projects..." [(ngModel)]="searchText" (ngModelChange)="applyFilter()" />
+        </div>
+
+        <div class="project-status-tabs">
+          <button
+            *ngFor="let f of filters"
+            class="filter-btn"
+            [class.active]="activeFilter === f.value"
+            (click)="setFilter(f.value)"
+            type="button"
+          >{{ f.label }}</button>
+        </div>
+
+        <div class="project-filter-row">
+          <button type="button"><span aria-hidden="true">♙</span> Team: All <b>⌄</b></button>
+          <button type="button"><span aria-hidden="true">□</span> Due date <b>⌄</b></button>
+          <button type="button">Sort: Recent <b>⌄</b></button>
+        </div>
+      </section>
+
       <div class="loading-row" *ngIf="loading">
         <div class="spinner"></div>
-        <span>Loading projects…</span>
+        <span>Loading projects...</span>
       </div>
 
-      <!-- Empty -->
-      <div class="empty-state" *ngIf="!loading && !filtered.length">
-        <div class="empty-icon">▣</div>
-        <p>No projects found</p>
-        <span>{{ activeFilter !== 'ALL' ? 'Try a different filter.' : 'Create your first project to get started.' }}</span>
-      </div>
+      <section class="project-table-card" *ngIf="!loading && filtered.length">
+        <div class="project-table-head">
+          <span>Project</span>
+          <span>Progress</span>
+          <span>Status</span>
+          <span>Due date</span>
+          <span>Team</span>
+          <span>Tasks</span>
+          <span>Activity</span>
+          <span></span>
+        </div>
 
-      <!-- Grid -->
-      <div class="projects-grid" *ngIf="!loading && filtered.length">
         <article
-          class="project-card"
+          class="project-table-row"
           *ngFor="let project of filtered"
           (click)="open(project.id)"
           tabindex="0"
           (keydown.enter)="open(project.id)"
         >
-          <div class="card-top">
-            <div class="card-title-row">
-              <span class="status-dot" [class]="project.status.toLowerCase().replace('_','-')"></span>
-              <h2>{{ project.title }}</h2>
+          <div class="project-cell project-name-cell">
+            <div class="project-name-line">
+              <i class="project-dot" [class]="project.status.toLowerCase().replace('_','-')"></i>
+              <strong>{{ project.title }}</strong>
             </div>
-            <span class="status-badge" [class]="project.status.toLowerCase().replace('_','-')">
+            <p>{{ project.description || 'No description provided.' }}</p>
+          </div>
+
+          <div class="project-cell project-progress-cell">
+            <strong>{{ project.progress }}%</strong>
+            <div class="project-progress-track"><i [style.width.%]="project.progress" [class]="progressClass(project.progress)"></i></div>
+          </div>
+
+          <div class="project-cell">
+            <span class="project-status-pill" [class]="project.status.toLowerCase().replace('_','-')">
               {{ statusLabel(project.status) }}
             </span>
           </div>
 
-          <p class="card-desc">{{ project.description || 'No description provided.' }}</p>
-
-          <div class="progress-section">
-            <div class="progress-labels">
-              <span>Progress</span>
-              <span class="progress-pct">{{ project.progress }}%</span>
-            </div>
-            <div class="progress-track">
-              <div class="progress-fill" [style.width.%]="project.progress" [class]="progressClass(project.progress)"></div>
-            </div>
+          <div class="project-cell project-date-cell">
+            <span aria-hidden="true">□</span>
+            <strong>{{ project.deadline ? (project.deadline | date:'MMM d, y') : 'No deadline' }}</strong>
           </div>
 
-          <div class="card-meta">
-            <div class="meta-item">
-              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M4 1.5v3M12 1.5v3M2 7h12"/></svg>
-              <span>{{ project.deadline ? (project.deadline | date:'MMM d, y') : 'No deadline' }}</span>
-            </div>
-            <div class="meta-item workspace-tag">
-              <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>
-              <span>{{ project.workspace?.name || 'Workspace' }}</span>
-            </div>
+          <div class="project-cell">
+            <span class="project-avatar" *ngIf="project.manager">{{ initials(project.manager.username) }}</span>
+            <span class="project-avatar" *ngIf="!project.manager">?</span>
           </div>
 
-          <div class="card-footer">
-            <div class="manager-row" *ngIf="project.manager">
-              <div class="manager-avatar">{{ initials(project.manager.username) }}</div>
-              <span class="manager-name">{{ project.manager.username }}</span>
-            </div>
-            <button class="open-btn" type="button" (click)="$event.stopPropagation(); open(project.id)">
-              Open →
-            </button>
+          <div class="project-cell project-task-cell">
+            <strong>0</strong>
+            <small>Tasks</small>
           </div>
+
+          <div class="project-cell project-activity-cell">
+            <i></i>
+            <span>Just now</span>
+          </div>
+
+          <button class="project-more-btn" type="button" aria-label="Project options" (click)="$event.stopPropagation()">⋮</button>
         </article>
-      </div>
+
+        <footer>Showing {{ filtered.length }} of {{ projects.length }} project{{ projects.length === 1 ? '' : 's' }}</footer>
+      </section>
+
+      <section class="project-empty-card" *ngIf="!loading && !filtered.length">
+        <div class="empty-icon">▣</div>
+        <h2>No projects found</h2>
+        <p>{{ activeFilter !== 'ALL' || searchText ? 'Try a different filter or search.' : 'Create your first project to get started.' }}</p>
+      </section>
     </div>
   `,
   styles: [`
-    .projects-page {
+    .redesigned-projects-page {
       min-height: 100%;
-      padding: 32px;
-      background: var(--bg-base);
+      padding: 34px 32px 64px;
       color: var(--text-primary);
+      background:
+        radial-gradient(ellipse 54% 28% at 62% 0%, rgba(180,130,60,0.08), transparent 72%),
+        var(--bg-base);
     }
 
-    .page-header {
+    .projects-header {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       justify-content: space-between;
-      gap: 16px;
-      margin-bottom: 28px;
-      flex-wrap: wrap;
+      gap: 24px;
+      margin-bottom: 24px;
     }
 
-    .header-left {
+    .projects-title-row {
       display: flex;
       align-items: center;
       gap: 12px;
     }
 
     h1 {
-      font-size: 24px;
-      font-weight: 600;
-      color: var(--text-primary);
+      margin: 0;
+      font-size: 25px;
+      line-height: 1;
+      letter-spacing: -0.04em;
+      font-weight: 760;
     }
 
-    .count-badge {
-      height: 22px;
+    .projects-title-row span {
+      min-width: 24px;
+      height: 24px;
       padding: 0 8px;
       border-radius: var(--radius-full);
       background: var(--bg-elevated);
       border: 1px solid var(--border-subtle);
-      font-size: 12px;
       color: var(--text-secondary);
       display: inline-flex;
       align-items: center;
-    }
-
-    .filter-group {
-      display: flex;
-      gap: 4px;
-      background: var(--bg-surface);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-lg);
-      padding: 3px;
-    }
-
-    .filter-btn {
-      height: 28px;
-      padding: 0 12px;
-      border-radius: var(--radius-md);
-      border: none;
-      background: transparent;
-      color: var(--text-secondary);
-      font-size: 12px;
-      cursor: pointer;
-      transition: background 0.15s, color 0.15s;
-    }
-
-    .filter-btn.active {
-      background: var(--bg-elevated);
-      color: var(--text-primary);
-    }
-
-    .filter-btn:hover:not(.active) {
-      color: var(--text-primary);
-    }
-
-    /* Loading */
-    .loading-row {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 48px 0;
       justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .projects-header p {
+      margin: 12px 0 0;
       color: var(--text-secondary);
       font-size: 14px;
     }
 
-    .spinner {
-      width: 20px;
-      height: 20px;
-      border: 2px solid var(--border-default);
-      border-top-color: var(--accent);
-      border-radius: 50%;
-      animation: spin 0.7s linear infinite;
-    }
-
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    /* Empty */
-    .empty-state {
+    .projects-header-actions,
+    .project-view-toggle,
+    .project-status-tabs,
+    .project-filter-row {
       display: flex;
-      flex-direction: column;
       align-items: center;
-      justify-content: center;
-      gap: 8px;
-      padding: 80px 0;
-      color: var(--text-secondary);
     }
 
-    .empty-icon {
-      font-size: 40px;
-      opacity: 0.3;
-      margin-bottom: 8px;
-    }
-
-    .empty-state p {
-      font-size: 16px;
-      color: var(--text-primary);
-    }
-
-    .empty-state span {
-      font-size: 13px;
-    }
-
-    /* Grid */
-    .projects-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-      gap: 16px;
-    }
-
-    .project-card {
-      background: var(--bg-surface);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-lg);
-      padding: 20px;
-      cursor: pointer;
-      display: flex;
-      flex-direction: column;
+    .projects-header-actions {
       gap: 14px;
-      transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
     }
 
-    .project-card:hover {
-      border-color: var(--border-default);
-      box-shadow: var(--shadow-md);
-      transform: translateY(-1px);
-    }
-
-    .card-top {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 8px;
-    }
-
-    .card-title-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      min-width: 0;
-    }
-
-    .status-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      flex-shrink: 0;
-    }
-
-    h2 {
-      font-size: 15px;
-      font-weight: 600;
-      color: var(--text-primary);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    /* Status colors */
-    .status-dot.planning, .status-badge.planning { background: var(--info); color: var(--info); }
-    .status-dot.active, .status-badge.active { background: var(--success); color: var(--success); }
-    .status-dot.on-hold, .status-badge.on-hold { background: var(--warning); color: var(--warning); }
-    .status-dot.completed, .status-badge.completed { background: var(--accent); color: var(--accent); }
-    .status-dot.archived, .status-badge.archived { background: var(--text-tertiary); color: var(--text-tertiary); }
-
-    .status-badge {
-      font-size: 11px;
-      font-weight: 500;
-      padding: 2px 8px;
-      border-radius: var(--radius-full);
-      background: transparent;
-      border: 1px solid currentColor;
-      white-space: nowrap;
-      flex-shrink: 0;
-    }
-
-    .card-desc {
+    .new-project-btn {
+      height: 38px;
+      padding: 0 18px;
+      border: 1px solid rgba(245,190,88,0.45);
+      border-radius: var(--radius-md);
+      background: linear-gradient(180deg, #efc96e, #d7a748);
+      color: #14100a;
       font-size: 13px;
-      color: var(--text-secondary);
-      line-height: 1.5;
-      overflow: hidden;
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
-    }
-
-    .progress-section {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    .progress-labels {
-      display: flex;
-      justify-content: space-between;
-      font-size: 12px;
-      color: var(--text-secondary);
-    }
-
-    .progress-pct {
-      color: var(--text-primary);
-      font-weight: 500;
-    }
-
-    .progress-track {
-      height: 4px;
-      background: var(--bg-elevated);
-      border-radius: var(--radius-full);
-      overflow: hidden;
-    }
-
-    .progress-fill {
-      height: 100%;
-      border-radius: inherit;
-      transition: width 0.4s ease;
-    }
-
-    .progress-fill.low { background: var(--danger); }
-    .progress-fill.mid { background: var(--warning); }
-    .progress-fill.high { background: var(--success); }
-    .progress-fill.done { background: var(--accent); }
-
-    .card-meta {
-      display: flex;
-      gap: 16px;
-      flex-wrap: wrap;
-    }
-
-    .meta-item {
+      font-weight: 700;
       display: inline-flex;
       align-items: center;
-      gap: 5px;
-      font-size: 12px;
+      gap: 10px;
+      box-shadow: 0 10px 26px rgba(212,168,83,0.14), inset 0 1px 0 rgba(255,255,255,0.32);
+    }
+
+    .new-project-btn span { font-size: 18px; }
+
+    .project-view-toggle {
+      height: 38px;
+      padding: 3px;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      background: rgba(255,255,255,0.025);
+      gap: 2px;
+    }
+
+    .project-view-toggle button {
+      width: 34px;
+      height: 30px;
+      border: 0;
+      border-radius: var(--radius-sm);
+      background: transparent;
+      color: var(--text-tertiary);
+      font-size: 15px;
+    }
+
+    .project-view-toggle button.active {
+      border: 1px solid rgba(212,168,83,0.28);
+      background: var(--accent-dim);
+      color: var(--accent);
+    }
+
+    .project-filter-panel,
+    .project-table-card,
+    .project-empty-card {
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-xl);
+      background: linear-gradient(145deg, rgba(255,255,255,0.032), rgba(255,255,255,0.01)), var(--bg-surface);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+    }
+
+    .project-filter-panel {
+      min-height: 124px;
+      padding: 20px;
+      margin-bottom: 18px;
+      display: flex;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      gap: 18px;
+    }
+
+    .project-search-box {
+      width: 230px;
+      height: 38px;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      background: rgba(255,255,255,0.022);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 12px;
       color: var(--text-tertiary);
     }
 
-    .workspace-tag {
-      color: var(--text-secondary);
+    .project-search-box input {
+      width: 100%;
+      border: 0;
+      outline: 0;
+      background: transparent;
+      color: var(--text-primary);
+      font-size: 13px;
     }
 
-    .card-footer {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding-top: 8px;
-      border-top: 1px solid var(--border-subtle);
-    }
+    .project-search-box input::placeholder { color: var(--text-tertiary); }
 
-    .manager-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .manager-avatar {
-      width: 24px;
-      height: 24px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #c18c60, #2f5874);
-      color: #fff;
-      font-size: 9px;
-      font-weight: 700;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .manager-name {
-      font-size: 12px;
-      color: var(--text-secondary);
-    }
-
-    .open-btn {
-      height: 28px;
-      padding: 0 12px;
+    .project-status-tabs {
+      height: 38px;
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-md);
+      background: rgba(255,255,255,0.018);
+      padding: 3px;
+      gap: 2px;
+    }
+
+    .filter-btn {
+      height: 30px;
+      padding: 0 14px;
+      border: 0;
+      border-radius: var(--radius-sm);
       background: transparent;
-      color: var(--accent);
+      color: var(--text-secondary);
       font-size: 12px;
+    }
+
+    .filter-btn.active {
+      background: rgba(212,168,83,0.14);
+      border: 1px solid rgba(212,168,83,0.28);
+      color: var(--text-primary);
+    }
+
+    .project-filter-row {
+      flex-basis: 100%;
+      gap: 12px;
+    }
+
+    .project-filter-row button {
+      height: 38px;
+      min-width: 132px;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      background: rgba(255,255,255,0.022);
+      color: var(--text-primary);
+      display: inline-flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 13px;
+      padding: 0 14px;
+    }
+
+    .project-filter-row button span,
+    .project-filter-row button b { color: var(--text-secondary); font-weight: 500; }
+
+    .loading-row {
+      min-height: 240px;
+      display: grid;
+      place-items: center;
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+
+    .spinner { display: none; }
+
+    .project-table-card {
+      overflow: hidden;
+    }
+
+    .project-table-head,
+    .project-table-row {
+      display: grid;
+      grid-template-columns: minmax(190px, 1.55fr) 130px 110px 150px 82px 82px 118px 36px;
+      align-items: center;
+      gap: 18px;
+    }
+
+    .project-table-head {
+      min-height: 56px;
+      padding: 0 28px;
+      border-bottom: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .project-table-row {
+      min-height: 104px;
+      padding: 18px 28px;
       cursor: pointer;
+      border-bottom: 1px solid var(--border-subtle);
       transition: background 0.15s, border-color 0.15s;
     }
 
-    .open-btn:hover {
-      background: var(--accent-dim);
-      border-color: var(--accent);
+    .project-table-row:hover {
+      background: rgba(255,255,255,0.024);
+    }
+
+    .project-cell { min-width: 0; }
+
+    .project-name-line {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .project-dot,
+    .project-activity-cell i {
+      width: 7px;
+      height: 7px;
+      border-radius: var(--radius-full);
+      background: var(--info);
+      flex: 0 0 auto;
+    }
+
+    .project-dot.active { background: var(--success); }
+    .project-dot.planning { background: var(--info); }
+    .project-dot.on-hold { background: var(--warning); }
+    .project-dot.completed { background: var(--accent); }
+    .project-dot.archived { background: var(--text-tertiary); }
+
+    .project-name-line strong {
+      color: var(--text-primary);
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .project-name-cell p {
+      margin: 0;
+      color: var(--text-secondary);
+      font-size: 13px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .project-progress-cell strong,
+    .project-task-cell strong {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--text-primary);
+      font-size: 14px;
+    }
+
+    .project-progress-track {
+      width: 104px;
+      height: 5px;
+      border-radius: var(--radius-full);
+      background: var(--bg-elevated);
+      overflow: hidden;
+    }
+
+    .project-progress-track i {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+      background: var(--success);
+    }
+
+    .project-progress-track i.low { background: var(--border-default); }
+    .project-progress-track i.mid { background: var(--warning); }
+    .project-progress-track i.high { background: var(--success); }
+    .project-progress-track i.done { background: var(--accent); }
+
+    .project-status-pill {
+      height: 28px;
+      padding: 0 12px;
+      border-radius: var(--radius-full);
+      display: inline-flex;
+      align-items: center;
+      background: rgba(96,165,250,0.14);
+      color: var(--info);
+      font-size: 13px;
+      text-transform: capitalize;
+    }
+
+    .project-status-pill.active { background: var(--success-dim); color: var(--success); }
+    .project-status-pill.on-hold { background: var(--warning-dim); color: var(--warning); }
+    .project-status-pill.completed { background: var(--accent-dim); color: var(--accent); }
+    .project-status-pill.archived { background: var(--bg-elevated); color: var(--text-secondary); }
+
+    .project-date-cell,
+    .project-activity-cell {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      color: var(--text-secondary);
+      font-size: 13px;
+    }
+
+    .project-date-cell strong { color: var(--text-primary); font-size: 13px; }
+
+    .project-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius-full);
+      background: linear-gradient(135deg, #d6a56f, #506174 70%, #1b2528);
+      border: 1px solid var(--border-default);
+      color: #fff;
+      display: grid;
+      place-items: center;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .project-task-cell small {
+      color: var(--text-secondary);
+      font-size: 12px;
+    }
+
+    .project-activity-cell i { background: var(--success); }
+
+    .project-more-btn {
+      width: 30px;
+      height: 30px;
+      border: 0;
+      border-radius: var(--radius-md);
+      background: transparent;
+      color: var(--text-tertiary);
+      font-size: 18px;
+    }
+
+    .project-more-btn:hover {
+      background: var(--bg-elevated);
+      color: var(--text-primary);
+    }
+
+    .project-table-card footer {
+      min-height: 54px;
+      display: grid;
+      place-items: center;
+      color: var(--text-tertiary);
+      font-size: 12px;
+    }
+
+    .project-empty-card {
+      min-height: 260px;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      color: var(--text-secondary);
+    }
+
+    .project-empty-card h2 { margin: 8px 0; font-size: 18px; color: var(--text-primary); }
+    .project-empty-card p { margin: 0; }
+    .empty-icon { color: var(--text-tertiary); font-size: 34px; }
+
+    @media (max-width: 1100px) {
+      .project-table-card { overflow-x: auto; }
+      .project-table-head,
+      .project-table-row { min-width: 960px; }
+    }
+
+    @media (max-width: 760px) {
+      .redesigned-projects-page { padding: 24px 18px 48px; }
+      .projects-header { flex-direction: column; }
+      .project-filter-panel { align-items: stretch; }
+      .project-search-box { width: 100%; }
+      .project-status-tabs { overflow-x: auto; }
+      .project-filter-row { flex-direction: column; align-items: stretch; }
     }
   `]
 })
@@ -414,6 +549,7 @@ export default class ProjectListComponent implements OnInit {
   filtered: Project[] = [];
   loading = true;
   activeFilter: string = 'ALL';
+  searchText = '';
 
   readonly filters = [
     { label: 'All', value: 'ALL' },
@@ -448,9 +584,12 @@ export default class ProjectListComponent implements OnInit {
   }
 
   applyFilter(): void {
-    this.filtered = this.activeFilter === 'ALL'
-      ? this.projects
-      : this.projects.filter(p => p.status === this.activeFilter);
+    const search = this.searchText.trim().toLowerCase();
+    this.filtered = this.projects.filter(project => {
+      const matchesStatus = this.activeFilter === 'ALL' || project.status === this.activeFilter;
+      const matchesSearch = !search || project.title.toLowerCase().includes(search) || (project.description || '').toLowerCase().includes(search);
+      return matchesStatus && matchesSearch;
+    });
   }
 
   open(id: string): void {
@@ -458,7 +597,7 @@ export default class ProjectListComponent implements OnInit {
   }
 
   statusLabel(status: ProjectStatus): string {
-    return status.replace('_', ' ');
+    return status.replace('_', ' ').toLowerCase();
   }
 
   progressClass(progress: number): string {

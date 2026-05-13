@@ -1,6 +1,5 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
-import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { forkJoin, of, switchMap } from 'rxjs';
 import { AuthStore } from '../../store/auth.store';
@@ -9,21 +8,14 @@ import { ProjectService } from '../../api/project.service';
 import { TaskService } from '../../api/task.service';
 import { WorkspaceService } from '../../api/workspace.service';
 import { Project } from '../../shared/models/project.model';
-import { Task, TaskStatus } from '../../shared/models/task.model';
+import { Task } from '../../shared/models/task.model';
 import { User } from '../../shared/models/user.model';
 import { Workspace } from '../../shared/models/workspace.model';
-import { TaskCardComponent } from '../task/task-card/task-card.component';
-
-interface BoardColumn {
-  label: string;
-  status: TaskStatus;
-  tasks: Task[];
-}
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, DatePipe, FormsModule, TaskCardComponent],
+  imports: [CommonModule, DatePipe],
   template: `
     <div class="dashboard-page">
       <section class="dashboard-hero">
@@ -82,44 +74,44 @@ interface BoardColumn {
         </article>
       </section>
 
-      <section class="board-section">
+      <section class="dashboard-calendar-section">
         <div class="section-toolbar">
           <div class="toolbar-left">
-            <h2>Project Board</h2>
-            <select [(ngModel)]="selectedProjectId" (ngModelChange)="loadProjectTasks($event)" aria-label="Select project">
-              <option *ngFor="let project of projects" [value]="project.id">{{ project.title }}</option>
-            </select>
+            <h2>Calendar</h2>
+            <span class="calendar-month-label">{{ dashboardMonthLabel }}</span>
           </div>
           <div class="toolbar-actions">
-            <button type="button">Filter</button>
-            <button type="button">Customize</button>
-            <button type="button" aria-label="More">...</button>
+            <button type="button" (click)="previousDashboardMonth()">‹</button>
+            <button type="button" (click)="goToCurrentDashboardMonth()">Today</button>
+            <button type="button" (click)="nextDashboardMonth()">›</button>
           </div>
         </div>
 
-        <div class="kanban-board">
-          <article class="kanban-column" *ngFor="let column of boardColumns"
-            [attr.data-status]="column.status">
-            <header class="kanban-col-header">
-              <div class="kanban-col-title-row">
-                <span class="kanban-col-dot" [attr.data-status]="column.status"></span>
-                <h3>{{ column.label }}</h3>
-                <span class="kanban-col-count">{{ column.tasks.length }}</span>
-              </div>
-            </header>
-            <div class="kanban-col-body">
-              <app-task-card
-                *ngFor="let task of column.tasks"
-                [task]="task"
-                [readonly]="true"
-                [commentCount]="task.dependencies.length || 0">
-              </app-task-card>
-              <div *ngIf="!column.tasks.length" class="kanban-empty-col">
-                <span>No tasks</span>
+        <article class="dash-card dashboard-calendar-card">
+          <div class="calendar-weekdays">
+            <span *ngFor="let day of calendarWeekdays">{{ day }}</span>
+          </div>
+          <div class="dashboard-calendar-grid">
+            <div
+              class="dashboard-calendar-day"
+              *ngFor="let day of dashboardCalendarDays"
+              [class.other-month]="!day.isCurrentMonth"
+              [class.today]="day.isToday"
+            >
+              <div class="calendar-day-number">{{ day.date.getDate() }}</div>
+              <div class="calendar-day-events">
+                <span
+                  *ngFor="let event of day.events | slice:0:2"
+                  [class]="event.priority.toLowerCase()"
+                  [title]="event.title"
+                >
+                  {{ event.title }}
+                </span>
+                <em *ngIf="day.events.length > 2">+{{ day.events.length - 2 }} more</em>
               </div>
             </div>
-          </article>
-        </div>
+          </div>
+        </article>
       </section>
 
       <section class="analytics-overview">
@@ -250,9 +242,11 @@ export default class DashboardComponent implements OnInit {
   workspaces: Workspace[] = [];
   tasks: Task[] = [];
   selectedProjectId = '';
+  dashboardCalendarDate = new Date();
 
   readonly bars = [20, 34, 28, 40, 18, 36, 25, 31];
   readonly days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+  readonly calendarWeekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   readonly recentActivity = [
     { initials: 'EW', name: 'Emma Wilson', action: 'completed Homepage design', time: '2m ago' },
@@ -283,15 +277,6 @@ export default class DashboardComponent implements OnInit {
     return `${(pct / 100) * 176} 176`;
   }
 
-  get boardColumns(): BoardColumn[] {
-    return [
-      { label: 'To Do', status: 'TODO', tasks: this.tasks.filter((task) => task.status === 'TODO') },
-      { label: 'In Progress', status: 'IN_PROGRESS', tasks: this.tasks.filter((task) => task.status === 'IN_PROGRESS') },
-      { label: 'Review', status: 'IN_REVIEW', tasks: this.tasks.filter((task) => task.status === 'IN_REVIEW') },
-      { label: 'Done', status: 'DONE', tasks: this.tasks.filter((task) => task.status === 'DONE') },
-    ];
-  }
-
   get teamMembers(): User[] {
     const members = this.workspaces.flatMap((workspace) => workspace.members || []);
     const unique = new Map(members.map((member) => [member.id, member]));
@@ -304,6 +289,55 @@ export default class DashboardComponent implements OnInit {
 
   get firstTaskTitle(): string {
     return this.tasks.find((task) => task.status === 'IN_PROGRESS')?.title || 'current priorities';
+  }
+
+  get dashboardMonthLabel(): string {
+    return this.dashboardCalendarDate.toLocaleString('default', {
+      month: 'long',
+      year: 'numeric',
+    });
+  }
+
+  get dashboardCalendarDays(): { date: Date; isCurrentMonth: boolean; isToday: boolean; events: { title: string; priority: Task['priority'] }[] }[] {
+    const year = this.dashboardCalendarDate.getFullYear();
+    const month = this.dashboardCalendarDate.getMonth();
+    const today = new Date();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const days: { date: Date; isCurrentMonth: boolean; isToday: boolean; events: { title: string; priority: Task['priority'] }[] }[] = [];
+
+    for (let index = 0; index < firstDay.getDay(); index++) {
+      days.push({
+        date: new Date(year, month, index - firstDay.getDay() + 1),
+        isCurrentMonth: false,
+        isToday: false,
+        events: [],
+      });
+    }
+
+    for (let dateNumber = 1; dateNumber <= lastDay.getDate(); dateNumber++) {
+      const date = new Date(year, month, dateNumber);
+      days.push({
+        date,
+        isCurrentMonth: true,
+        isToday: date.toDateString() === today.toDateString(),
+        events: this.eventsForCalendarDay(date),
+      });
+    }
+
+    const remaining = 7 - (days.length % 7);
+    if (remaining < 7) {
+      for (let index = 1; index <= remaining; index++) {
+        days.push({
+          date: new Date(year, month + 1, index),
+          isCurrentMonth: false,
+          isToday: false,
+          events: [],
+        });
+      }
+    }
+
+    return days;
   }
 
   load(): void {
@@ -379,6 +413,32 @@ export default class DashboardComponent implements OnInit {
       next: (tasks) => (this.tasks = tasks),
       error: () => (this.tasks = []),
     });
+  }
+
+  previousDashboardMonth(): void {
+    this.dashboardCalendarDate = new Date(this.dashboardCalendarDate.getFullYear(), this.dashboardCalendarDate.getMonth() - 1, 1);
+  }
+
+  nextDashboardMonth(): void {
+    this.dashboardCalendarDate = new Date(this.dashboardCalendarDate.getFullYear(), this.dashboardCalendarDate.getMonth() + 1, 1);
+  }
+
+  goToCurrentDashboardMonth(): void {
+    this.dashboardCalendarDate = new Date();
+  }
+
+  eventsForCalendarDay(date: Date): { title: string; priority: Task['priority'] }[] {
+    const taskEvents = this.tasks
+      .filter((task) => task.dueDate && this.isSameDay(new Date(task.dueDate), date))
+      .map((task) => ({ title: task.title, priority: task.priority }));
+    const deadlineEvents = this.deadlines
+      .filter((deadline) => deadline.dueDate && this.isSameDay(new Date(deadline.dueDate), date))
+      .map((deadline) => ({ title: deadline.title, priority: deadline.priority }));
+    return [...taskEvents, ...deadlineEvents];
+  }
+
+  isSameDay(left: Date, right: Date): boolean {
+    return left.getFullYear() === right.getFullYear() && left.getMonth() === right.getMonth() && left.getDate() === right.getDate();
   }
 
   openTask(id: string): void {
