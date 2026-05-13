@@ -8,6 +8,7 @@ import { AuthStore } from '../../store/auth.store';
 import { NotificationStore } from '../../store/notification.store';
 import { TokenService } from '../../core/services/token.service';
 import { SidebarStateService } from '../../core/services/sidebar-state.service';
+import { WorkspaceContextService } from '../../core/services/workspace-context.service';
 import { SearchService } from '../../api/search.service';
 import { ProjectService } from '../../api/project.service';
 import { TaskService } from '../../api/task.service';
@@ -154,11 +155,32 @@ interface BreadcrumbItem {
           </div>
         </div>
 
-        <button class="workspace-btn" type="button" aria-label="Workspace selector">
-          <span class="workspace-icon"></span>
-          <span class="workspace-name">Product Design</span>
-          <span class="caret">v</span>
-        </button>
+        <div class="workspace-menu" appClickOutside (clickOutside)="isWorkspaceMenuOpen = false">
+          <button class="workspace-btn" type="button" aria-label="Workspace selector" (click)="toggleWorkspaceMenu()">
+            <span class="workspace-icon"></span>
+            <span class="workspace-name">{{ selectedWorkspace?.name || 'Select workspace' }}</span>
+            <span class="caret">v</span>
+          </button>
+
+          <div class="workspace-dropdown" *ngIf="isWorkspaceMenuOpen">
+            <div class="workspace-dropdown-label">Workspaces</div>
+            <button
+              class="workspace-option"
+              *ngFor="let workspace of workspaces"
+              [class.active]="workspace.id === selectedWorkspace?.id"
+              type="button"
+              (click)="selectWorkspace(workspace)"
+            >
+              <span class="workspace-option-avatar">{{ workspace.name.charAt(0).toUpperCase() }}</span>
+              <span>
+                <strong>{{ workspace.name }}</strong>
+                <small>{{ memberCount(workspace) }} member{{ memberCount(workspace) === 1 ? '' : 's' }}</small>
+              </span>
+            </button>
+            <div class="workspace-empty" *ngIf="!workspaces.length">No workspaces yet</div>
+            <button class="workspace-manage" type="button" (click)="openWorkspaceList()">Manage workspaces</button>
+          </div>
+        </div>
 
         <div class="avatar-stack" aria-label="Team members">
           <div class="stack-avatars">
@@ -502,6 +524,10 @@ interface BreadcrumbItem {
         position: relative;
       }
 
+      .workspace-menu {
+        position: relative;
+      }
+
       .new-btn,
       .workspace-btn {
         height: 32px;
@@ -771,7 +797,7 @@ interface BreadcrumbItem {
           grid-template-columns: minmax(220px, 1fr) 280px minmax(280px, 1fr);
         }
 
-        .workspace-btn,
+        .workspace-menu,
         .avatar-stack,
         .user-menu {
           display: none;
@@ -817,6 +843,7 @@ export class NavbarComponent implements OnDestroy {
   private readonly taskService = inject(TaskService);
   private readonly workspaceService = inject(WorkspaceService);
   private readonly tokenService = inject(TokenService);
+  private readonly workspaceContext = inject(WorkspaceContextService);
   private readonly router = inject(Router);
   private readonly fb = inject(FormBuilder);
   private readonly searchInput$ = new Subject<string>();
@@ -837,6 +864,7 @@ export class NavbarComponent implements OnDestroy {
   isSearchOpen = false;
   isSearchLoading = false;
   isNewMenuOpen = false;
+  isWorkspaceMenuOpen = false;
   isCreating = false;
   activeCreateModal: 'workspace' | 'project' | 'task' | null = null;
   createError = '';
@@ -844,6 +872,7 @@ export class NavbarComponent implements OnDestroy {
   searchResults: SearchResult[] = [];
   breadcrumbs: BreadcrumbItem[] = [{ label: 'Dashboard', route: '/dashboard' }];
   workspaces: Workspace[] = [];
+  selectedWorkspace: Workspace | null = null;
   projects: Project[] = [];
 
   readonly priorities: TaskPriority[] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
@@ -877,6 +906,7 @@ export class NavbarComponent implements OnDestroy {
   ];
 
   constructor() {
+    this.loadWorkspaceSelector();
     this.updateBreadcrumbs(this.router.url);
     this.router.events
       .pipe(
@@ -931,6 +961,39 @@ export class NavbarComponent implements OnDestroy {
   toggleNewMenu(): void {
     this.isNewMenuOpen = !this.isNewMenuOpen;
     if (this.isNewMenuOpen) this.loadCreateOptions();
+  }
+
+  toggleWorkspaceMenu(): void {
+    this.isWorkspaceMenuOpen = !this.isWorkspaceMenuOpen;
+    if (this.isWorkspaceMenuOpen) this.loadWorkspaceSelector();
+  }
+
+  selectWorkspace(workspace: Workspace): void {
+    this.workspaceContext.selectWorkspace(workspace.id);
+    this.selectedWorkspace = workspace;
+    this.isWorkspaceMenuOpen = false;
+
+    const path = this.router.url.split('?')[0].split('#')[0];
+    if (path === '/workspaces' || path.startsWith('/workspaces/')) {
+      this.router.navigate(['/workspaces', workspace.id]);
+      return;
+    }
+
+    if (path === '/projects') {
+      this.router.navigate(['/projects'], { queryParams: { workspaceId: workspace.id } });
+    }
+  }
+
+  openWorkspaceList(): void {
+    this.isWorkspaceMenuOpen = false;
+    this.router.navigate(['/workspaces']);
+  }
+
+  memberCount(workspace: Workspace): number {
+    const members = new Set<string>();
+    if (workspace.owner?.id) members.add(workspace.owner.id);
+    (workspace.members || []).forEach((member) => members.add(member.id));
+    return members.size;
   }
 
   openCreate(type: 'workspace' | 'project' | 'task'): void {
@@ -1037,6 +1100,21 @@ export class NavbarComponent implements OnDestroy {
         if (!this.taskForm.value.projectId && this.projects[0]) {
           this.taskForm.patchValue({ projectId: this.projects[0].id });
         }
+      });
+  }
+
+  private loadWorkspaceSelector(): void {
+    this.workspaceService.getAll()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (workspaces) => {
+          this.workspaces = workspaces;
+          this.selectedWorkspace = this.workspaceContext.syncAvailableWorkspaces(workspaces);
+        },
+        error: () => {
+          this.workspaces = [];
+          this.selectedWorkspace = null;
+        },
       });
   }
 

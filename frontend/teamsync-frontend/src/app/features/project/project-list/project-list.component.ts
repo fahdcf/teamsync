@@ -1,10 +1,11 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { forkJoin, of, switchMap } from 'rxjs';
+import { Subject, forkJoin, of, switchMap, takeUntil } from 'rxjs';
 import { ProjectService } from '../../../api/project.service';
 import { WorkspaceService } from '../../../api/workspace.service';
+import { WorkspaceContextService } from '../../../core/services/workspace-context.service';
 import { Project, ProjectStatus } from '../../../shared/models/project.model';
 
 @Component({
@@ -540,10 +541,12 @@ import { Project, ProjectStatus } from '../../../shared/models/project.model';
     }
   `]
 })
-export default class ProjectListComponent implements OnInit {
+export default class ProjectListComponent implements OnInit, OnDestroy {
   private readonly projectService = inject(ProjectService);
   private readonly workspaceService = inject(WorkspaceService);
+  private readonly workspaceContext = inject(WorkspaceContextService);
   private readonly router = inject(Router);
+  private readonly destroy$ = new Subject<void>();
 
   projects: Project[] = [];
   filtered: Project[] = [];
@@ -561,21 +564,37 @@ export default class ProjectListComponent implements OnInit {
   ];
 
   ngOnInit(): void {
-    this.workspaceService.getAll().pipe(
+    this.workspaceContext.selectedWorkspaceId$
+      .pipe(
+        switchMap((workspaceId) => {
+          this.loading = true;
+          if (workspaceId) return this.projectService.getByWorkspace(workspaceId);
+          return this.loadAllWorkspaceProjects();
+        }),
+        takeUntil(this.destroy$),
+      )
+      .subscribe({
+        next: (projects) => {
+          this.projects = projects;
+          this.applyFilter();
+          this.loading = false;
+        },
+        error: () => {
+          this.loading = false;
+        }
+      });
+  }
+
+  private loadAllWorkspaceProjects() {
+    return this.workspaceService.getAll().pipe(
       switchMap(workspaces => {
+        const selected = this.workspaceContext.syncAvailableWorkspaces(workspaces);
+        if (selected) return this.projectService.getByWorkspace(selected.id);
         if (!workspaces.length) return of([] as Project[]);
-        return forkJoin(workspaces.map(ws => this.projectService.getByWorkspace(ws.id)));
+        return forkJoin(workspaces.map(ws => this.projectService.getByWorkspace(ws.id)))
+          .pipe(switchMap((projectGroups) => of(projectGroups.flat())));
       })
-    ).subscribe({
-      next: (results) => {
-        this.projects = Array.isArray(results[0]) ? (results as Project[][]).flat() : results as unknown as Project[];
-        this.applyFilter();
-        this.loading = false;
-      },
-      error: () => {
-        this.loading = false;
-      }
-    });
+    );
   }
 
   setFilter(value: string): void {
@@ -609,5 +628,10 @@ export default class ProjectListComponent implements OnInit {
 
   initials(name: string): string {
     return name.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase();
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 }

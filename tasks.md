@@ -20,7 +20,7 @@ Excluded by request:
   Frontend: open a create menu for workspace, project, and task actions, route each choice to the right modal/page, and refresh the current page after creation.
   Backend: reuse existing create endpoints where possible; add any missing quick-create DTO support if the menu needs workspace/project/task creation from any page.
 
-- [ ] Task UI-AUDIT-004: Make the navbar workspace selector real.
+- [x] Task UI-AUDIT-004: Make the navbar workspace selector real.
   Frontend: replace the static `Product Design` selector with the authenticated user's workspaces, allow switching active workspace, and update page queries/breadcrumbs.
   Backend: `GET /workspaces` already exists; add/persist a current/default workspace preference if the selected workspace should survive refresh/login.
 
