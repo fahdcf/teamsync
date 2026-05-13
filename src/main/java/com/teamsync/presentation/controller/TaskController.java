@@ -6,6 +6,7 @@ import com.teamsync.domain.enums.TaskStatus;
 import com.teamsync.patterns.creational.prototype.TaskTemplate;
 import com.teamsync.patterns.creational.prototype.TaskTemplateService;
 import com.teamsync.presentation.dto.AddDependencyRequestDTO;
+import com.teamsync.presentation.dto.AssignTaskRequestDTO;
 import com.teamsync.presentation.dto.AutoAssignRequestDTO;
 import com.teamsync.presentation.dto.SaveTemplateRequestDTO;
 import com.teamsync.presentation.dto.SubtaskRequestDTO;
@@ -119,10 +120,10 @@ public class TaskController {
         @ApiResponse(responseCode = "404", description = "Task or user not found")
     })
     @PutMapping("/tasks/{id}/assign")
-    public TaskResponseDTO assign(@PathVariable UUID id, @RequestParam UUID userId,
+    public TaskResponseDTO assign(@PathVariable UUID id, @Valid @RequestBody AssignTaskRequestDTO request,
                                    Authentication auth) {
         User currentUser = userService.findByEmail(auth.getName());
-        return taskService.assign(id, userId, currentUser.getId());
+        return taskService.assign(id, request.getUserId(), currentUser.getId());
     }
 
     @Operation(summary = "Change task status via the State Machine")

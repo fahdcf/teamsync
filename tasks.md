@@ -160,7 +160,7 @@ Excluded by request:
   Frontend: creating a task from `In Progress`, `Review`, or `Done` should place it in that selected column, not default to TODO.
   Backend: either allow initial `status` in `TaskRequestDTO` with state-machine validation or have the frontend create then call the status transition endpoint when valid.
 
-- [ ] Task UI-AUDIT-061: Fix task assignment API contract.
+- [x] Task UI-AUDIT-061: Fix task assignment API contract.
   Frontend: `TaskService.assign` sends `{ userId }` in the body, but backend expects `@RequestParam UUID userId`; align the service call or backend signature.
   Backend: choose one contract and document it; recommended endpoint shape is `PUT /tasks/{id}/assign` with JSON body for consistency.
 
