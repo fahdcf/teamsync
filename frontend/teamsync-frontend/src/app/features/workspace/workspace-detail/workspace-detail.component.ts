@@ -52,7 +52,7 @@ import { SkeletonComponent } from '../../../shared/components/skeleton/skeleton.
                 <span *ngFor="let member of workspace.members | slice:0:3">{{ initials(member) }}</span>
                 <button type="button" (click)="isAddMemberOpen = true" aria-label="Add member">+</button>
                 <em>{{ memberCount }} members</em>
-                <strong><i></i>{{ activeMembersCount }} active</strong>
+                <strong><i></i>{{ memberCount }} total</strong>
               </div>
             </div>
           </div>
@@ -60,7 +60,7 @@ import { SkeletonComponent } from '../../../shared/components/skeleton/skeleton.
           <div class="workspace-hero-divider"></div>
           <div class="hero-summary-row">
             <div class="hero-meta-strip" aria-label="Workspace summary">
-              <span><small>Active members</small><strong>{{ activeMembersCount }}</strong></span>
+              <span><small>Members</small><strong>{{ memberCount }}</strong></span>
               <span><small>Projects</small><strong>{{ activeProjectCount }}</strong></span>
               <span><small>Tasks</small><strong>{{ completionRate }}%</strong></span>
             </div>
@@ -343,10 +343,6 @@ export default class WorkspaceDetailComponent implements OnInit {
 
   get memberCount(): number {
     return this.workspace?.members.length || 0;
-  }
-
-  get activeMembersCount(): number {
-    return Math.min(5, this.memberCount);
   }
 
   get activeProjectCount(): number {

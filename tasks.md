@@ -102,7 +102,7 @@ Excluded by request:
   Frontend: implement the project `...` menu with edit, archive, open board/settings, and delete/archive options based on permissions.
   Backend: existing project update/archive endpoints can be reused; add delete endpoint only if permanent deletion is desired.
 
-- [ ] Task UI-AUDIT-034: Replace fake active member count with real presence/activity.
+- [x] Task UI-AUDIT-034: Replace fake active member count with real presence/activity.
   Frontend: stop using `Math.min(5, memberCount)` as active members and show real online/recently-active counts or rename the label.
   Backend: add user presence/lastActiveAt fields or a workspace active-members endpoint.
 
