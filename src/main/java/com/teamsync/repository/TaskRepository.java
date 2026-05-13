@@ -16,7 +16,6 @@ import java.util.UUID;
 public interface TaskRepository extends JpaRepository<Task, UUID>, JpaSpecificationExecutor<Task> {
     List<Task> findByProject(Project project);
     List<Task> findByAssignee(User assignee);
-    List<Task> findByAssigneeAndUpdatedAtBetween(User assignee, LocalDateTime start, LocalDateTime end);
     List<Task> findByProjectAndStatus(Project project, TaskStatus status);
     List<Task> findByDependenciesContaining(Task task);
     long countByProject(Project project);

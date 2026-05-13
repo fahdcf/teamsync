@@ -149,7 +149,6 @@ public class DashboardService {
 
         List<String> dayLabels = new ArrayList<>();
         List<Long> completionSeries = new ArrayList<>();
-        List<Long> timeTrackedSeries = new ArrayList<>();
         for (int index = 0; index < buckets; index++) {
             long startOffset = (index * totalDays) / buckets;
             long nextOffset = ((index + 1L) * totalDays) / buckets;
@@ -159,8 +158,6 @@ public class DashboardService {
             dayLabels.add(formatBucketLabel(bucketStart, bucketEnd));
             completionSeries.add(taskRepository.countByAssigneeAndStatusAndUpdatedAtBetween(
                     currentUser, TaskStatus.DONE, bucketRange.startDateTime(), bucketRange.endDateTime()));
-            timeTrackedSeries.add((long) taskRepository.findByAssigneeAndUpdatedAtBetween(
-                    currentUser, bucketRange.startDateTime(), bucketRange.endDateTime()).size() * 4);
         }
 
         List<Integer> workloadSeries = new ArrayList<>();
@@ -180,7 +177,6 @@ public class DashboardService {
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("dayLabels", dayLabels);
         result.put("completionSeries", completionSeries);
-        result.put("timeTrackedSeries", timeTrackedSeries);
         result.put("workloadSeries", workloadSeries);
         return result;
     }

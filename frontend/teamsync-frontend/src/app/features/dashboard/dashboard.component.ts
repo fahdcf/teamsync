@@ -154,13 +154,6 @@ import { Workspace } from '../../shared/models/workspace.model';
             <div class="mini-bars"><i *ngFor="let bar of workloadBars" [style.height.px]="bar"></i></div>
             <div class="member-avatars"><span *ngFor="let member of teamMembers">{{ initials(member) }}</span></div>
           </article>
-          <article class="dash-card analytic-card">
-            <span>Time Tracked</span>
-            <strong>{{ timeTracked }}h</strong>
-            <small>↑ 16% from last week</small>
-            <svg viewBox="0 0 220 80" preserveAspectRatio="none"><path [attr.d]="seriesPath(chartSeries.timeTrackedSeries, 220, 80)"></path></svg>
-            <div class="days"><span *ngFor="let day of chartSeries.dayLabels">{{ day }}</span></div>
-          </article>
         </div>
       </section>
 
@@ -261,7 +254,6 @@ export default class DashboardComponent implements OnInit {
   chartSeries: DashboardChartSeries = {
     dayLabels: [],
     completionSeries: [],
-    timeTrackedSeries: [],
     workloadSeries: [],
   };
   readonly rangeOptions = [
@@ -296,10 +288,6 @@ export default class DashboardComponent implements OnInit {
     const members = this.workspaces.flatMap((workspace) => workspace.members || []);
     const unique = new Map(members.map((member) => [member.id, member]));
     return Array.from(unique.values()).slice(0, 4);
-  }
-
-  get timeTracked(): number {
-    return Math.max(24, this.tasks.length * 4);
   }
 
   get firstTaskTitle(): string {

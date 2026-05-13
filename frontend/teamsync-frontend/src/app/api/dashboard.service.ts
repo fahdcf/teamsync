@@ -43,7 +43,6 @@ export interface DashboardDateRange {
 export interface DashboardChartSeries {
   dayLabels: string[];
   completionSeries: number[];
-  timeTrackedSeries: number[];
   workloadSeries: number[];
 }
 

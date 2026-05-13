@@ -46,7 +46,7 @@ Excluded by request:
   Frontend: drive Progress Overview, Time Tracked, Team Workload mini bars, and day labels from API data instead of fixed SVG paths and fixed bar arrays.
   Backend: add dashboard chart-series endpoints or extend `GET /dashboard/stats` with daily completion, time tracking, and workload series.
 
-- [ ] Task UI-AUDIT-013: Make dashboard time tracking real or remove it.
+- [x] Task UI-AUDIT-013: Make dashboard time tracking real or remove it.
   Frontend: stop calculating `timeTracked` as `Math.max(24, tasks.length * 4)` and show real tracked time only when available.
   Backend: add a time tracking model/endpoints or add aggregated tracked-hours fields to dashboard analytics.
 
