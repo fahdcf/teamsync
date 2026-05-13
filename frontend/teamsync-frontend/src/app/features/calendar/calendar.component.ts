@@ -1,5 +1,6 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Router } from '@angular/router';
 import { forkJoin, of } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
 import { TaskService } from '../../api/task.service';
@@ -38,8 +39,8 @@ interface CalendarDay { date: Date; isCurrentMonth: boolean; isToday: boolean; t
             [class.other-month]="!day.isCurrentMonth" [class.today]="day.isToday">
             <div class="day-num" [class.today-num]="day.isToday">{{ day.date.getDate() }}</div>
             <div class="day-tasks">
-              <div class="task-chip" *ngFor="let task of day.tasks | slice:0:3"
-                [class]="task.priority.toLowerCase()" [title]="task.title">{{ task.title }}</div>
+              <button class="task-chip" type="button" *ngFor="let task of day.tasks | slice:0:3"
+                [class]="task.priority.toLowerCase()" [title]="task.title" (click)="openTask(task, $event)">{{ task.title }}</button>
               <div class="more-chip" *ngIf="day.tasks.length > 3">+{{ day.tasks.length - 3 }} more</div>
             </div>
           </div>
@@ -78,6 +79,7 @@ interface CalendarDay { date: Date; isCurrentMonth: boolean; isToday: boolean; t
     .day-num { font-size:12px; font-weight:500; color:var(--text-secondary); width:24px; height:24px; display:flex; align-items:center; justify-content:center; border-radius:50%; }
     .day-num.today-num { background:var(--accent); color:#0c0c0e; font-weight:700; }
     .task-chip { font-size:11px; padding:2px 6px; border-radius:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    button.task-chip { width:100%; border:0; text-align:left; cursor:pointer; }
     .task-chip.low { background:rgba(74,222,128,0.15); color:var(--success); }
     .task-chip.medium { background:rgba(245,158,11,0.15); color:var(--warning); }
     .task-chip.high { background:rgba(239,68,68,0.15); color:var(--danger); }
@@ -96,6 +98,7 @@ export default class CalendarComponent implements OnInit {
   private readonly taskService = inject(TaskService);
   private readonly projectService = inject(ProjectService);
   private readonly workspaceService = inject(WorkspaceService);
+  private readonly router = inject(Router);
   tasks: Task[] = [];
   calendarDays: CalendarDay[] = [];
   loading = true;
@@ -137,4 +140,8 @@ export default class CalendarComponent implements OnInit {
   prevMonth(): void { this.viewDate = new Date(this.viewDate.getFullYear(), this.viewDate.getMonth()-1, 1); this.buildCalendar(); }
   nextMonth(): void { this.viewDate = new Date(this.viewDate.getFullYear(), this.viewDate.getMonth()+1, 1); this.buildCalendar(); }
   goToday(): void { this.viewDate = new Date(); this.buildCalendar(); }
+  openTask(task: Task, event: Event): void {
+    event.stopPropagation();
+    this.router.navigate(['/tasks', task.id]);
+  }
 }

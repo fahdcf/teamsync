@@ -218,7 +218,7 @@ Excluded by request:
 
 ## Calendar Page
 
-- [ ] Task UI-AUDIT-090: Add task navigation from calendar events.
+- [x] Task UI-AUDIT-090: Add task navigation from calendar events.
   Frontend: clicking a task chip should open the task detail route/modal.
   Backend: no backend required if calendar events include task id; otherwise add id to calendar event response.
 
