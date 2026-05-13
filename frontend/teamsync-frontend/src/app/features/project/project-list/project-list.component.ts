@@ -31,8 +31,18 @@ import { User } from '../../../shared/models/user.model';
             New Project
           </button>
           <div class="project-view-toggle" aria-label="Project view toggle">
-            <button type="button" aria-label="Grid view">▦</button>
-            <button class="active" type="button" aria-label="List view">☰</button>
+            <button
+              type="button"
+              aria-label="Grid view"
+              [class.active]="viewMode === 'grid'"
+              (click)="setViewMode('grid')"
+            >Grid</button>
+            <button
+              type="button"
+              aria-label="List view"
+              [class.active]="viewMode === 'list'"
+              (click)="setViewMode('list')"
+            >List</button>
           </div>
         </div>
       </header>
@@ -65,7 +75,47 @@ import { User } from '../../../shared/models/user.model';
         <span>Loading projects...</span>
       </div>
 
-      <section class="project-table-card" *ngIf="!loading && filtered.length">
+      <section class="project-grid-card" *ngIf="!loading && filtered.length && viewMode === 'grid'">
+        <article
+          class="project-grid-item"
+          *ngFor="let project of filtered"
+          (click)="open(project.id)"
+          tabindex="0"
+          (keydown.enter)="open(project.id)"
+        >
+          <div class="grid-item-hero">
+            <i class="project-dot" [class]="project.status.toLowerCase().replace('_','-')"></i>
+            <span class="project-status-pill" [class]="project.status.toLowerCase().replace('_','-')">
+              {{ statusLabel(project.status) }}
+            </span>
+          </div>
+
+          <div class="grid-item-title">
+            <h2>{{ project.title }}</h2>
+            <button class="project-more-btn" type="button" aria-label="Project options" (click)="$event.stopPropagation()">...</button>
+          </div>
+
+          <p>{{ project.description || 'No description provided.' }}</p>
+
+          <div class="grid-progress">
+            <span>Progress</span>
+            <strong>{{ project.progress }}%</strong>
+            <div class="project-progress-track"><i [style.width.%]="project.progress" [class]="progressClass(project.progress)"></i></div>
+          </div>
+
+          <footer>
+            <span class="project-avatar" *ngIf="project.manager">{{ initials(project.manager.username) }}</span>
+            <span class="project-avatar" *ngIf="!project.manager">?</span>
+            <div>
+              <small>Due date</small>
+              <strong>{{ project.deadline ? (project.deadline | date:'MMM d, y') : 'No deadline' }}</strong>
+            </div>
+          </footer>
+        </article>
+
+        <footer class="grid-summary">Showing {{ filtered.length }} of {{ projects.length }} project{{ projects.length === 1 ? '' : 's' }}</footer>
+      </section>
+      <section class="project-table-card" *ngIf="!loading && filtered.length && viewMode === 'list'">
         <div class="project-table-head">
           <span>Project</span>
           <span>Progress</span>
@@ -285,13 +335,14 @@ import { User } from '../../../shared/models/user.model';
     }
 
     .project-view-toggle button {
-      width: 34px;
+      min-width: 44px;
       height: 30px;
       border: 0;
       border-radius: var(--radius-sm);
       background: transparent;
       color: var(--text-tertiary);
-      font-size: 15px;
+      font-size: 12px;
+      font-weight: 700;
     }
 
     .project-view-toggle button.active {
@@ -301,6 +352,7 @@ import { User } from '../../../shared/models/user.model';
     }
 
     .project-filter-panel,
+    .project-grid-card,
     .project-table-card,
     .project-empty-card {
       border: 1px solid var(--border-default);
@@ -619,6 +671,7 @@ export default class ProjectListComponent implements OnInit, OnDestroy {
   currentWorkspaceId: string | null = null;
   activeFilter: string = 'ALL';
   searchText = '';
+  viewMode: 'grid' | 'list' = this.readStoredViewMode();
 
   readonly createProjectForm = this.fb.nonNullable.group({
     workspaceId: ['', Validators.required],
@@ -784,6 +837,28 @@ export default class ProjectListComponent implements OnInit, OnDestroy {
     const workspace = this.workspaces.find((candidate) => candidate.id === workspaceId);
     if (!workspace) return '';
     return workspace.owner?.id || workspace.members?.[0]?.id || '';
+  }
+
+  setViewMode(mode: 'grid' | 'list'): void {
+    this.viewMode = mode;
+    this.storeViewMode(mode);
+  }
+
+  private readStoredViewMode(): 'grid' | 'list' {
+    try {
+      const stored = window.localStorage.getItem('teamsync.projects.viewMode');
+      return stored === 'grid' ? 'grid' : 'list';
+    } catch {
+      return 'list';
+    }
+  }
+
+  private storeViewMode(mode: 'grid' | 'list'): void {
+    try {
+      window.localStorage.setItem('teamsync.projects.viewMode', mode);
+    } catch {
+      // Local storage can be unavailable in private browsing or tests.
+    }
   }
 
   setFilter(value: string): void {

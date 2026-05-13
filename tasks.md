@@ -116,7 +116,7 @@ Excluded by request:
   Frontend: open a project creation modal, select a workspace/manager, call `ProjectService.create`, and refresh the list.
   Backend: `POST /workspaces/{workspaceId}/projects` exists; verify it supports all fields shown in the UI and returns workspace/manager data.
 
-- [ ] Task UI-AUDIT-041: Make projects page view toggle real.
+- [x] Task UI-AUDIT-041: Make projects page view toggle real.
   Frontend: implement both grid and list/table views, persist the user's selected view, and keep filters working in both modes.
   Backend: no backend required unless saving preferences server-side.
 
