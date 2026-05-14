@@ -140,8 +140,114 @@
   cursor: pointer;
 }
 
+.td-assignment-panel {
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid rgba(212, 168, 83, 0.22);
+  border-radius: var(--radius-lg);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(212, 168, 83, 0.12), transparent 34%),
+    rgba(255, 255, 255, 0.022);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+}
+
+.td-assignment-copy {
+  display: grid;
+  gap: 5px;
+}
+
+.td-assignment-copy span,
+.td-assignment-copy small,
+.td-assignment-feedback {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.td-assignment-copy strong {
+  color: var(--text-primary);
+  font-size: 18px;
+}
+
+.td-assignment-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.td-assignment-modes {
+  height: 38px;
+  padding: 3px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.025);
+  display: flex;
+  gap: 3px;
+}
+
+.td-assignment-modes button,
+.td-assign-apply,
+.td-assignment-select {
+  height: 32px;
+  border-radius: var(--radius-md);
+  font: inherit;
+  font-size: 13px;
+}
+
+.td-assignment-modes button {
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  padding: 0 10px;
+  cursor: pointer;
+}
+
+.td-assignment-modes button.active {
+  background: rgba(212, 168, 83, 0.14);
+  color: var(--accent);
+}
+
+.td-assignment-select {
+  min-width: 190px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  padding: 0 10px;
+}
+
+.td-assign-apply {
+  border: 1px solid rgba(212, 168, 83, 0.38);
+  background: rgba(212, 168, 83, 0.13);
+  color: var(--accent);
+  padding: 0 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.td-assign-apply:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.td-assignment-feedback {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
 @media (max-width: 760px) {
   .add-subtask-form {
     grid-template-columns: 1fr;
+  }
+
+  .td-assignment-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .td-assignment-controls {
+    justify-content: flex-start;
   }
 }

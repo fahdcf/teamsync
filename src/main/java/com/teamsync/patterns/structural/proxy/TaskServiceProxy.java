@@ -67,6 +67,8 @@ public class TaskServiceProxy implements TaskService {
         User caller = getUser(userId);
 
         boolean isMember = task.getProject().getWorkspace().getMembers().contains(caller)
+                || (task.getProject().getWorkspace().getOwner() != null
+                    && task.getProject().getWorkspace().getOwner().getId().equals(caller.getId()))
                 || (task.getProject().getManager() != null
                     && task.getProject().getManager().getId().equals(caller.getId()));
 

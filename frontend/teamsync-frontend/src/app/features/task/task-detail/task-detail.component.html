@@ -119,6 +119,32 @@
           </div>
         </div>
       </div>
+
+      <section class="td-assignment-panel" aria-label="Task assignment">
+        <div class="td-assignment-copy">
+          <span>Assignment</span>
+          <strong>{{ task.assignee?.username || 'Unassigned' }}</strong>
+          <small>Choose a manual assignee, or let TeamSync pick one using the Strategy pattern.</small>
+        </div>
+
+        <div class="td-assignment-controls">
+          <div class="td-assignment-modes" role="group" aria-label="Assignment strategy">
+            <button type="button" [class.active]="assignmentMode === 'manual'" (click)="onAssignmentModeChange('manual')">Manual</button>
+            <button type="button" [class.active]="assignmentMode === 'workload'" (click)="onAssignmentModeChange('workload')">Workload</button>
+            <button type="button" [class.active]="assignmentMode === 'roundrobin'" (click)="onAssignmentModeChange('roundrobin')">Round-robin</button>
+          </div>
+
+          <select *ngIf="assignmentMode === 'manual'" class="td-assignment-select" [(ngModel)]="selectedAssigneeId">
+            <option value="">Choose assignee</option>
+            <option *ngFor="let member of assigneeOptions" [value]="member.id">{{ member.username }}</option>
+          </select>
+
+          <button class="td-assign-apply" type="button" (click)="applyAssignment()" [disabled]="isAssigningTask || (assignmentMode === 'manual' && !selectedAssigneeId)">
+            {{ isAssigningTask ? 'Assigning...' : 'Apply' }}
+          </button>
+        </div>
+        <p class="td-assignment-feedback" *ngIf="assignmentFeedback">{{ assignmentFeedback }}</p>
+      </section>
     </section>
 
     <section class="td-subtasks td-card">

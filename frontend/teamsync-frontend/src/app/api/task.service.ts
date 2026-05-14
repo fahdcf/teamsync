@@ -114,9 +114,11 @@ export class TaskService {
   }
 
   autoAssign(projectId: string, taskId: string, strategy: string): Observable<Task> {
+    const params = new HttpParams().set('strategy', strategy);
     return this.http.post<Task>(
-      `${this.base}/projects/${projectId}/tasks/auto-assign?strategy=${strategy}`,
-      { taskId }
+      `${this.base}/projects/${projectId}/tasks/auto-assign`,
+      { taskId },
+      { params }
     );
   }
 

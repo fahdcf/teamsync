@@ -1,8 +1,9 @@
 package com.teamsync.presentation.dto;
 
 import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
 import lombok.*;
+
+import java.util.UUID;
 
 @Getter
 @Setter
@@ -10,7 +11,8 @@ import lombok.*;
 @AllArgsConstructor
 public class AddMemberRequestDTO {
 
-    @NotBlank
     @Email
     private String email;
+
+    private UUID userId;
 }

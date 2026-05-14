@@ -53,8 +53,13 @@ export class WorkspaceService {
     return this.http.put<Workspace>(`${this.base}/workspaces/${id}`, req);
   }
 
-  addMember(id: string, email: string): Observable<Workspace> {
-    return this.http.post<Workspace>(`${this.base}/workspaces/${id}/members`, { email });
+  getAvailableMembers(id: string): Observable<User[]> {
+    return this.http.get<User[]>(`${this.base}/workspaces/${id}/available-members`);
+  }
+
+  addMember(id: string, member: string | { userId?: string; email?: string }): Observable<Workspace> {
+    const body = typeof member === 'string' ? { email: member } : member;
+    return this.http.post<Workspace>(`${this.base}/workspaces/${id}/members`, body);
   }
 
   removeMember(workspaceId: string, userId: string): Observable<void> {

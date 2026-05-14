@@ -50,7 +50,7 @@ import { SkeletonComponent } from '../../../shared/components/skeleton/skeleton.
               <p>{{ workspace.description || 'No description provided.' }}</p>
               <div class="workspace-members compact-members">
                 <span *ngFor="let member of workspace.members | slice:0:3">{{ initials(member) }}</span>
-                <button type="button" (click)="isAddMemberOpen = true" aria-label="Add member">+</button>
+                <button type="button" (click)="openAddMember()" aria-label="Add member">+</button>
                 <em>{{ memberCount }} members</em>
                 <strong><i></i>{{ memberCount }} total</strong>
               </div>
@@ -65,7 +65,7 @@ import { SkeletonComponent } from '../../../shared/components/skeleton/skeleton.
               <span><small>Tasks</small><strong>{{ completionRate }}%</strong></span>
             </div>
             <div class="workspace-actions hero-actions">
-              <button type="button" class="invite-btn" (click)="isAddMemberOpen = true">
+              <button type="button" class="invite-btn" (click)="openAddMember()">
                 <span aria-hidden="true">+</span> Invite members
               </button>
               <button type="button" class="settings-btn" (click)="openSettings()">
@@ -228,10 +228,21 @@ import { SkeletonComponent } from '../../../shared/components/skeleton/skeleton.
 
     <app-modal [isOpen]="isAddMemberOpen" title="Add Member" size="sm" (closed)="isAddMemberOpen = false">
       <form [formGroup]="memberForm" (ngSubmit)="addMember()" class="form">
-        <app-input label="Email address" type="email" placeholder="colleague@example.com" formControlName="email"></app-input>
+        <div class="field">
+          <label class="field-label">Choose a user</label>
+          <select class="field-input" formControlName="userId">
+            <option value="">Select a user</option>
+            <option *ngFor="let user of availableMembers" [value]="user.id">
+              {{ user.username }} - {{ user.email }}
+            </option>
+          </select>
+        </div>
+        <p class="member-helper" *ngIf="!availableMembers.length">
+          Everyone in the user list is already part of this workspace.
+        </p>
         <div class="form-actions">
           <app-button variant="secondary" size="sm" (click)="isAddMemberOpen = false">Cancel</app-button>
-          <app-button type="submit" size="sm" [loading]="isAddingMember">Add</app-button>
+          <app-button type="submit" size="sm" [loading]="isAddingMember" [disabled]="!memberForm.valid || !availableMembers.length">Add</app-button>
         </div>
       </form>
     </app-modal>
@@ -318,6 +329,7 @@ export default class WorkspaceDetailComponent implements OnInit {
   workspace: Workspace | null = null;
   projects: Project[] = [];
   activity: WorkspaceActivity[] = [];
+  availableMembers: User[] = [];
   isLoading = true;
   hasError = false;
   isAddMemberOpen = false;
@@ -335,7 +347,7 @@ export default class WorkspaceDetailComponent implements OnInit {
   projectSort = 'recent';
   projectKeyword = '';
 
-  memberForm = this.fb.group({ email: ['', [Validators.required, Validators.email]] });
+  memberForm = this.fb.group({ userId: ['', Validators.required] });
   settingsForm = this.fb.group({
     name: ['', Validators.required],
     description: [''],
@@ -380,11 +392,13 @@ export default class WorkspaceDetailComponent implements OnInit {
       workspace: this.workspaceService.getById(id),
       projects: this.projectService.getByWorkspace(id, this.projectFilters()),
       activity: this.workspaceService.getActivity(id),
+      availableMembers: this.workspaceService.getAvailableMembers(id),
     }).subscribe({
-      next: ({ workspace, projects, activity }) => {
+      next: ({ workspace, projects, activity, availableMembers }) => {
         this.workspace = workspace;
         this.projects = projects;
         this.activity = activity;
+        this.availableMembers = availableMembers;
         this.isLoading = false;
       },
       error: () => {
@@ -394,15 +408,33 @@ export default class WorkspaceDetailComponent implements OnInit {
     });
   }
 
+  openAddMember(): void {
+    if (!this.workspace) return;
+    this.memberForm.reset({ userId: '' });
+    this.isAddMemberOpen = true;
+    this.workspaceService.getAvailableMembers(this.workspace.id).subscribe({
+      next: (users) => (this.availableMembers = users),
+      error: () => (this.availableMembers = []),
+    });
+  }
+
   addMember(): void {
     if (!this.memberForm.valid || !this.workspace) return;
     this.isAddingMember = true;
-    this.workspaceService.addMember(this.workspace.id, this.memberForm.value.email!).subscribe({
+    this.workspaceService.addMember(this.workspace.id, { userId: this.memberForm.value.userId! }).subscribe({
       next: (workspace) => {
         this.workspace = workspace;
         this.isAddMemberOpen = false;
         this.memberForm.reset();
         this.isAddingMember = false;
+        this.workspaceService.getAvailableMembers(workspace.id).subscribe({
+          next: (users) => (this.availableMembers = users),
+          error: () => undefined,
+        });
+        this.workspaceService.getActivity(workspace.id).subscribe({
+          next: (activity) => (this.activity = activity),
+          error: () => undefined,
+        });
       },
       error: () => (this.isAddingMember = false),
     });

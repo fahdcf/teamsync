@@ -15,6 +15,7 @@ import { EmptyStateComponent } from '../../../shared/components/empty-state/empt
 import { slideInRight } from '../../../app.animations';
 
 type TaskDetailTab = 'comments' | 'activity' | 'assistant';
+type AssignmentMode = 'manual' | 'workload' | 'roundrobin';
 
 @Component({
   selector: 'app-task-detail',
@@ -59,6 +60,10 @@ export default class TaskDetailComponent implements OnInit {
   showOptionsMenu = false;
   dependencyTaskId = '';
   actionMessage = '';
+  assignmentMode: AssignmentMode = 'manual';
+  selectedAssigneeId = '';
+  isAssigningTask = false;
+  assignmentFeedback = '';
 
   readonly statuses: TaskStatus[] = ['TODO', 'IN_PROGRESS', 'BLOCKED', 'IN_REVIEW', 'DONE'];
   readonly priorities: TaskPriority[] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
@@ -102,6 +107,7 @@ export default class TaskDetailComponent implements OnInit {
     this.taskService.getById(id).subscribe({
       next: (task) => {
         this.task = task;
+        this.selectedAssigneeId = task.assignee?.id || '';
         this.loadProject(task);
         this.loadComments(id);
       },
@@ -209,7 +215,61 @@ export default class TaskDetailComponent implements OnInit {
 
   onAssigneeChange(userId: string): void {
     if (!this.task || !userId || userId === this.task.assignee?.id) return;
-    this.taskService.assign(this.task.id, userId).subscribe({ next: (task) => (this.task = task) });
+    this.selectedAssigneeId = userId;
+    this.assignManually(userId);
+  }
+
+  onAssignmentModeChange(mode: AssignmentMode): void {
+    this.assignmentMode = mode;
+    this.assignmentFeedback = '';
+  }
+
+  applyAssignment(): void {
+    if (this.assignmentMode === 'manual') {
+      this.assignManually(this.selectedAssigneeId);
+      return;
+    }
+    this.assignWithStrategy(this.assignmentMode);
+  }
+
+  assignManually(userId: string): void {
+    if (!this.task || !userId) return;
+    this.isAssigningTask = true;
+    this.assignmentFeedback = '';
+    this.taskService.assign(this.task.id, userId).subscribe({
+      next: (task) => {
+        this.task = task;
+        this.selectedAssigneeId = task.assignee?.id || '';
+        this.assignmentFeedback = `Assigned to ${task.assignee?.username || 'selected member'}.`;
+        this.isAssigningTask = false;
+      },
+      error: () => {
+        this.assignmentFeedback = 'Could not assign this task. Check that you are a workspace member.';
+        this.isAssigningTask = false;
+      },
+    });
+  }
+
+  assignWithStrategy(strategy: Exclude<AssignmentMode, 'manual'>): void {
+    if (!this.task) return;
+    const projectId = this.task.projectId || this.task.project?.id;
+    if (!projectId) return;
+
+    this.isAssigningTask = true;
+    this.assignmentFeedback = '';
+    this.taskService.autoAssign(projectId, this.task.id, strategy).subscribe({
+      next: (task) => {
+        this.task = task;
+        this.selectedAssigneeId = task.assignee?.id || '';
+        const label = strategy === 'roundrobin' ? 'round-robin' : 'workload';
+        this.assignmentFeedback = `${label} strategy assigned ${task.assignee?.username || 'a member'}.`;
+        this.isAssigningTask = false;
+      },
+      error: () => {
+        this.assignmentFeedback = 'No eligible workspace member was available for this strategy.';
+        this.isAssigningTask = false;
+      },
+    });
   }
 
   addSubtask(): void {
@@ -448,5 +508,8 @@ export default class TaskDetailComponent implements OnInit {
     users.forEach((user) => unique.set(user.id, user));
     if (this.task?.assignee) unique.set(this.task.assignee.id, this.task.assignee);
     this.assigneeOptions = [...unique.values()].sort((a, b) => a.username.localeCompare(b.username));
+    if (!this.selectedAssigneeId && this.task?.assignee) {
+      this.selectedAssigneeId = this.task.assignee.id;
+    }
   }
 }

@@ -1,6 +1,7 @@
 package com.teamsync.presentation.controller;
 
 import com.teamsync.presentation.dto.AddMemberRequestDTO;
+import com.teamsync.presentation.dto.UserResponseDTO;
 import com.teamsync.presentation.dto.WorkspaceRequestDTO;
 import com.teamsync.presentation.dto.WorkspaceResponseDTO;
 import com.teamsync.presentation.dto.WorkspaceSummaryResponseDTO;
@@ -80,7 +81,14 @@ public class WorkspaceController {
         return workspaceService.getSummary(id);
     }
 
-    @Operation(summary = "Add a member to a workspace by email")
+    @Operation(summary = "List users that can still be added to the workspace")
+    @ApiResponse(responseCode = "200", description = "Available users returned")
+    @GetMapping("/{id}/available-members")
+    public List<UserResponseDTO> getAvailableMembers(@PathVariable UUID id, Authentication auth) {
+        return workspaceService.getAvailableMembers(id, auth.getName());
+    }
+
+    @Operation(summary = "Add a member to a workspace by user id or email")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Member added"),
         @ApiResponse(responseCode = "404", description = "Workspace or user not found")
@@ -89,7 +97,7 @@ public class WorkspaceController {
     public WorkspaceResponseDTO addMember(@PathVariable UUID id,
                                           @Valid @RequestBody AddMemberRequestDTO request,
                                           Authentication auth) {
-        return workspaceService.addMember(id, request.getEmail(), auth.getName());
+        return workspaceService.addMember(id, request, auth.getName());
     }
 
     @Operation(summary = "Remove a member from a workspace")

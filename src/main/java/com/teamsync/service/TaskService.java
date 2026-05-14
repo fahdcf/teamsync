@@ -138,7 +138,12 @@ public class TaskService implements com.teamsync.patterns.structural.proxy.TaskS
         Project project = projectService.getProject(projectId);
         Task task = getTask(taskId);
         List<User> members = new java.util.ArrayList<>(project.getWorkspace().getMembers());
-        if (members.isEmpty() && project.getManager() != null) members.add(project.getManager());
+        if (project.getWorkspace().getOwner() != null && members.stream().noneMatch(user -> user.getId().equals(project.getWorkspace().getOwner().getId()))) {
+            members.add(project.getWorkspace().getOwner());
+        }
+        if (project.getManager() != null && members.stream().noneMatch(user -> user.getId().equals(project.getManager().getId()))) {
+            members.add(project.getManager());
+        }
 
         if ("roundrobin".equalsIgnoreCase(strategyName)) {
             assignmentService.setStrategy(new RoundRobinStrategy());

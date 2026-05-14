@@ -4,7 +4,9 @@ import com.teamsync.domain.entity.Project;
 import com.teamsync.domain.entity.User;
 import com.teamsync.domain.entity.Workspace;
 import com.teamsync.domain.enums.TaskStatus;
+import com.teamsync.infrastructure.exception.ValidationException;
 import com.teamsync.patterns.creational.singleton.AppLogger;
+import com.teamsync.presentation.dto.AddMemberRequestDTO;
 import com.teamsync.presentation.dto.UserResponseDTO;
 import com.teamsync.presentation.dto.WorkspaceRequestDTO;
 import com.teamsync.presentation.dto.WorkspaceResponseDTO;
@@ -137,13 +139,33 @@ public class WorkspaceService {
         return workspaceRepository.findAll(spec).stream().map(this::toDTO).collect(Collectors.toList());
     }
 
-    public WorkspaceResponseDTO addMember(UUID workspaceId, String memberEmail, String requesterEmail) {
+    public List<UserResponseDTO> getAvailableMembers(UUID workspaceId, String requesterEmail) {
         Workspace workspace = getWorkspace(workspaceId);
-        User member = findUserByEmail(memberEmail);
+        requireParticipant(workspace, requesterEmail);
+        Set<UUID> currentUserIds = new LinkedHashSet<>(workspace.getMembers().stream().map(User::getId).toList());
+        if (workspace.getOwner() != null) {
+            currentUserIds.add(workspace.getOwner().getId());
+        }
+
+        return userRepository.findAll().stream()
+                .filter(user -> !currentUserIds.contains(user.getId()))
+                .map(this::userToDTO)
+                .collect(Collectors.toList());
+    }
+
+    public WorkspaceResponseDTO addMember(UUID workspaceId, AddMemberRequestDTO request, String requesterEmail) {
+        Workspace workspace = getWorkspace(workspaceId);
+        User member = resolveMember(request);
         workspace.getMembers().add(member);
         Workspace saved = workspaceRepository.save(workspace);
         activityLogService.log(findUserByEmail(requesterEmail), "WORKSPACE_MEMBER_ADDED", "WORKSPACE", saved.getId());
         return toDTO(saved);
+    }
+
+    public WorkspaceResponseDTO addMember(UUID workspaceId, String memberEmail, String requesterEmail) {
+        AddMemberRequestDTO request = new AddMemberRequestDTO();
+        request.setEmail(memberEmail);
+        return addMember(workspaceId, request, requesterEmail);
     }
 
     public void removeMember(UUID workspaceId, UUID userId, String requesterEmail) {
@@ -163,9 +185,30 @@ public class WorkspaceService {
                 .orElseThrow(() -> new UsernameNotFoundException("User not found: " + email));
     }
 
+    private User resolveMember(AddMemberRequestDTO request) {
+        if (request.getUserId() != null) {
+            return userRepository.findById(request.getUserId())
+                    .orElseThrow(() -> new NoSuchElementException("User not found: " + request.getUserId()));
+        }
+
+        String email = request.getEmail() == null ? "" : request.getEmail().trim();
+        if (email.isBlank()) {
+            throw new ValidationException("member", "Choose a user to add to the workspace");
+        }
+        return findUserByEmail(email);
+    }
+
     private void requireOwner(Workspace workspace, String requesterEmail) {
         if (workspace.getOwner() == null || !workspace.getOwner().getEmail().equals(requesterEmail)) {
             throw new AccessDeniedException("Only the workspace owner can update this workspace");
+        }
+    }
+
+    private void requireParticipant(Workspace workspace, String requesterEmail) {
+        boolean isOwner = workspace.getOwner() != null && workspace.getOwner().getEmail().equals(requesterEmail);
+        boolean isMember = workspace.getMembers().stream().anyMatch(member -> member.getEmail().equals(requesterEmail));
+        if (!isOwner && !isMember) {
+            throw new AccessDeniedException("Only workspace participants can view available members");
         }
     }
 
@@ -174,6 +217,7 @@ public class WorkspaceService {
                 .id(u.getId())
                 .username(u.getUsername())
                 .email(u.getEmail())
+                .avatarUrl(u.getAvatarUrl())
                 .role(u.getRole())
                 .createdAt(u.getCreatedAt())
                 .build();

@@ -1864,6 +1864,7 @@ $wide:    1280px;
 .field { display: flex; flex-direction: column; gap: 4px; }
 .field-label { color: var(--text-secondary); font-size: 13px; font-weight: 500; }
 .field-input { padding: 10px 14px; border: 1px solid var(--border-subtle); border-radius: var(--radius-md); background: var(--bg-elevated); color: var(--text-primary); font-size: 14px; outline: none; }
+.member-helper { margin: 0; color: var(--text-secondary); font-size: 13px; line-height: 1.5; }
 
 @media (max-width: 1280px) {
   .workspace-detail-page.refined { grid-template-columns: 1fr; }
