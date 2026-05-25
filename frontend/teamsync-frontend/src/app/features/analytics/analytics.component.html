@@ -181,6 +181,7 @@
         <input [(ngModel)]="assistantQuestion" placeholder="Ask a question...">
         <button type="button" (click)="sendAssistant()">↗</button>
       </div>
+      <p class="assistant-answer" *ngIf="assistantAnswer || isAssistantLoading">{{ isAssistantLoading ? 'Thinking...' : assistantAnswer }}</p>
       <div class="quick-pills">
         <button type="button" (click)="setQuestion('Why is velocity declining?')">Why is velocity declining?</button>
         <button type="button" (click)="setQuestion('Show workload balance')">Show workload balance</button>

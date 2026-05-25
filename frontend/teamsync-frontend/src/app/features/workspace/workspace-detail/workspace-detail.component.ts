@@ -3,6 +3,7 @@ import { CommonModule, DatePipe } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { forkJoin } from 'rxjs';
+import { AiService } from '../../../api/ai.service';
 import { WorkspaceActivity, WorkspaceService } from '../../../api/workspace.service';
 import { ProjectService } from '../../../api/project.service';
 import { Workspace } from '../../../shared/models/workspace.model';
@@ -221,6 +222,7 @@ import { SkeletonComponent } from '../../../shared/components/skeleton/skeleton.
             <span></span>
             <strong></strong>
           </div>
+          <p>{{ isAiLoading ? 'Generating from workspace data...' : aiRecommendation }}</p>
           <a href="#" aria-label="View AI recommendation">›</a>
         </article>
       </aside>
@@ -322,6 +324,7 @@ import { SkeletonComponent } from '../../../shared/components/skeleton/skeleton.
 export default class WorkspaceDetailComponent implements OnInit {
   readonly workspaceService = inject(WorkspaceService);
   readonly projectService = inject(ProjectService);
+  private readonly aiService = inject(AiService);
   readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly fb = inject(FormBuilder);
@@ -346,6 +349,8 @@ export default class WorkspaceDetailComponent implements OnInit {
   projectStatusFilter = '';
   projectSort = 'recent';
   projectKeyword = '';
+  aiRecommendation = 'AI recommendation will appear after workspace data loads.';
+  isAiLoading = false;
 
   memberForm = this.fb.group({ userId: ['', Validators.required] });
   settingsForm = this.fb.group({
@@ -400,6 +405,7 @@ export default class WorkspaceDetailComponent implements OnInit {
         this.activity = activity;
         this.availableMembers = availableMembers;
         this.isLoading = false;
+        this.refreshWorkspaceAi();
       },
       error: () => {
         this.hasError = true;
@@ -574,8 +580,48 @@ export default class WorkspaceDetailComponent implements OnInit {
     });
   }
 
+  refreshWorkspaceAi(): void {
+    if (!this.workspace) return;
+    this.isAiLoading = true;
+    this.aiService.insights({
+      context: 'workspace detail',
+      payload: {
+        workspace: {
+          name: this.workspace.name,
+          description: this.workspace.description,
+          memberCount: this.memberCount,
+        },
+        projects: this.projects.map((project) => ({
+          title: project.title,
+          status: project.status,
+          progress: project.progress,
+          deadline: project.deadline,
+          health: project.health,
+        })),
+        completionRate: this.completionRate,
+        recentActivity: this.activity.slice(0, 8),
+      },
+    }).subscribe({
+      next: ({ answer }) => {
+        this.aiRecommendation = this.firstAiLine(answer);
+        this.isAiLoading = false;
+      },
+      error: () => {
+        this.aiRecommendation = `${this.activeProjectCount} active projects with ${this.completionRate}% average progress. Review delayed or at-risk projects first.`;
+        this.isAiLoading = false;
+      },
+    });
+  }
+
   firstLetter(value: string): string {
     return (value || 'W').charAt(0).toUpperCase();
+  }
+
+  private firstAiLine(answer: string): string {
+    return answer
+      .split(/\r?\n/)
+      .map((line) => line.replace(/^[-*\d.)\s]+/, '').trim())
+      .find(Boolean) || answer;
   }
 
   initials(user: User | null): string {

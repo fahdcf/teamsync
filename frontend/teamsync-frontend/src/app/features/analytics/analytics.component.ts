@@ -21,6 +21,7 @@ import {
 } from 'chart.js';
 import { forkJoin, of, switchMap } from 'rxjs';
 import { catchError } from 'rxjs/operators';
+import { AiService } from '../../api/ai.service';
 import { AnalyticsFilters, AnalyticsService, ReportFormat, TeamPerformanceSeries } from '../../api/analytics.service';
 import { ProjectService } from '../../api/project.service';
 import { WorkspaceService } from '../../api/workspace.service';
@@ -54,6 +55,7 @@ type AnalyticsView = 'overview' | 'team' | 'projects' | 'sprint' | 'workload' | 
 })
 export default class AnalyticsComponent implements OnInit {
   private readonly analyticsService = inject(AnalyticsService);
+  private readonly aiService = inject(AiService);
   private readonly projectService = inject(ProjectService);
   private readonly workspaceService = inject(WorkspaceService);
   private readonly route = inject(ActivatedRoute);
@@ -61,6 +63,8 @@ export default class AnalyticsComponent implements OnInit {
 
   activeView: AnalyticsView = 'overview';
   assistantQuestion = '';
+  assistantAnswer = '';
+  isAssistantLoading = false;
   toast = '';
   isLoading = true;
   isDateMenuOpen = false;
@@ -287,7 +291,36 @@ export default class AnalyticsComponent implements OnInit {
   }
 
   sendAssistant(): void {
-    this.showToast('Coming soon');
+    const question = this.assistantQuestion.trim();
+    if (!question) {
+      this.showToast('Ask a question first');
+      return;
+    }
+    this.isAssistantLoading = true;
+    this.assistantAnswer = '';
+    this.aiService.ask({
+      context: 'analytics',
+      question,
+      payload: {
+        filters: this.analyticsFilters(),
+        performance: this.performance,
+        performanceSeries: this.performanceSeries,
+        insights: this.insights,
+        selectedProject: this.currentProject,
+        selectedStats: this.selectedStats,
+        teamWorkload: this.teamWorkload,
+        healthSummary: this.healthSummary,
+      },
+    }).subscribe({
+      next: ({ answer }) => {
+        this.assistantAnswer = answer;
+        this.isAssistantLoading = false;
+      },
+      error: () => {
+        this.assistantAnswer = 'AI could not respond right now. The visible analytics data is still live, so try again in a moment.';
+        this.isAssistantLoading = false;
+      },
+    });
   }
 
   downloadReport(format: ReportFormat): void {

@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { forkJoin, of, switchMap } from 'rxjs';
 import { AuthStore } from '../../store/auth.store';
 import { ActivityService } from '../../api/activity.service';
+import { AiService } from '../../api/ai.service';
 import { CalendarEvent, CalendarService } from '../../api/calendar.service';
 import { DashboardChartSeries, DashboardDateRange, DashboardDeadline, DashboardProjectOverview, DashboardService, DashboardStats, DashboardTeamWorkSummary } from '../../api/dashboard.service';
 import { ProjectService } from '../../api/project.service';
@@ -41,7 +42,7 @@ interface CalendarDayEvent {
 
         <article class="ai-insight-card">
           <strong>⚡ AI Insight</strong>
-          <p>You're on track to complete 91% of your tasks this week.</p>
+          <p>{{ isAiLoading ? 'Reading your latest workspace data...' : aiInsightText }}</p>
           <button class="link-button" type="button" (click)="openAnalytics()">View details -></button>
         </article>
       </section>
@@ -206,10 +207,13 @@ interface CalendarDayEvent {
         <aside class="right-stack">
           <article class="dash-card assistant-card">
             <header><h2>⚡ AI Assistant</h2></header>
-            <p>Here are some suggestions to boost your productivity</p>
-            <div class="insight-row danger"><i></i><span>2 tasks are at risk of being overdue</span><button class="link-button" type="button" (click)="openTasks()">Review now -></button></div>
-            <div class="insight-row warning"><i></i><span>You can complete 5 more tasks this week</span><button class="link-button" type="button" (click)="openTasks()">View tasks -></button></div>
-            <div class="insight-row success"><i></i><span>Team workload is perfectly balanced</span><button class="link-button" type="button" (click)="openProjects()">Great job! -></button></div>
+            <p>Suggestions generated from your live dashboard data</p>
+            <div class="insight-row" *ngFor="let row of aiSuggestionRows; let i = index" [ngClass]="suggestionTone(i)">
+              <i></i>
+              <span>{{ row }}</span>
+              <button class="link-button" type="button" (click)="i === 2 ? openProjects() : openTasks()">{{ i === 2 ? 'Open projects' : 'Review tasks' }} -></button>
+            </div>
+            <p class="empty-copy" *ngIf="!isAiLoading && !aiSuggestionRows.length">AI suggestions will appear after dashboard data loads.</p>
           </article>
 
           <article class="dash-card members-card">
@@ -301,6 +305,7 @@ interface CalendarDayEvent {
 export default class DashboardComponent implements OnInit {
   private readonly authStore = inject(AuthStore);
   private readonly activityService = inject(ActivityService);
+  private readonly aiService = inject(AiService);
   private readonly calendarService = inject(CalendarService);
   private readonly dashboardService = inject(DashboardService);
   private readonly projectService = inject(ProjectService);
@@ -330,6 +335,9 @@ export default class DashboardComponent implements OnInit {
   calendarEvents: CalendarEvent[] = [];
   selectedProjectId = '';
   dashboardCalendarDate = new Date();
+  aiInsightText = 'AI insights will appear after your dashboard data loads.';
+  aiSuggestionRows: string[] = [];
+  isAiLoading = false;
 
   readonly calendarWeekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   chartSeries: DashboardChartSeries = {
@@ -467,7 +475,11 @@ export default class DashboardComponent implements OnInit {
         next: (projects) => {
           this.projects = projects;
           this.selectedProjectId = projects[0]?.id || '';
-          if (this.selectedProjectId) this.loadProjectTasks(this.selectedProjectId);
+          if (this.selectedProjectId) {
+            this.loadProjectTasks(this.selectedProjectId, true);
+          } else {
+            this.refreshDashboardAi();
+          }
         },
         error: () => {
           this.stats = this.stats ?? {
@@ -507,15 +519,22 @@ export default class DashboardComponent implements OnInit {
     requestAnimationFrame(tick);
   }
 
-  loadProjectTasks(projectId: string): void {
+  loadProjectTasks(projectId: string, refreshAi = false): void {
     if (!projectId) {
       this.tasks = [];
+      if (refreshAi) this.refreshDashboardAi();
       return;
     }
 
     this.taskService.getByProject(projectId).subscribe({
-      next: (tasks) => (this.tasks = tasks),
-      error: () => (this.tasks = []),
+      next: (tasks) => {
+        this.tasks = tasks;
+        if (refreshAi) this.refreshDashboardAi();
+      },
+      error: () => {
+        this.tasks = [];
+        if (refreshAi) this.refreshDashboardAi();
+      },
     });
   }
 
@@ -654,6 +673,10 @@ export default class DashboardComponent implements OnInit {
     return this.tasks.filter((task) => task.priority === priority).length;
   }
 
+  suggestionTone(index: number): string {
+    return index === 0 ? 'danger' : index === 1 ? 'warning' : 'success';
+  }
+
   priorityBucketCount(bucket: 'HIGH' | 'MEDIUM' | 'LOW'): number {
     if (bucket === 'HIGH') return this.priorityCount('HIGH') + this.priorityCount('CRITICAL');
     return this.priorityCount(bucket);
@@ -715,6 +738,65 @@ export default class DashboardComponent implements OnInit {
   private normalizedY(value: number, values: number[], height: number): number {
     const max = Math.max(1, ...values);
     return 8 + (value / max) * (height - 16);
+  }
+
+  private refreshDashboardAi(): void {
+    if (!this.stats) return;
+    this.isAiLoading = true;
+    this.aiService.insights({
+      context: 'dashboard',
+      payload: {
+        stats: this.stats,
+        chartSeries: this.chartSeries,
+        deadlines: this.deadlines.slice(0, 6),
+        projects: this.overviewProjects,
+        teamWorkload: this.teamWorkSummaries,
+        currentProjectTasks: this.tasks.map((task) => ({
+          title: task.title,
+          status: task.status,
+          priority: task.priority,
+          dueDate: task.dueDate,
+          assignee: task.assignee?.username,
+        })),
+      },
+    }).subscribe({
+      next: ({ answer }) => {
+        const lines = this.aiLines(answer);
+        this.aiInsightText = lines[0] || answer;
+        this.aiSuggestionRows = lines.slice(1, 4);
+        if (!this.aiSuggestionRows.length && lines[0]) {
+          this.aiSuggestionRows = lines.slice(0, 3);
+        }
+        this.isAiLoading = false;
+      },
+      error: () => {
+        this.aiInsightText = this.localDashboardInsight();
+        this.aiSuggestionRows = this.localDashboardSuggestions();
+        this.isAiLoading = false;
+      },
+    });
+  }
+
+  private aiLines(answer: string): string[] {
+    return answer
+      .split(/\r?\n/)
+      .map((line) => line.replace(/^[-*\d.)\s]+/, '').trim())
+      .filter(Boolean)
+      .slice(0, 4);
+  }
+
+  private localDashboardInsight(): string {
+    const overdue = this.stats?.overdueItems ?? 0;
+    if (overdue > 0) return `${overdue} overdue item${overdue === 1 ? '' : 's'} need attention before planning new work.`;
+    return `${this.stats?.completionRate ?? 0}% completion with ${this.stats?.activeTasks ?? 0} active task${(this.stats?.activeTasks ?? 0) === 1 ? '' : 's'}.`;
+  }
+
+  private localDashboardSuggestions(): string[] {
+    return [
+      `${this.stats?.overdueItems ?? 0} overdue items should be reviewed first.`,
+      `${this.deadlines.length} upcoming deadlines are visible in this range.`,
+      `${this.overviewProjects.length} projects are ready for a progress check.`,
+    ];
   }
 
   initials(user: User | null): string {

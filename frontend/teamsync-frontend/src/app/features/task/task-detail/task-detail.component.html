@@ -248,7 +248,9 @@
           </div>
 
           <div *ngSwitchCase="'assistant'" class="td-tab-panel">
-            <p class="td-empty-copy">Use the AI recommendations panel to the right for suggested next steps.</p>
+            <p class="td-empty-copy" *ngIf="isAiLoading">Generating recommendations from this task...</p>
+            <p class="td-empty-copy" *ngIf="!isAiLoading && !aiAnswer">AI recommendations will appear after the task loads.</p>
+            <p class="td-empty-copy td-ai-full" *ngIf="!isAiLoading && aiAnswer">{{ aiAnswer }}</p>
           </div>
         </ng-container>
       </div>
@@ -259,17 +261,13 @@
             <strong><span class="ai-icon">*</span> AI Assistant</strong>
             <span class="beta-badge">BETA</span>
           </div>
-          <h3 class="td-ai-title">Design system recommendations</h3>
-          <p class="td-ai-desc">Based on similar projects and best practices in design systems.</p>
-          <div class="td-ai-card">
+          <h3 class="td-ai-title">Task recommendations</h3>
+          <p class="td-ai-desc">{{ isAiLoading ? 'Analyzing task data...' : 'Based on this task, comments, activity, and subtasks.' }}</p>
+          <div class="td-ai-card" *ngFor="let recommendation of aiRecommendations">
             <span class="card-icon">&loz;</span>
-            <p>Consider adding semantic color tokens for states like success, warning, and error.</p>
+            <p>{{ recommendation }}</p>
           </div>
-          <div class="td-ai-card">
-            <span class="card-icon">~</span>
-            <p>Add focus states for accessibility compliance.</p>
-          </div>
-          <button class="td-ai-link" type="button">View full recommendations -></button>
+          <button class="td-ai-link" type="button" (click)="activeTab = 'assistant'; refreshTaskAi()">Refresh recommendations -></button>
         </div>
       </aside>
     </section>

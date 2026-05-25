@@ -238,6 +238,10 @@
   margin: 0;
 }
 
+.td-ai-full {
+  white-space: pre-line;
+}
+
 @media (max-width: 760px) {
   .add-subtask-form {
     grid-template-columns: 1fr;

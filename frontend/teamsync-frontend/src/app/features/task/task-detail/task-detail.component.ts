@@ -2,6 +2,7 @@ import { Component, Input, Output, EventEmitter, OnInit, inject } from '@angular
 import { CommonModule, DatePipe, Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import { AiService } from '../../../api/ai.service';
 import { TaskService } from '../../../api/task.service';
 import { CommentService } from '../../../api/comment.service';
 import { ProjectService } from '../../../api/project.service';
@@ -30,6 +31,7 @@ export default class TaskDetailComponent implements OnInit {
   @Output() closed = new EventEmitter<void>();
 
   private readonly taskService = inject(TaskService);
+  private readonly aiService = inject(AiService);
   private readonly commentService = inject(CommentService);
   private readonly projectService = inject(ProjectService);
   private readonly workspaceService = inject(WorkspaceService);
@@ -64,6 +66,9 @@ export default class TaskDetailComponent implements OnInit {
   selectedAssigneeId = '';
   isAssigningTask = false;
   assignmentFeedback = '';
+  isAiLoading = false;
+  aiAnswer = '';
+  aiRecommendations: string[] = [];
 
   readonly statuses: TaskStatus[] = ['TODO', 'IN_PROGRESS', 'BLOCKED', 'IN_REVIEW', 'DONE'];
   readonly priorities: TaskPriority[] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
@@ -174,6 +179,7 @@ export default class TaskDetailComponent implements OnInit {
       next: (comments) => {
         this.comments = comments;
         this.isLoading = false;
+        this.refreshTaskAi();
       },
       error: () => {
         this.hasError = true;
@@ -434,6 +440,48 @@ export default class TaskDetailComponent implements OnInit {
     });
   }
 
+  refreshTaskAi(): void {
+    if (!this.task) return;
+    this.isAiLoading = true;
+    this.aiService.insights({
+      context: 'task detail',
+      payload: {
+        task: {
+          title: this.task.title,
+          description: this.task.description,
+          status: this.task.status,
+          priority: this.task.priority,
+          dueDate: this.task.dueDate,
+          assignee: this.task.assignee?.username,
+          project: this.projectName,
+          subtasks: this.subtasks.map((subtask) => ({
+            title: subtask.title,
+            completed: subtask.completed,
+            assignee: subtask.assignee?.username,
+            dueDate: subtask.dueDate,
+          })),
+        },
+        comments: this.comments.slice(0, 8).map((comment) => ({
+          author: comment.author.username,
+          content: comment.content,
+          createdAt: comment.createdAt,
+        })),
+        activity: this.activity.slice(0, 8),
+      },
+    }).subscribe({
+      next: ({ answer }) => {
+        this.aiAnswer = answer;
+        this.aiRecommendations = this.aiLines(answer).slice(0, 4);
+        this.isAiLoading = false;
+      },
+      error: () => {
+        this.aiAnswer = 'AI recommendations are unavailable right now. Review status, priority, due date, and blockers from the task details.';
+        this.aiRecommendations = this.localTaskRecommendations();
+        this.isAiLoading = false;
+      },
+    });
+  }
+
   addDependencyFromMenu(): void {
     const dependsOnId = this.dependencyTaskId.trim();
     if (!this.task || !dependsOnId) return;
@@ -467,6 +515,22 @@ export default class TaskDetailComponent implements OnInit {
       .join('')
       .slice(0, 2)
       .toUpperCase();
+  }
+
+  private aiLines(answer: string): string[] {
+    return answer
+      .split(/\r?\n/)
+      .map((line) => line.replace(/^[-*\d.)\s]+/, '').trim())
+      .filter(Boolean);
+  }
+
+  private localTaskRecommendations(): string[] {
+    if (!this.task) return [];
+    const rows = [`Move ${this.task.title} forward from ${this.statusLabel(this.task.status)} with one clear next action.`];
+    if (this.task.dueDate) rows.push(`Check the due date ${this.task.dueDate} against current blockers.`);
+    if (!this.task.assignee) rows.push('Assign an owner before more work is added.');
+    if (this.subtasks.length) rows.push(`${this.completedSubtasks} of ${this.subtasks.length} subtasks are complete.`);
+    return rows.slice(0, 4);
   }
 
   private updateSubtask(subtask: Subtask, changes: { assigneeId?: string; dueDate?: string }): void {

@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { catchError, forkJoin, map, of } from 'rxjs';
+import { AiService } from '../../../api/ai.service';
 import { WorkspaceActivity, WorkspaceService, WorkspaceSummary } from '../../../api/workspace.service';
 import { Workspace } from '../../../shared/models/workspace.model';
 import { User } from '../../../shared/models/user.model';
@@ -206,7 +207,7 @@ import { User } from '../../../shared/models/user.model';
               <span class="spark-icon" aria-hidden="true">*</span>
               <h2>AI Insight</h2>
             </header>
-            <p>Start adding projects and tasks to get AI-powered insights about your team's productivity.</p>
+            <p>{{ isAiLoading ? 'Generating from workspace data...' : aiInsightText }}</p>
             <div class="wire-grid" aria-hidden="true"></div>
           </article>
         </aside>
@@ -1122,6 +1123,7 @@ import { User } from '../../../shared/models/user.model';
 })
 export default class WorkspaceListComponent implements OnInit {
   readonly workspaceService = inject(WorkspaceService);
+  private readonly aiService = inject(AiService);
   readonly router = inject(Router);
   private readonly fb = inject(FormBuilder);
 
@@ -1138,6 +1140,8 @@ export default class WorkspaceListComponent implements OnInit {
   invitingWorkspace: Workspace | null = null;
   isSavingWorkspace = false;
   isInvitingMember = false;
+  isAiLoading = false;
+  aiInsightText = 'Start adding projects and tasks to get AI-powered insights about your team productivity.';
 
   form = this.fb.group({
     name: ['', Validators.required],
@@ -1202,6 +1206,7 @@ export default class WorkspaceListComponent implements OnInit {
 
   selectWorkspace(id: string): void {
     this.selectedWorkspaceId = id;
+    this.refreshWorkspaceInsight();
   }
 
   toggleWorkspaceMenu(id: string): void {
@@ -1303,6 +1308,7 @@ export default class WorkspaceListComponent implements OnInit {
         ...this.workspaceSummaries,
         ...Object.fromEntries(entries),
       };
+      this.refreshWorkspaceInsight();
     });
   }
 
@@ -1324,6 +1330,35 @@ export default class WorkspaceListComponent implements OnInit {
         ...this.workspaceActivities,
         ...Object.fromEntries(entries),
       };
+      this.refreshWorkspaceInsight();
+    });
+  }
+
+  private refreshWorkspaceInsight(): void {
+    const workspace = this.primaryWorkspace;
+    if (!workspace) return;
+    this.isAiLoading = true;
+    this.aiService.insights({
+      context: 'workspace list',
+      payload: {
+        workspace: {
+          name: workspace.name,
+          description: workspace.description,
+          memberCount: this.memberCount(workspace),
+        },
+        summary: this.summaryFor(workspace),
+        recentActivity: this.activityRows(workspace).slice(0, 6),
+      },
+    }).subscribe({
+      next: ({ answer }) => {
+        this.aiInsightText = this.firstAiLine(answer);
+        this.isAiLoading = false;
+      },
+      error: () => {
+        const summary = this.summaryFor(workspace);
+        this.aiInsightText = `${summary.activeTaskCount} active tasks, ${summary.completedTaskCount} completed tasks, and ${summary.overdueCount} overdue items in ${workspace.name}.`;
+        this.isAiLoading = false;
+      },
     });
   }
 
@@ -1361,5 +1396,12 @@ export default class WorkspaceListComponent implements OnInit {
     if (normalized.includes('risk') || normalized.includes('low')) return 'none';
     if (normalized.includes('medium') || normalized.includes('steady')) return 'medium';
     return 'high';
+  }
+
+  private firstAiLine(answer: string): string {
+    return answer
+      .split(/\r?\n/)
+      .map((line) => line.replace(/^[-*\d.)\s]+/, '').trim())
+      .find(Boolean) || answer;
   }
 }

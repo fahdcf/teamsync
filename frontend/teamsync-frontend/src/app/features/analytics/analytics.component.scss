@@ -511,6 +511,14 @@ p {
   height: 36px;
 }
 
+.assistant-answer {
+  margin: 12px 0 0;
+  color: var(--text-primary);
+  font-size: 13px;
+  line-height: 1.55;
+  white-space: pre-line;
+}
+
 .quick-pills {
   display: flex;
   flex-wrap: wrap;
