@@ -149,6 +149,9 @@ public class DashboardService {
 
         List<String> dayLabels = new ArrayList<>();
         List<Long> completionSeries = new ArrayList<>();
+        List<Long> activeTasksSeries = new ArrayList<>();
+        List<Long> velocitySeries = new ArrayList<>();
+        List<Long> overdueSeries = new ArrayList<>();
         for (int index = 0; index < buckets; index++) {
             long startOffset = (index * totalDays) / buckets;
             long nextOffset = ((index + 1L) * totalDays) / buckets;
@@ -158,6 +161,11 @@ public class DashboardService {
             dayLabels.add(formatBucketLabel(bucketStart, bucketEnd));
             completionSeries.add(taskRepository.countByAssigneeAndStatusAndUpdatedAtBetween(
                     currentUser, TaskStatus.DONE, bucketRange.startDateTime(), bucketRange.endDateTime()));
+            activeTasksSeries.add(taskRepository.countByAssigneeAndStatusAndUpdatedAtBetween(
+                    currentUser, TaskStatus.IN_PROGRESS, bucketRange.startDateTime(), bucketRange.endDateTime()));
+            overdueSeries.add(taskRepository.countByAssigneeAndStatusNotAndDueDateBetween(
+                    currentUser, TaskStatus.DONE, bucketRange.from(), bucketRange.to()));
+            velocitySeries.add(teamVelocity(userProjects, bucketRange));
         }
 
         List<Integer> workloadSeries = new ArrayList<>();
@@ -177,6 +185,9 @@ public class DashboardService {
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("dayLabels", dayLabels);
         result.put("completionSeries", completionSeries);
+        result.put("activeTasksSeries", activeTasksSeries);
+        result.put("velocitySeries", velocitySeries);
+        result.put("overdueSeries", overdueSeries);
         result.put("workloadSeries", workloadSeries);
         return result;
     }

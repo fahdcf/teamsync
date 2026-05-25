@@ -44,6 +44,9 @@ export interface DashboardDateRange {
 export interface DashboardChartSeries {
   dayLabels: string[];
   completionSeries: number[];
+  activeTasksSeries: number[];
+  velocitySeries: number[];
+  overdueSeries: number[];
   workloadSeries: number[];
 }
 

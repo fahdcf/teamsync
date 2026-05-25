@@ -52,7 +52,9 @@ interface CalendarDayEvent {
           <strong>{{ animatedStats.activeTasks }}</strong>
           <span class="trend" [class.down]="(stats?.trendActiveTasks || 0) < 0">{{ trendText(stats?.trendActiveTasks) }} from last week</span>
           <svg class="sparkline" viewBox="0 0 180 48" preserveAspectRatio="none">
-            <path d="M0 36 C18 35 20 21 38 24 C58 28 62 13 82 17 C102 21 112 38 132 29 C150 20 158 14 180 8"></path>
+            <path class="spark-area" [attr.d]="seriesAreaPath(chartSeries.activeTasksSeries, 180, 48)"></path>
+            <path [attr.d]="seriesPath(chartSeries.activeTasksSeries, 180, 48)"></path>
+            <circle *ngFor="let point of seriesPoints(chartSeries.activeTasksSeries, 180, 48)" class="spark-point" [attr.cx]="point.x" [attr.cy]="point.y" r="2.2"></circle>
           </svg>
         </article>
 
@@ -71,7 +73,7 @@ interface CalendarDayEvent {
           <strong>{{ animatedStats.teamVelocity }}</strong>
           <span class="trend" [class.down]="(stats?.trendVelocity || 0) < 0">{{ trendText(stats?.trendVelocity) }} from last week</span>
           <svg class="barline" viewBox="0 0 180 48">
-            <rect *ngFor="let bar of velocityBars; let i = index" [attr.x]="i * 22 + 8" [attr.y]="48 - bar" width="8" [attr.height]="bar"></rect>
+            <rect *ngFor="let bar of velocityBars; let i = index" [attr.x]="barX(i, velocityBars.length)" [attr.y]="48 - bar" width="12" [attr.height]="bar"></rect>
           </svg>
         </article>
 
@@ -80,7 +82,9 @@ interface CalendarDayEvent {
           <strong [class.danger-value]="animatedStats.overdueItems > 0">{{ animatedStats.overdueItems }}</strong>
           <span class="trend overdue" [class.down]="(stats?.trendOverdue || 0) > 0">{{ trendText(stats?.trendOverdue) }} from last week</span>
           <svg class="sparkline danger-line" viewBox="0 0 180 48" preserveAspectRatio="none">
-            <path d="M0 12 C18 18 22 8 38 16 C55 28 65 13 82 16 C100 18 102 34 122 36 C145 38 150 16 180 30"></path>
+            <path class="spark-area" [attr.d]="seriesAreaPath(chartSeries.overdueSeries, 180, 48)"></path>
+            <path [attr.d]="seriesPath(chartSeries.overdueSeries, 180, 48)"></path>
+            <circle *ngFor="let point of seriesPoints(chartSeries.overdueSeries, 180, 48)" class="spark-point" [attr.cx]="point.x" [attr.cy]="point.y" r="2.2"></circle>
           </svg>
         </article>
       </section>
@@ -147,9 +151,9 @@ interface CalendarDayEvent {
             <span>Tasks by Priority</span>
             <div class="donut-wrap">
               <svg viewBox="0 0 100 100">
-                <circle class="donut high" cx="50" cy="50" r="34"></circle>
-                <circle class="donut medium" cx="50" cy="50" r="34"></circle>
-                <circle class="donut low" cx="50" cy="50" r="34"></circle>
+                <circle class="donut high" cx="50" cy="50" r="34" [style.stroke-dasharray]="priorityDash('HIGH')" [style.stroke-dashoffset]="priorityOffset('HIGH')"></circle>
+                <circle class="donut medium" cx="50" cy="50" r="34" [style.stroke-dasharray]="priorityDash('MEDIUM')" [style.stroke-dashoffset]="priorityOffset('MEDIUM')"></circle>
+                <circle class="donut low" cx="50" cy="50" r="34" [style.stroke-dasharray]="priorityDash('LOW')" [style.stroke-dashoffset]="priorityOffset('LOW')"></circle>
               </svg>
               <strong>{{ tasks.length }}<small>Total</small></strong>
             </div>
@@ -273,6 +277,25 @@ interface CalendarDayEvent {
       background: var(--danger-dim);
       color: var(--danger);
     }
+
+    .sparkline .spark-area {
+      fill: rgba(74, 222, 128, 0.12);
+      stroke: none;
+    }
+
+    .danger-line .spark-area {
+      fill: rgba(239, 68, 68, 0.12);
+    }
+
+    .sparkline .spark-point {
+      fill: var(--success);
+      stroke: var(--bg-base);
+      stroke-width: 1.5;
+    }
+
+    .danger-line .spark-point {
+      fill: var(--danger);
+    }
   `],
 })
 export default class DashboardComponent implements OnInit {
@@ -312,10 +335,13 @@ export default class DashboardComponent implements OnInit {
   chartSeries: DashboardChartSeries = {
     dayLabels: [],
     completionSeries: [],
+    activeTasksSeries: [],
+    velocitySeries: [],
+    overdueSeries: [],
     workloadSeries: [],
   };
   readonly rangeOptions = [
-    { key: 'week', label: 'This week' },
+    { key: 'week', label: 'Last 7 days' },
     { key: 'month', label: 'This month' },
     { key: 'quarter', label: 'Last 90 days' },
   ];
@@ -355,7 +381,7 @@ export default class DashboardComponent implements OnInit {
   }
 
   get velocityBars(): number[] {
-    const values = this.chartSeries.completionSeries.length ? this.chartSeries.completionSeries : [0];
+    const values = this.chartSeries.velocitySeries.length ? this.chartSeries.velocitySeries : [0];
     const max = Math.max(1, ...values);
     return values.map((value) => Math.max(8, Math.round((value / max) * 40)));
   }
@@ -524,9 +550,8 @@ export default class DashboardComponent implements OnInit {
       from.setDate(today.getDate() - 89);
       return { from: this.formatDate(from), to };
     }
-    const day = today.getDay() || 7;
     const from = new Date(today);
-    from.setDate(today.getDate() - day + 1);
+    from.setDate(today.getDate() - 6);
     return { from: this.formatDate(from), to };
   }
 
@@ -629,6 +654,28 @@ export default class DashboardComponent implements OnInit {
     return this.tasks.filter((task) => task.priority === priority).length;
   }
 
+  priorityBucketCount(bucket: 'HIGH' | 'MEDIUM' | 'LOW'): number {
+    if (bucket === 'HIGH') return this.priorityCount('HIGH') + this.priorityCount('CRITICAL');
+    return this.priorityCount(bucket);
+  }
+
+  priorityDash(bucket: 'HIGH' | 'MEDIUM' | 'LOW'): string {
+    const total = Math.max(0, this.tasks.length);
+    if (!total) return '0 214';
+    const arc = (this.priorityBucketCount(bucket) / total) * 214;
+    return `${arc} 214`;
+  }
+
+  priorityOffset(bucket: 'HIGH' | 'MEDIUM' | 'LOW'): string {
+    const order: ('HIGH' | 'MEDIUM' | 'LOW')[] = ['HIGH', 'MEDIUM', 'LOW'];
+    const index = order.indexOf(bucket);
+    const total = Math.max(1, this.tasks.length);
+    const previous = order
+      .slice(0, index)
+      .reduce((sum, item) => sum + this.priorityBucketCount(item), 0);
+    return `${-(previous / total) * 214}`;
+  }
+
   seriesPath(series: number[], width: number, height: number): string {
     const values = series.length ? series : [0];
     if (values.length === 1) {
@@ -642,6 +689,27 @@ export default class DashboardComponent implements OnInit {
         return `${index === 0 ? 'M' : 'L'}${x} ${y}`;
       })
       .join(' ');
+  }
+
+  seriesAreaPath(series: number[], width: number, height: number): string {
+    const line = this.seriesPath(series, width, height);
+    return `${line} L${width} ${height - 4} L0 ${height - 4} Z`;
+  }
+
+  seriesPoints(series: number[], width: number, height: number): { x: number; y: number }[] {
+    const values = series.length ? series : [0];
+    if (values.length === 1) {
+      return [{ x: width, y: height - this.normalizedY(values[0], values, height) }];
+    }
+    return values.map((value, index) => ({
+      x: (index / (values.length - 1)) * width,
+      y: height - this.normalizedY(value, values, height),
+    }));
+  }
+
+  barX(index: number, total: number): number {
+    if (total <= 1) return 84;
+    return 8 + (index / (total - 1)) * 148;
   }
 
   private normalizedY(value: number, values: number[], height: number): number {

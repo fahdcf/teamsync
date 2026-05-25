@@ -155,7 +155,7 @@ interface BreadcrumbItem {
           </div>
         </div>
 
-        <div class="workspace-menu" appClickOutside (clickOutside)="isWorkspaceMenuOpen = false">
+        <div class="workspace-selector" appClickOutside (clickOutside)="isWorkspaceMenuOpen = false">
           <button class="workspace-btn" type="button" aria-label="Workspace selector" (click)="toggleWorkspaceMenu()">
             <span class="workspace-icon"></span>
             <span class="workspace-name">{{ selectedWorkspace?.name || 'Select workspace' }}</span>
@@ -522,7 +522,7 @@ interface BreadcrumbItem {
         position: relative;
       }
 
-      .workspace-menu {
+      .workspace-selector {
         position: relative;
       }
 
@@ -795,7 +795,7 @@ interface BreadcrumbItem {
           grid-template-columns: minmax(220px, 1fr) 280px minmax(280px, 1fr);
         }
 
-        .workspace-menu,
+        .workspace-selector,
         .avatar-stack,
         .user-menu {
           display: none;

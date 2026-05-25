@@ -63,14 +63,14 @@
           <small *ngIf="stat.trend">↑ {{ stat.trend }}% from last period</small>
           <small *ngIf="!stat.trend && stat.visual === 'ring'">All teams are optimal</small>
           <svg *ngIf="stat.visual === 'line'" viewBox="0 0 180 50" class="sparkline">
-            <path d="M4 40 C 24 14, 36 44, 55 28 S 88 16, 104 24 S 128 40, 143 20 S 162 18, 176 10" />
+            <path [attr.d]="metricLinePath(stat.series)" />
           </svg>
           <div *ngIf="stat.visual === 'bars'" class="bar-spark">
-            <span *ngFor="let h of [26,38,50,32,14,42,18,28]" [style.height.px]="h"></span>
+            <span *ngFor="let h of metricBars(stat.series)" [style.height.px]="h"></span>
           </div>
           <svg *ngIf="stat.visual === 'ring'" viewBox="0 0 90 55" class="ring-chart">
             <path d="M15 48 A30 30 0 0 1 75 48" />
-            <path d="M15 48 A30 30 0 0 1 75 48" class="ring-fill" />
+            <path d="M15 48 A30 30 0 0 1 75 48" class="ring-fill" [style.stroke-dasharray]="ringDash(stat.series)" />
           </svg>
         </article>
       </div>

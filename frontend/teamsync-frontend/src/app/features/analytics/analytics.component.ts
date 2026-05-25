@@ -21,7 +21,7 @@ import {
 } from 'chart.js';
 import { forkJoin, of, switchMap } from 'rxjs';
 import { catchError } from 'rxjs/operators';
-import { AnalyticsFilters, AnalyticsService, ReportFormat } from '../../api/analytics.service';
+import { AnalyticsFilters, AnalyticsService, ReportFormat, TeamPerformanceSeries } from '../../api/analytics.service';
 import { ProjectService } from '../../api/project.service';
 import { WorkspaceService } from '../../api/workspace.service';
 import { AnalyticsInsight, ProjectStats, TeamPerformance, TeamWorkload } from '../../shared/models/analytics.model';
@@ -67,6 +67,13 @@ export default class AnalyticsComponent implements OnInit {
   isFilterOpen = false;
   performance: TeamPerformance | null = null;
   animatedPerformance: TeamPerformance | null = null;
+  performanceSeries: TeamPerformanceSeries = {
+    labels: [],
+    completionRateSeries: [],
+    velocitySeries: [],
+    workloadSeries: [],
+    projectHealthSeries: [],
+  };
   insights: AnalyticsInsight[] = [];
   workspaces: Workspace[] = [];
   projects: Project[] = [];
@@ -118,6 +125,7 @@ export default class AnalyticsComponent implements OnInit {
     this.syncFiltersToUrl(filters);
     forkJoin({
       performance: this.analyticsService.getTeamPerformance(filters).pipe(catchError(() => of(null))),
+      performanceSeries: this.analyticsService.getTeamPerformanceSeries(filters).pipe(catchError(() => of(this.emptyPerformanceSeries()))),
       insights: this.analyticsService.getInsights(filters).pipe(catchError(() => of([]))),
       workspaces: this.workspaceService.getAll().pipe(catchError(() => of([]))),
       projects: this.projectService.search({
@@ -126,9 +134,10 @@ export default class AnalyticsComponent implements OnInit {
       }).pipe(catchError(() => of([]))),
     })
       .pipe(
-        switchMap(({ performance, insights, workspaces, projects }) => {
+        switchMap(({ performance, performanceSeries, insights, workspaces, projects }) => {
           this.performance = performance;
           if (performance) this.animatePerformance(performance);
+          this.performanceSeries = performanceSeries;
           this.insights = insights;
           this.workspaces = workspaces;
           this.projects = projects;
@@ -266,10 +275,10 @@ export default class AnalyticsComponent implements OnInit {
   get topStats() {
     const performance = this.animatedPerformance ?? this.performance;
     return [
-      { label: 'Completion Rate', value: `${performance?.completionRate ?? 0}%`, trend: performance?.trendCompletion ?? 0, visual: 'line' },
-      { label: 'Team Velocity', value: `${performance?.teamVelocity ?? 0}`, trend: performance?.trendVelocity ?? 0, visual: 'bars' },
-      { label: 'Workload Balance', value: performance?.workloadBalance ?? 'Balanced', trend: 0, visual: 'ring' },
-      { label: 'Projects Health', value: `${performance?.projectsHealth ?? 0}%`, trend: performance?.trendHealth ?? 0, visual: 'line' },
+      { label: 'Completion Rate', value: `${performance?.completionRate ?? 0}%`, trend: performance?.trendCompletion ?? 0, visual: 'line', series: this.performanceSeries.completionRateSeries },
+      { label: 'Team Velocity', value: `${performance?.teamVelocity ?? 0}`, trend: performance?.trendVelocity ?? 0, visual: 'bars', series: this.performanceSeries.velocitySeries },
+      { label: 'Workload Balance', value: performance?.workloadBalance ?? 'Balanced', trend: 0, visual: 'ring', series: this.performanceSeries.workloadSeries },
+      { label: 'Projects Health', value: `${performance?.projectsHealth ?? 0}%`, trend: performance?.trendHealth ?? 0, visual: 'line', series: this.performanceSeries.projectHealthSeries },
     ];
   }
 
@@ -372,6 +381,39 @@ export default class AnalyticsComponent implements OnInit {
     };
   }
 
+  metricBars(series: number[]): number[] {
+    const values = series.length ? series : [0];
+    const max = Math.max(1, ...values);
+    return values.map((value) => Math.max(10, Math.round((value / max) * 50)));
+  }
+
+  metricLinePath(series: number[], width = 180, height = 50): string {
+    const values = series.length ? series : [0];
+    if (values.length === 1) {
+      const y = height - this.metricY(values[0], values, height);
+      return `M0 ${y} L${width} ${y}`;
+    }
+    return values
+      .map((value, index) => {
+        const x = (index / (values.length - 1)) * width;
+        const y = height - this.metricY(value, values, height);
+        return `${index === 0 ? 'M' : 'L'}${x} ${y}`;
+      })
+      .join(' ');
+  }
+
+  ringDash(series: number[]): string {
+    const total = series.reduce((sum, value) => sum + value, 0);
+    const maxMemberLoad = Math.max(0, ...series);
+    if (!total) return '0 95';
+    return `${Math.min(95, (maxMemberLoad / total) * 95)} 95`;
+  }
+
+  private metricY(value: number, values: number[], height: number): number {
+    const max = Math.max(1, ...values);
+    return 8 + (value / max) * (height - 16);
+  }
+
   private analyticsFilters(): AnalyticsFilters {
     return {
       from: this.dateFrom || undefined,
@@ -436,5 +478,15 @@ export default class AnalyticsComponent implements OnInit {
   private showToast(message: string): void {
     this.toast = message;
     window.setTimeout(() => (this.toast = ''), 1800);
+  }
+
+  private emptyPerformanceSeries(): TeamPerformanceSeries {
+    return {
+      labels: [],
+      completionRateSeries: [],
+      velocitySeries: [],
+      workloadSeries: [],
+      projectHealthSeries: [],
+    };
   }
 }

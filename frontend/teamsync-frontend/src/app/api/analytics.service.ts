@@ -13,6 +13,14 @@ export interface AnalyticsFilters {
 
 export type ReportFormat = 'json' | 'csv' | 'pdf';
 
+export interface TeamPerformanceSeries {
+  labels: string[];
+  completionRateSeries: number[];
+  velocitySeries: number[];
+  workloadSeries: number[];
+  projectHealthSeries: number[];
+}
+
 @Injectable({ providedIn: 'root' })
 export class AnalyticsService {
   private readonly http = inject(HttpClient);
@@ -48,6 +56,12 @@ export class AnalyticsService {
 
   getTeamPerformance(filters: AnalyticsFilters = {}): Observable<TeamPerformance> {
     return this.http.get<TeamPerformance>(`${this.base}/analytics/team/performance`, {
+      params: this.params({ ...filters }),
+    });
+  }
+
+  getTeamPerformanceSeries(filters: AnalyticsFilters = {}): Observable<TeamPerformanceSeries> {
+    return this.http.get<TeamPerformanceSeries>(`${this.base}/analytics/team/performance-series`, {
       params: this.params({ ...filters }),
     });
   }

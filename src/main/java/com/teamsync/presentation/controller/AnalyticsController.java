@@ -58,6 +58,17 @@ public class AnalyticsController {
         return analyticsService.getTeamPerformance(auth.getName(), from, to, workspaceId, projectId);
     }
 
+    @Operation(summary = "Get chart series for workspace-level team performance")
+    @ApiResponse(responseCode = "200", description = "Team performance chart series returned")
+    @GetMapping("/team/performance-series")
+    public Map<String, Object> getTeamPerformanceSeries(Authentication auth,
+                                                        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+                                                        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+                                                        @RequestParam(required = false) UUID workspaceId,
+                                                        @RequestParam(required = false) UUID projectId) {
+        return analyticsService.getTeamPerformanceSeries(auth.getName(), from, to, workspaceId, projectId);
+    }
+
     @Operation(summary = "Get rule-based analytics insights for the current user's workspaces")
     @ApiResponse(responseCode = "200", description = "Insight cards returned")
     @GetMapping("/insights")

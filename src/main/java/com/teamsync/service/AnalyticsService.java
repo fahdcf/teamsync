@@ -15,6 +15,8 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -157,6 +159,51 @@ public class AnalyticsService {
         result.put("focusTime", Map.of("hours", roundOneDecimal((done * 1.4) + (active * 0.35)), "trend", 24));
         result.put("cycleTime", Map.of("days", calculateCycleTime(tasks), "trend", -8));
         result.put("onTimeDelivery", Map.of("percent", Math.round(onTimeDelivery), "trend", 6));
+        return result;
+    }
+
+    public Map<String, Object> getTeamPerformanceSeries(String userEmail, LocalDate from, LocalDate to,
+                                                        UUID workspaceId, UUID projectId) {
+        List<Project> projects = filterProjects(getProjectsForUser(userEmail), workspaceId, projectId);
+        DateRange range = normalizeRange(from, to);
+        long totalDays = ChronoUnit.DAYS.between(range.from(), range.to()) + 1;
+        int buckets = (int) Math.min(8, Math.max(1, totalDays));
+
+        List<String> labels = new ArrayList<>();
+        List<Long> velocitySeries = new ArrayList<>();
+        List<Integer> completionRateSeries = new ArrayList<>();
+        List<Integer> projectHealthSeries = new ArrayList<>();
+
+        for (int index = 0; index < buckets; index++) {
+            long startOffset = (index * totalDays) / buckets;
+            long nextOffset = ((index + 1L) * totalDays) / buckets;
+            LocalDate bucketStart = range.from().plusDays(startOffset);
+            LocalDate bucketEnd = range.from().plusDays(nextOffset - 1);
+            List<Task> bucketTasks = filterTasksByDateRange(getTasksForProjects(projects), bucketStart, bucketEnd);
+            long completed = bucketTasks.stream().filter(task -> task.getStatus() == TaskStatus.DONE).count();
+
+            labels.add(formatBucketLabel(bucketStart, bucketEnd));
+            velocitySeries.add(completed);
+            completionRateSeries.add(bucketTasks.isEmpty() ? 0 : (int) Math.round(completed * 100.0 / bucketTasks.size()));
+            projectHealthSeries.add(calculateProjectsHealth(projects));
+        }
+
+        Map<UUID, Integer> workloadByMember = new LinkedHashMap<>();
+        getTasksForProjects(projects).stream()
+                .filter(task -> task.getStatus() != TaskStatus.DONE)
+                .filter(task -> task.getAssignee() != null)
+                .forEach(task -> workloadByMember.merge(task.getAssignee().getId(), 1, Integer::sum));
+        List<Integer> workloadSeries = new ArrayList<>(workloadByMember.values());
+        if (workloadSeries.isEmpty()) {
+            workloadSeries.add(0);
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("labels", labels);
+        result.put("completionRateSeries", completionRateSeries);
+        result.put("velocitySeries", velocitySeries);
+        result.put("workloadSeries", workloadSeries);
+        result.put("projectHealthSeries", projectHealthSeries);
         return result;
     }
 
@@ -377,6 +424,23 @@ public class AnalyticsService {
         return task.getDueDate() != null && task.getDueDate().isBefore(LocalDate.now()) && task.getStatus() != TaskStatus.DONE;
     }
 
+    private DateRange normalizeRange(LocalDate fromDate, LocalDate toDate) {
+        LocalDate today = LocalDate.now();
+        LocalDate from = fromDate != null ? fromDate : today.minusDays(29);
+        LocalDate to = toDate != null ? toDate : today;
+        if (to.isBefore(from)) {
+            to = from;
+        }
+        return new DateRange(from, to);
+    }
+
+    private String formatBucketLabel(LocalDate start, LocalDate end) {
+        if (start.equals(end)) {
+            return start.toString();
+        }
+        return start + " - " + end;
+    }
+
     private double roundOneDecimal(double value) {
         return Math.round(value * 10.0) / 10.0;
     }
@@ -389,5 +453,15 @@ public class AnalyticsService {
         insight.put("action", action);
         insight.put("actionUrl", actionUrl);
         return insight;
+    }
+
+    private record DateRange(LocalDate from, LocalDate to) {
+        LocalDateTime startDateTime() {
+            return LocalDateTime.of(from, LocalTime.MIN);
+        }
+
+        LocalDateTime endDateTime() {
+            return LocalDateTime.of(to, LocalTime.MAX);
+        }
     }
 }
