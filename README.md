@@ -3,6 +3,9 @@
 A Spring Boot / Angular project management application with workspaces, projects,
 Kanban tasks, subtasks, dependencies, comments, notifications, analytics and exports.
 
+See the [completion and integration review](docs/REFACTOR_COMPLETION.md) for the
+verified refactoring history, test results and a short interview explanation.
+
 ## Architecture
 
 One layered backend application: **REST controller → transactional service → Spring
