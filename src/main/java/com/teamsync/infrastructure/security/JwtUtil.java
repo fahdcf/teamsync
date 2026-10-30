@@ -54,6 +54,10 @@ public class JwtUtil {
     }
 
     private static byte[] hexToBytes(String hex) {
+        if (hex == null || hex.length() < 64 || hex.length() % 2 != 0
+                || !hex.matches("[0-9a-fA-F]+")) {
+            throw new IllegalArgumentException("JWT_SECRET must contain at least 64 hexadecimal characters.");
+        }
         int len = hex.length();
         byte[] data = new byte[len / 2];
         for (int i = 0; i < len; i += 2) {

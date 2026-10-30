@@ -37,3 +37,21 @@ build/
 
 ### Local secrets ###
 .env
+
+# Private configuration and generated development artifacts
+.env.*
+!.env.example
+AGENTS.md
+agents.md
+AGENT.md
+agent.md
+Claude.md
+CLAUDE.md
+claude.md
+*.log
+*.pid
+*.bak
+__pycache__/
+*.py[cod]
+/tasks.md
+/frontend/teamsync-frontend/src/app/features/tasks.md
