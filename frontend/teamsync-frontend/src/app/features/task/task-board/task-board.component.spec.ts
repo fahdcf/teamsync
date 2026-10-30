@@ -1,3 +1,4 @@
+import { ProjectService } from '../../../api/project.service';
 import { TestBed, ComponentFixture } from '@angular/core/testing';
 import { provideAnimations } from '@angular/platform-browser/animations';
 import { provideRouter } from '@angular/router';
@@ -8,7 +9,7 @@ import { TaskService } from '../../../api/task.service';
 import { Task } from '../../../shared/models/task.model';
 
 const makeTask = (id: string, status: Task['status']): Task => ({
-  id, title: `Task ${id}`, description: '', priority: 'MEDIUM',
+  canManage: true, canChangeStatus: true, id, title: `Task ${id}`, description: '', priority: 'MEDIUM',
   status, assignee: null, project: null as any, dependencies: [],
   dueDate: null, createdAt: '', updatedAt: ''
 });
@@ -16,10 +17,12 @@ const makeTask = (id: string, status: Task['status']): Task => ({
 describe('TaskBoardComponent', () => {
   let fixture: ComponentFixture<TaskBoardComponent>;
   let component: TaskBoardComponent;
-  let mockTaskService: { getByProject: any; changeStatus: any; create: any; delete: any };
+  let mockTaskService: { reorder: any; getBlockedByProject: any; getByProject: any; changeStatus: any; create: any; delete: any };
 
   beforeEach(async () => {
     mockTaskService = {
+      reorder: vi.fn().mockReturnValue(of(null)),
+      getBlockedByProject: vi.fn().mockReturnValue(of([])),
       getByProject: vi.fn().mockReturnValue(of([])),
       changeStatus: vi.fn().mockReturnValue(of({})),
       create: vi.fn().mockReturnValue(of(makeTask('new', 'TODO'))),
@@ -31,6 +34,7 @@ describe('TaskBoardComponent', () => {
       providers: [
         provideAnimations(),
         provideRouter([]),
+        { provide: ProjectService, useValue: { getById: () => of({canManage: true}) } },
         { provide: TaskService, useValue: mockTaskService }
       ]
     }).compileComponents();
@@ -72,6 +76,7 @@ describe('TaskBoardComponent', () => {
   });
 
   it('onDrop() to different column calls TaskService.changeStatus with correct status', () => {
+    mockTaskService.changeStatus.mockReturnValue(of(makeTask('t1', 'IN_PROGRESS')));
     fixture.detectChanges();
     const todoCol = component.columns.find(c => c.status === 'TODO')!;
     const ipCol   = component.columns.find(c => c.status === 'IN_PROGRESS')!;
@@ -85,6 +90,7 @@ describe('TaskBoardComponent', () => {
     component.onDrop(event);
 
     expect(mockTaskService.changeStatus).toHaveBeenCalledWith('t1', { status: 'IN_PROGRESS' });
+    expect(ipCol.tasks[0].status).toBe('IN_PROGRESS');
   });
 
   it('on changeStatus error → reverts task to original column', () => {
@@ -107,5 +113,20 @@ describe('TaskBoardComponent', () => {
     errSubject.error({ status: 400 });
     expect(ipCol.tasks.length).toBe(0);
     expect(todoCol.tasks.length).toBe(1);
+  });
+
+  it('does not mutate a task without the backend status permission', () => {
+    fixture.detectChanges();
+    const source = { data: [{...makeTask('locked','TODO'), canChangeStatus: false}], id: 'TODO' } as any;
+    const target = { data: [], id: 'IN_PROGRESS' } as any;
+    component.onDrop({previousContainer: source, container: target, previousIndex: 0, currentIndex: 0} as CdkDragDrop<Task[]>);
+    expect(mockTaskService.changeStatus).not.toHaveBeenCalled();
+    expect(source.data.length).toBe(1);
+  });
+
+  it('does not open task creation without project management permission', () => {
+    component.canManage = false;
+    component.openCreate('TODO');
+    expect(component.isCreateModalOpen).toBe(false);
   });
 });

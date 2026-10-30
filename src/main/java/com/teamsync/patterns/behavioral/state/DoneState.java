@@ -1,7 +1,7 @@
 package com.teamsync.patterns.behavioral.state;
 
-import com.teamsync.domain.entity.Task;
-import com.teamsync.domain.enums.TaskStatus;
+import com.teamsync.entity.Task;
+import com.teamsync.enums.TaskStatus;
 import com.teamsync.repository.TaskRepository;
 
 public class DoneState implements TaskState {

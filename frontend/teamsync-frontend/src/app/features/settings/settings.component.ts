@@ -1,6 +1,8 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
+import { TokenService } from '../../core/services/token.service';
 import { AuthStore } from '../../store/auth.store';
 import { ActivityService } from '../../api/activity.service';
 import { AccountOverview, AuthService, SecurityOverview, UserPreferences } from '../../api/auth.service';
@@ -81,12 +83,7 @@ import { Workspace } from '../../shared/models/workspace.model';
             <label class="profile-field">
               <span>Role</span>
               <div class="field-shell select-shell">
-                <input *ngIf="editingField !== 'role'" readonly [value]="roleLabel" />
-                <select *ngIf="editingField === 'role'" [(ngModel)]="profileForm.role">
-                  <option *ngFor="let role of roleOptions" [value]="role">{{ roleLabelFor(role) }}</option>
-                </select>
-                <button type="button" (click)="editingField === 'role' ? saveProfile() : startEditing('role')" [attr.aria-label]="editingField === 'role' ? 'Save role' : 'Edit role'">{{ editingField === 'role' ? 'Save' : '/' }}</button>
-                <button *ngIf="editingField === 'role'" type="button" (click)="cancelEditing()">Cancel</button>
+                <input readonly [value]="roleLabel" />
               </div>
             </label>
 
@@ -770,6 +767,8 @@ import { Workspace } from '../../shared/models/workspace.model';
   `]
 })
 export default class SettingsComponent implements OnInit {
+  private readonly router = inject(Router);
+  private readonly tokenService = inject(TokenService);
   private readonly authStore = inject(AuthStore);
   private readonly activityService = inject(ActivityService);
   private readonly authService = inject(AuthService);
@@ -895,7 +894,7 @@ export default class SettingsComponent implements OnInit {
 
   startEditing(field: 'username' | 'email' | 'role' | 'avatar'): void {
     this.editingField = field;
-    this.profileMessage = field === 'role' ? 'Role changes can only move to the same or lower privilege.' : '';
+    this.profileMessage = '';
   }
 
   cancelEditing(): void {
@@ -908,7 +907,6 @@ export default class SettingsComponent implements OnInit {
     this.authService.updateMe({
       username: this.profileForm.username,
       email: this.profileForm.email,
-      role: this.profileForm.role,
       avatarUrl: this.profileForm.avatarUrl || null,
     }).subscribe({
       next: (user) => {
@@ -962,8 +960,10 @@ export default class SettingsComponent implements OnInit {
     }).subscribe({
       next: () => {
         this.passwordForm = { currentPassword: '', newPassword: '', confirmPassword: '' };
-        this.passwordMessage = 'Password updated successfully.';
-        this.loadSecurityOverview();
+        this.passwordMessage = 'Password updated. Please sign in again.';
+        this.tokenService.removeToken();
+        this.authStore.clearUser();
+        this.router.navigate(['/login']);
       },
       error: () => {
         this.passwordMessage = 'Could not update password. Check your current password and try again.';

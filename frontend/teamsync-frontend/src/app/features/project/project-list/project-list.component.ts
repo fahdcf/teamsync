@@ -27,7 +27,7 @@ import { AuthStore } from '../../../store/auth.store';
         </div>
 
         <div class="projects-header-actions">
-          <button class="new-project-btn" type="button" (click)="openCreateModal()">
+          <button class="new-project-btn" type="button" [disabled]="!creatableWorkspaces.length" (click)="openCreateModal()">
             <span aria-hidden="true">+</span>
             New Project
           </button>
@@ -246,7 +246,7 @@ import { AuthStore } from '../../../store/auth.store';
               <label for="project-workspace">Workspace</label>
               <select id="project-workspace" formControlName="workspaceId" (change)="onCreateWorkspaceChanged()">
                 <option value="" disabled>Select workspace</option>
-                <option *ngFor="let workspace of workspaces" [value]="workspace.id">{{ workspace.name }}</option>
+                <option *ngFor="let workspace of creatableWorkspaces" [value]="workspace.id">{{ workspace.name }}</option>
               </select>
             </div>
 
@@ -311,7 +311,7 @@ import { AuthStore } from '../../../store/auth.store';
             <div class="modal-grid">
               <div class="field-group">
                 <label for="edit-project-manager">Manager</label>
-                <select id="edit-project-manager" formControlName="managerId">
+                <select id="edit-project-manager" [attr.disabled]="!editingProject.canChangeManager ? true : null" formControlName="managerId">
                   <option value="">No manager</option>
                   <option *ngFor="let member of editProjectMembers" [value]="member.id">{{ member.username }}</option>
                 </select>
@@ -924,7 +924,7 @@ export default class ProjectListComponent implements OnInit, OnDestroy {
     const users = new Map<string, User>();
     if (workspace.owner) users.set(workspace.owner.id, workspace.owner);
     (workspace.members || []).forEach((member) => users.set(member.id, member));
-    return Array.from(users.values());
+    return Array.from(users.values()).filter(user => user.role !== 'TEAM_MEMBER' || user.id === workspace.owner?.id);
   }
   get editProjectMembers(): User[] {
     const workspaceId = this.editingProject?.workspaceId || this.editingProject?.workspace?.id || this.currentWorkspaceId || '';
@@ -938,8 +938,14 @@ export default class ProjectListComponent implements OnInit, OnDestroy {
     return Array.from(users.values());
   }
 
+  get creatableWorkspaces(): Workspace[] {
+    return this.workspaces.filter(workspace => workspace.canCreateProject);
+  }
+
   openCreateModal(): void {
-    const workspaceId = this.currentWorkspaceId || this.workspaceContext.selectedWorkspaceId || this.workspaces[0]?.id || '';
+    if (!this.creatableWorkspaces.length) return;
+    const selectedId = this.currentWorkspaceId || this.workspaceContext.selectedWorkspaceId;
+    const workspaceId = this.creatableWorkspaces.find(workspace => workspace.id === selectedId)?.id || this.creatableWorkspaces[0].id;
     this.createError = '';
     this.createProjectForm.reset({
       workspaceId,
@@ -969,6 +975,7 @@ export default class ProjectListComponent implements OnInit, OnDestroy {
     }
 
     const { workspaceId, title, description, deadline, managerId } = this.createProjectForm.getRawValue();
+    if (!this.creatableWorkspaces.some(workspace => workspace.id === workspaceId)) return;
     this.isCreating = true;
     this.createError = '';
 
@@ -1120,11 +1127,8 @@ export default class ProjectListComponent implements OnInit, OnDestroy {
 
   canManageProject(project: Project): boolean {
     const user = this.authStore.getUser();
-    if (!user) return true;
-    return user.role === 'ADMIN'
-      || user.role === 'PROJECT_MANAGER'
-      || project.manager?.id === user.id
-      || project.workspace?.owner?.id === user.id;
+    if (!user) return false;
+    return project.canManage === true;
   }
 
   onFilterControlsChanged(): void {

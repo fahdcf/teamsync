@@ -7,7 +7,6 @@ import { finalize, switchMap } from 'rxjs';
 import { AuthService } from '../../../api/auth.service';
 import { AuthStore } from '../../../store/auth.store';
 import { TokenService } from '../../../core/services/token.service';
-import { UserRole } from '../../../shared/models/user.model';
 
 @Component({
   selector: 'app-register',
@@ -27,7 +26,6 @@ export default class RegisterComponent {
     username: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(30)]],
     email: ['', [Validators.required, Validators.email]],
     password: ['', [Validators.required, Validators.minLength(6)]],
-    role: ['TEAM_MEMBER' as UserRole],
   });
 
   isLoading = false;
@@ -52,9 +50,9 @@ export default class RegisterComponent {
 
     this.isLoading = true;
     this.serverError = '';
-    const { email, password, username, role } = this.form.value;
+    const { email, password, username } = this.form.value;
 
-    this.authService.register({ username: username!, email: email!, password: password!, role: role as UserRole }).pipe(
+    this.authService.register({ username: username!, email: email!, password: password! }).pipe(
       switchMap(() => this.authService.login({ email: email!, password: password! })),
       switchMap((res) => {
         this.tokenService.setToken(res.token);

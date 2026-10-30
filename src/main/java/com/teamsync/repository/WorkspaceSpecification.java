@@ -1,6 +1,6 @@
 package com.teamsync.repository;
 
-import com.teamsync.domain.entity.Workspace;
+import com.teamsync.entity.Workspace;
 import org.springframework.data.jpa.domain.Specification;
 
 public class WorkspaceSpecification {

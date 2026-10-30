@@ -1,9 +1,11 @@
 package com.teamsync.patterns.creational.singleton;
 
-import java.time.LocalDateTime;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class AppLogger {
 
+    private static final Logger LOG = LoggerFactory.getLogger(AppLogger.class);
     private static volatile AppLogger instance;
 
     private AppLogger() {}
@@ -20,14 +22,14 @@ public class AppLogger {
     }
 
     public void info(String msg) {
-        System.out.println("[INFO]  " + LocalDateTime.now() + " — " + msg);
+        LOG.info(msg);
     }
 
     public void warn(String msg) {
-        System.out.println("[WARN]  " + LocalDateTime.now() + " — " + msg);
+        LOG.warn(msg);
     }
 
     public void error(String msg) {
-        System.out.println("[ERROR] " + LocalDateTime.now() + " — " + msg);
+        LOG.error(msg);
     }
 }

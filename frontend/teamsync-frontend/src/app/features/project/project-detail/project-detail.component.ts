@@ -49,7 +49,7 @@ type Tab = 'board' | 'analytics' | 'settings';
       <!-- Title row -->
       <div class="pd-title-row">
         <div class="pd-title-left">
-          <h1 *ngIf="!isEditingTitle" (click)="isEditingTitle = true">{{ project.title }}</h1>
+          <h1 *ngIf="!isEditingTitle" (click)="project.canManage && (isEditingTitle = true)">{{ project.title }}</h1>
           <span class="chevron-down" *ngIf="!isEditingTitle">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
           </span>
@@ -378,8 +378,7 @@ export default class ProjectDetailComponent implements OnInit {
   ];
 
   get canArchive(): boolean {
-    const role = this.authStore.getUser()?.role;
-    return role === 'ADMIN' || role === 'PROJECT_MANAGER';
+    return this.project?.canManage === true;
   }
 
   get favoriteLabel(): string {

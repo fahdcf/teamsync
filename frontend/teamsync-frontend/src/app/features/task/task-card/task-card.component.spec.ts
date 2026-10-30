@@ -33,7 +33,7 @@ describe('TaskCardComponent', () => {
   it('renders task title', () => {
     component.task = { ...baseTask };
     fixture.detectChanges();
-    const el = fixture.nativeElement.querySelector('.card-title');
+    const el = fixture.nativeElement.querySelector('.tc-title');
     expect(el.textContent.trim()).toContain('Fix login bug');
   });
 
@@ -41,7 +41,7 @@ describe('TaskCardComponent', () => {
     component.task = { ...baseTask, dueDate: '2020-01-01', status: 'TODO' };
     fixture.detectChanges();
     expect(component.isOverdue).toBe(true);
-    const dateEl = fixture.nativeElement.querySelector('.due-date');
+    const dateEl = fixture.nativeElement.querySelector('.tc-date');
     expect(dateEl?.classList.contains('overdue')).toBe(true);
   });
 
@@ -56,13 +56,13 @@ describe('TaskCardComponent', () => {
     fixture.detectChanges();
     let emitted = false;
     component.cardClick.subscribe(() => { emitted = true; });
-    fixture.nativeElement.querySelector('.task-card').click();
+    fixture.nativeElement.querySelector('.tc').click();
     expect(emitted).toBe(true);
   });
 
   it('priority badge displays correct variant for CRITICAL', () => {
     component.task = { ...baseTask, priority: 'CRITICAL' };
     fixture.detectChanges();
-    expect(component.priorityVariant).toBe('danger');
+    expect(fixture.nativeElement.querySelector('.tc-priority').classList.contains('critical')).toBe(true);
   });
 });

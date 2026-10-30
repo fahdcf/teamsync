@@ -24,7 +24,7 @@ type BadgeVariant = 'info' | 'accent' | 'success' | 'muted' | 'warning' | 'dange
         </div>
         <div class="header-content">
           <h1>Design Patterns</h1>
-          <p>14 GoF Design Patterns implemented across 3 categories</p>
+          <p>Supporting patterns retained where they simplify application behavior</p>
         </div>
         <a routerLink="/dashboard" class="back-link">← Back to App</a>
       </header>

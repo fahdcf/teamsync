@@ -1,8 +1,8 @@
 package com.teamsync.repository;
 
-import com.teamsync.domain.entity.Project;
-import com.teamsync.domain.entity.ProjectFavorite;
-import com.teamsync.domain.entity.User;
+import com.teamsync.entity.Project;
+import com.teamsync.entity.ProjectFavorite;
+import com.teamsync.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;

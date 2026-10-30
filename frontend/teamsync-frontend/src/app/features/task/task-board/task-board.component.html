@@ -27,7 +27,7 @@
           <span class="column-title">{{ col.label }}</span>
           <span class="task-count">{{ col.tasks.length }}</span>
         </div>
-        <button class="add-btn" type="button" aria-label="Add task" (click)="openCreate(col.status)">+</button>
+        <button class="add-btn" type="button" aria-label="Add task" [disabled]="!canManage || col.status !== 'TODO'" (click)="openCreate(col.status)">+</button>
       </header>
 
       <div
@@ -38,7 +38,7 @@
         [cdkDropListConnectedTo]="columnIds"
         (cdkDropListDropped)="onDrop($event)">
         <ng-container *ngIf="groupMode === 'status'; else priorityGroupedColumn">
-          <div *ngFor="let task of col.tasks" cdkDrag [cdkDragData]="task" class="task-card-drag">
+          <div *ngFor="let task of col.tasks" cdkDrag [cdkDragDisabled]="!task.canChangeStatus" [cdkDragData]="task" class="task-card-drag">
             <app-task-card
               [task]="task"
               [commentCount]="commentCountFor(task)"
@@ -54,7 +54,7 @@
               <span>{{ priorityLabel(priority) }}</span>
               <small>{{ tasksByPriority(col.tasks, priority).length }}</small>
             </div>
-            <div *ngFor="let task of tasksByPriority(col.tasks, priority)" cdkDrag [cdkDragData]="task" class="task-card-drag">
+            <div *ngFor="let task of tasksByPriority(col.tasks, priority)" cdkDrag [cdkDragDisabled]="!task.canChangeStatus" [cdkDragData]="task" class="task-card-drag">
               <app-task-card
                 [task]="task"
                 [commentCount]="commentCountFor(task)"
@@ -69,7 +69,7 @@
           <span>No tasks</span>
         </div>
 
-        <button class="column-add-task" type="button" (click)="openCreate(col.status)">+ Add task</button>
+        <button class="column-add-task" type="button" [disabled]="!canManage || col.status !== 'TODO'" (click)="openCreate(col.status)">+ Add task</button>
       </div>
     </section>
   </div>

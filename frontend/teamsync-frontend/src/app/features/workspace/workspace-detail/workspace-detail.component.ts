@@ -51,7 +51,7 @@ import { SkeletonComponent } from '../../../shared/components/skeleton/skeleton.
               <p>{{ workspace.description || 'No description provided.' }}</p>
               <div class="workspace-members compact-members">
                 <span *ngFor="let member of workspace.members | slice:0:3">{{ initials(member) }}</span>
-                <button type="button" (click)="openAddMember()" aria-label="Add member">+</button>
+                <button type="button" [disabled]="!workspace.canManage" (click)="openAddMember()" aria-label="Add member">+</button>
                 <em>{{ memberCount }} members</em>
                 <strong><i></i>{{ memberCount }} total</strong>
               </div>
@@ -66,10 +66,10 @@ import { SkeletonComponent } from '../../../shared/components/skeleton/skeleton.
               <span><small>Tasks</small><strong>{{ completionRate }}%</strong></span>
             </div>
             <div class="workspace-actions hero-actions">
-              <button type="button" class="invite-btn" (click)="openAddMember()">
+              <button type="button" class="invite-btn" [disabled]="!workspace.canManage" (click)="openAddMember()">
                 <span aria-hidden="true">+</span> Invite members
               </button>
-              <button type="button" class="settings-btn" (click)="openSettings()">
+              <button type="button" class="settings-btn" [disabled]="!workspace.canManage" (click)="openSettings()">
                 <span aria-hidden="true">o</span> Workspace settings
               </button>
             </div>
@@ -131,8 +131,8 @@ import { SkeletonComponent } from '../../../shared/components/skeleton/skeleton.
                     <button type="button" aria-label="Project options" (click)="toggleProjectMenu(project.id, $event)">...</button>
                     <div class="workspace-menu" *ngIf="openProjectMenuId === project.id">
                       <button type="button" (click)="openProject(project, $event)">Open project</button>
-                      <button type="button" (click)="openEditProject(project, $event)">Edit project</button>
-                      <button type="button" (click)="archiveProject(project, $event)">Archive project</button>
+                      <button type="button" [disabled]="!project.canManage" (click)="openEditProject(project, $event)">Edit project</button>
+                      <button type="button" [disabled]="!project.canManage" (click)="archiveProject(project, $event)">Archive project</button>
                     </div>
                   </div>
                 </div>
@@ -166,7 +166,7 @@ import { SkeletonComponent } from '../../../shared/components/skeleton/skeleton.
             title="No projects yet"
             description="Create the first project for this workspace"
             actionLabel="New Project"
-            (action)="isCreateProjectOpen = true">
+            (action)="workspace.canCreateProject && (isCreateProjectOpen = true)">
           </app-empty-state>
         </section>
       </main>
@@ -287,7 +287,7 @@ import { SkeletonComponent } from '../../../shared/components/skeleton/skeleton.
           <label class="field-label">Manager</label>
           <select class="field-input" formControlName="managerId">
             <option value="">Select manager</option>
-            <option *ngFor="let member of workspace?.members" [value]="member.id">{{ member.username }}</option>
+            <option *ngFor="let member of eligibleManagers" [value]="member.id">{{ member.username }}</option>
           </select>
         </div>
         <div class="form-actions">
@@ -307,9 +307,9 @@ import { SkeletonComponent } from '../../../shared/components/skeleton/skeleton.
         </div>
         <div class="field">
           <label class="field-label">Manager</label>
-          <select class="field-input" formControlName="managerId">
+          <select class="field-input" [attr.disabled]="!editingProject?.canChangeManager ? true : null" formControlName="managerId">
             <option value="">Select manager</option>
-            <option *ngFor="let member of workspace?.members" [value]="member.id">{{ member.username }}</option>
+            <option *ngFor="let member of eligibleManagers" [value]="member.id">{{ member.username }}</option>
           </select>
         </div>
         <div class="form-actions">
@@ -374,6 +374,13 @@ export default class WorkspaceDetailComponent implements OnInit {
     this.load();
   }
 
+  get eligibleManagers(): User[] {
+    const workspace = this.workspace;
+    if (!workspace) return [];
+    return [workspace.owner, ...workspace.members].filter((user, index, all) =>
+      all.findIndex(other => other.id === user.id) === index && (user.role !== 'TEAM_MEMBER' || user.id === workspace.owner.id));
+  }
+
   get memberCount(): number {
     return this.workspace?.members.length || 0;
   }
@@ -397,13 +404,11 @@ export default class WorkspaceDetailComponent implements OnInit {
       workspace: this.workspaceService.getById(id),
       projects: this.projectService.getByWorkspace(id, this.projectFilters()),
       activity: this.workspaceService.getActivity(id),
-      availableMembers: this.workspaceService.getAvailableMembers(id),
     }).subscribe({
-      next: ({ workspace, projects, activity, availableMembers }) => {
+      next: ({ workspace, projects, activity }) => {
         this.workspace = workspace;
         this.projects = projects;
         this.activity = activity;
-        this.availableMembers = availableMembers;
         this.isLoading = false;
         this.refreshWorkspaceAi();
       },
@@ -415,7 +420,7 @@ export default class WorkspaceDetailComponent implements OnInit {
   }
 
   openAddMember(): void {
-    if (!this.workspace) return;
+    if (!this.workspace?.canManage) return;
     this.memberForm.reset({ userId: '' });
     this.isAddMemberOpen = true;
     this.workspaceService.getAvailableMembers(this.workspace.id).subscribe({
@@ -533,7 +538,7 @@ export default class WorkspaceDetailComponent implements OnInit {
       title: title!,
       description: description || '',
       deadline: deadline || '',
-      managerId: managerId || '',
+      managerId: managerId || undefined,
     }).subscribe({
       next: () => {
         this.closeEditProject();
@@ -561,14 +566,14 @@ export default class WorkspaceDetailComponent implements OnInit {
   }
 
   createProject(): void {
-    if (!this.projectForm.valid || !this.workspace) return;
+    if (!this.projectForm.valid || !this.workspace?.canCreateProject) return;
     this.isCreatingProject = true;
     const { title, description, deadline, managerId } = this.projectForm.value;
     this.projectService.create(this.workspace.id, {
       title: title!,
       description: description || '',
       deadline: deadline || '',
-      managerId: managerId || '',
+      managerId: managerId || undefined,
     }).subscribe({
       next: () => {
         this.loadProjects();

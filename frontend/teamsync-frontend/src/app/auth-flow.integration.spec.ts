@@ -34,6 +34,7 @@ describe('Auth Flow Integration', () => {
   afterEach(() => {
     httpMock.verify();
     localStorage.clear();
+    sessionStorage.clear();
   });
 
   describe('Login flow', () => {
@@ -81,7 +82,7 @@ describe('Auth Flow Integration', () => {
       const loginReq = httpMock.expectOne(`${BASE}/auth/login`);
       loginReq.flush({ message: 'Unauthorized' }, { status: 401, statusText: 'Unauthorized' });
 
-      expect(toastr.error).toHaveBeenCalled();
+      expect(component.serverError).toBe('Invalid email or password.');
       expect(router.navigate).not.toHaveBeenCalledWith(['/dashboard']);
     });
   });
@@ -107,7 +108,7 @@ describe('Auth Flow Integration', () => {
     });
 
     it('register then auto-login: POST /auth/register → POST /auth/login → GET /users/me → navigate /dashboard', () => {
-      component.form.setValue({ username: 'Ahmed', email: 'a@test.com', password: 'pass123', role: 'TEAM_MEMBER' });
+      component.form.setValue({ username: 'Ahmed', email: 'a@test.com', password: 'pass123' });
       component.onSubmit();
 
       const registerReq = httpMock.expectOne(`${BASE}/auth/register`);

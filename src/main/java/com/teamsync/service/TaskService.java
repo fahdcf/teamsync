@@ -1,25 +1,26 @@
 package com.teamsync.service;
 
-import com.teamsync.domain.entity.Project;
-import com.teamsync.domain.entity.Task;
-import com.teamsync.domain.entity.User;
-import com.teamsync.domain.enums.TaskPriority;
-import com.teamsync.domain.enums.TaskStatus;
-import com.teamsync.domain.enums.ProjectEventType;
-import com.teamsync.patterns.behavioral.chain.ValidationChainFactory;
+import com.teamsync.dto.SubtaskResponseDTO;
+import java.util.Objects;
+import java.util.ArrayList;
+import com.teamsync.repository.ProjectRepository;
+import com.teamsync.entity.Project;
+import com.teamsync.entity.Task;
+import com.teamsync.entity.User;
+import com.teamsync.enums.TaskPriority;
+import com.teamsync.enums.TaskStatus;
+import com.teamsync.enums.ProjectEventType;
 import com.teamsync.patterns.behavioral.command.AssignTaskCommand;
 import com.teamsync.patterns.behavioral.command.ChangeStatusCommand;
 import com.teamsync.patterns.behavioral.command.DeleteTaskCommand;
 import com.teamsync.patterns.behavioral.command.TaskCommandInvoker;
 import com.teamsync.patterns.behavioral.observer.ProjectEvent;
-import com.teamsync.patterns.behavioral.observer.ProjectEventPublisher;
+import org.springframework.context.ApplicationEventPublisher;
 import com.teamsync.patterns.behavioral.state.TaskStateMachine;
-import com.teamsync.patterns.behavioral.strategy.RoundRobinStrategy;
 import com.teamsync.patterns.behavioral.strategy.TaskAssignmentService;
-import com.teamsync.patterns.behavioral.strategy.WorkloadStrategy;
-import com.teamsync.presentation.dto.TaskRequestDTO;
-import com.teamsync.presentation.dto.TaskResponseDTO;
-import com.teamsync.presentation.dto.UserResponseDTO;
+import com.teamsync.dto.TaskRequestDTO;
+import com.teamsync.dto.TaskResponseDTO;
+import com.teamsync.dto.UserResponseDTO;
 import com.teamsync.repository.TaskRepository;
 import com.teamsync.repository.TaskSpecification;
 import com.teamsync.repository.UserRepository;
@@ -29,7 +30,10 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
+import com.teamsync.security.ResourceAuthorization;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -38,30 +42,38 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
-public class TaskService implements com.teamsync.patterns.structural.proxy.TaskService {
+@Transactional
+@PreAuthorize("isAuthenticated()")
+public class TaskService {
+
+    private final ResourceAuthorization permissions;
 
     private final TaskRepository taskRepository;
+    private final ProjectRepository projectRepository;
     private final ProjectService projectService;
     private final UserRepository userRepository;
     private final CommentRepository commentRepository;
     private final TaskStateMachine stateMachine;
     private final TaskAssignmentService assignmentService;
-    private final ProjectEventPublisher eventPublisher;
+    private final ApplicationEventPublisher eventPublisher;
     private final TaskCommandInvoker commandInvoker;
-    private final ValidationChainFactory validationChainFactory;
+    private final TaskUndoService undoService;
     private final ActivityLogService activityLogService;
 
-    public TaskService(TaskRepository taskRepository,
+    public TaskService(ResourceAuthorization permissions, TaskRepository taskRepository,
+                       ProjectRepository projectRepository,
                        ProjectService projectService,
                        UserRepository userRepository,
                        CommentRepository commentRepository,
                        TaskStateMachine stateMachine,
                        TaskAssignmentService assignmentService,
-                       ProjectEventPublisher eventPublisher,
+                       ApplicationEventPublisher eventPublisher,
                        TaskCommandInvoker commandInvoker,
-                       ValidationChainFactory validationChainFactory,
+                       TaskUndoService undoService,
                        ActivityLogService activityLogService) {
+        this.permissions = permissions;
         this.taskRepository = taskRepository;
+        this.projectRepository = projectRepository;
         this.projectService = projectService;
         this.userRepository = userRepository;
         this.commentRepository = commentRepository;
@@ -69,17 +81,21 @@ public class TaskService implements com.teamsync.patterns.structural.proxy.TaskS
         this.assignmentService = assignmentService;
         this.eventPublisher = eventPublisher;
         this.commandInvoker = commandInvoker;
-        this.validationChainFactory = validationChainFactory;
+        this.undoService = undoService;
         this.activityLogService = activityLogService;
     }
 
+    @PreAuthorize("@permissions.manageProject(#projectId)")
     public TaskResponseDTO create(UUID projectId, TaskRequestDTO request) {
         return create(projectId, request, null);
     }
 
+    @PreAuthorize("@permissions.manageProject(#projectId)")
     public TaskResponseDTO create(UUID projectId, TaskRequestDTO request, UUID userId) {
         Project project = projectService.getProject(projectId);
-        validationChainFactory.buildChain().validate(request, project);
+        validateRequest(request, project);
+        if (request.getDueDate() != null && request.getDueDate().isBefore(LocalDate.now()))
+            throw new IllegalArgumentException("Due date must not be in the past");
         User assignee = resolveUser(request.getAssigneeId());
 
         Task task = Task.builder()
@@ -87,25 +103,30 @@ public class TaskService implements com.teamsync.patterns.structural.proxy.TaskS
                 .description(request.getDescription())
                 .taskIdentifier(generateTaskIdentifier(project))
                 .priority(request.getPriority() != null ? request.getPriority() : TaskPriority.MEDIUM)
-                .status(request.getStatus() != null ? request.getStatus() : TaskStatus.TODO)
+                .status(TaskStatus.TODO)
                 .position(nextPosition(project))
                 .project(project)
                 .assignee(assignee)
                 .dueDate(request.getDueDate())
                 .build();
 
+        if (request.getStatus() != null && request.getStatus() != TaskStatus.TODO)
+            stateMachine.transition(task, request.getStatus(), taskRepository);
         Task saved = taskRepository.save(task);
         activityLogService.log(resolveActor(userId, assignee), "TASK_CREATED", "TASK", saved.getId());
-        eventPublisher.publish(new ProjectEvent(ProjectEventType.TASK_CREATED, saved.getTitle(), null));
+        eventPublisher.publishEvent(new ProjectEvent(ProjectEventType.TASK_CREATED, saved.getTitle(), null));
         return toDTO(saved);
     }
 
+    @PreAuthorize("@permissions.manageTask(#id)")
     public TaskResponseDTO update(UUID id, TaskRequestDTO request) {
         return update(id, request, null);
     }
 
+    @PreAuthorize("@permissions.manageTask(#id)")
     public TaskResponseDTO update(UUID id, TaskRequestDTO request, UUID userId) {
-        Task task = getTask(id);
+        Task task = getTaskForUpdate(id);
+        validateRequest(request, task.getProject());
 
         task.setTitle(request.getTitle());
         if (request.getDescription() != null) task.setDescription(request.getDescription());
@@ -113,62 +134,65 @@ public class TaskService implements com.teamsync.patterns.structural.proxy.TaskS
         if (request.getDueDate() != null) task.setDueDate(request.getDueDate());
         if (request.getAssigneeId() != null) task.setAssignee(resolveUser(request.getAssigneeId()));
 
+        if (request.getStatus() != null && request.getStatus() != task.getStatus())
+            stateMachine.transition(task, request.getStatus(), taskRepository);
         Task saved = taskRepository.save(task);
         activityLogService.log(resolveActor(userId, saved.getAssignee()), "TASK_UPDATED", "TASK", saved.getId());
         return toDTO(saved);
     }
 
+    @PreAuthorize("@permissions.manageTask(#id) and @permissions.selfId(#userId)")
     public void delete(UUID id, UUID userId) {
-        Task task = getTask(id);
-        commandInvoker.execute(userId, new DeleteTaskCommand(task, taskRepository));
+        Task task = getTaskForUpdate(id);
+        commandInvoker.execute(userId, new DeleteTaskCommand(task, taskRepository, commentRepository,
+                projectRepository, userRepository));
     }
 
+    @PreAuthorize("@permissions.manageTask(#id) and @permissions.selfId(#userId)")
     public TaskResponseDTO assign(UUID id, UUID assigneeId, UUID userId) {
-        Task task = getTask(id);
+        Task task = getTaskForUpdate(id);
         User assignee = userRepository.findById(assigneeId)
                 .orElseThrow(() -> new NoSuchElementException("User not found: " + assigneeId));
+        permissions.validateAssignee(task.getProject(), assigneeId);
         commandInvoker.execute(userId, new AssignTaskCommand(task, assignee, taskRepository));
         activityLogService.log(resolveUser(userId), "TASK_ASSIGNED", "TASK", task.getId());
-        eventPublisher.publish(new ProjectEvent(ProjectEventType.TASK_ASSIGNED,
+        eventPublisher.publishEvent(new ProjectEvent(ProjectEventType.TASK_ASSIGNED,
                 task.getTitle() + " → " + assignee.getUsername(), assignee));
         return toDTO(taskRepository.findById(id).orElse(task));
     }
 
+    @PreAuthorize("@permissions.manageProject(#projectId) and @permissions.manageTask(#taskId)")
     public TaskResponseDTO autoAssign(UUID projectId, UUID taskId, String strategyName) {
         Project project = projectService.getProject(projectId);
-        Task task = getTask(taskId);
-        List<User> members = new java.util.ArrayList<>(project.getWorkspace().getMembers());
+        Task task = getTaskForUpdate(taskId);
+        if (!task.getProject().getId().equals(projectId)) throw new IllegalArgumentException("Task must belong to the project");
+        List<User> members = new ArrayList<>(project.getWorkspace().getMembers());
         if (project.getWorkspace().getOwner() != null && members.stream().noneMatch(user -> user.getId().equals(project.getWorkspace().getOwner().getId()))) {
             members.add(project.getWorkspace().getOwner());
         }
-        if (project.getManager() != null && members.stream().noneMatch(user -> user.getId().equals(project.getManager().getId()))) {
-            members.add(project.getManager());
-        }
 
-        if ("roundrobin".equalsIgnoreCase(strategyName)) {
-            assignmentService.setStrategy(new RoundRobinStrategy());
-        } else {
-            assignmentService.setStrategy(new WorkloadStrategy());
-        }
-
-        User assigned = assignmentService.autoAssign(task, members);
+        User assigned = assignmentService.autoAssign(task, members, strategyName);
         task.setAssignee(assigned);
         return toDTO(taskRepository.save(task));
     }
 
+    @PreAuthorize("@permissions.workOnTask(#id) and @permissions.selfId(#userId)")
     public TaskResponseDTO changeStatus(UUID id, TaskStatus targetStatus, UUID userId) {
-        Task task = getTask(id);
+        Task task = getTaskForUpdate(id);
         commandInvoker.execute(userId, new ChangeStatusCommand(task, targetStatus, stateMachine, taskRepository));
         activityLogService.log(resolveUser(userId), "TASK_STATUS_CHANGED", "TASK", task.getId());
-        eventPublisher.publish(new ProjectEvent(ProjectEventType.TASK_STATUS_CHANGED,
+        eventPublisher.publishEvent(new ProjectEvent(ProjectEventType.TASK_STATUS_CHANGED,
                 task.getTitle() + " → " + targetStatus, task.getAssignee()));
         return toDTO(taskRepository.findById(id).orElseThrow());
     }
 
+    @PreAuthorize("@permissions.manageProject(#projectId)")
     public void reorder(UUID projectId, List<UUID> taskIds) {
         Project project = projectService.getProject(projectId);
+        if (taskIds.stream().anyMatch(Objects::isNull) || taskIds.stream().distinct().count() != taskIds.size())
+            throw new IllegalArgumentException("Task ids must be non-null and unique");
         for (int i = 0; i < taskIds.size(); i++) {
-            Task task = getTask(taskIds.get(i));
+            Task task = getTaskForUpdate(taskIds.get(i));
             if (!task.getProject().getId().equals(project.getId())) {
                 throw new IllegalArgumentException("Task does not belong to project: " + task.getId());
             }
@@ -177,10 +201,12 @@ public class TaskService implements com.teamsync.patterns.structural.proxy.TaskS
         }
     }
 
+    @PreAuthorize("@permissions.selfId(#userId)")
     public void undo(UUID userId) {
-        commandInvoker.undo(userId);
+        undoService.undo(userId, commandInvoker.peek(userId));
     }
 
+    @PreAuthorize("@permissions.readProject(#projectId)")
     public List<TaskResponseDTO> findByProject(UUID projectId, TaskStatus status, TaskPriority priority,
                                               UUID assigneeId, String keyword, Boolean overdue) {
         Project project = projectService.getProject(projectId);
@@ -193,6 +219,7 @@ public class TaskService implements com.teamsync.patterns.structural.proxy.TaskS
         return taskRepository.findAll(spec).stream().map(this::toDTO).collect(Collectors.toList());
     }
 
+    @PreAuthorize("@permissions.self(#userEmail)")
     public Page<TaskResponseDTO> findVisibleTasks(String userEmail, TaskStatus status, TaskPriority priority,
                                                   UUID projectId, UUID workspaceId, UUID assigneeId,
                                                   String keyword, Boolean overdue, LocalDate dueFrom,
@@ -214,17 +241,25 @@ public class TaskService implements com.teamsync.patterns.structural.proxy.TaskS
         return taskRepository.findAll(spec, pageable).map(this::toDTO);
     }
 
+    @PreAuthorize("@permissions.readTask(#id)")
     public TaskResponseDTO findById(UUID id) {
         return toDTO(getTask(id));
     }
 
+    @PreAuthorize("@permissions.readTask(#id)")
     public Task getTask(UUID id) {
         return taskRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Task not found: " + id));
     }
 
-    public TaskRepository getTaskRepository() {
-        return taskRepository;
+    private void validateRequest(TaskRequestDTO request, Project project) {
+        if (request.getTitle() == null || request.getTitle().isBlank() || request.getTitle().length() > 100)
+            throw new IllegalArgumentException("Task title must contain 1 to 100 characters");
+        permissions.validateAssignee(project, request.getAssigneeId());
+    }
+
+    private Task getTaskForUpdate(UUID id) {
+        return taskRepository.findForUpdate(id).orElseThrow(() -> new NoSuchElementException("Task not found"));
     }
 
     private User resolveUser(UUID userId) {
@@ -234,8 +269,7 @@ public class TaskService implements com.teamsync.patterns.structural.proxy.TaskS
     }
 
     private User resolveActor(UUID userId, User fallback) {
-        if (userId == null) return fallback;
-        return resolveUser(userId);
+        return permissions.currentUser();
     }
 
     private UserResponseDTO userToDTO(User u) {
@@ -287,6 +321,8 @@ public class TaskService implements com.teamsync.patterns.structural.proxy.TaskS
     public TaskResponseDTO toDTO(Task t) {
         return TaskResponseDTO.builder()
                 .id(t.getId())
+                .canManage(permissions.manageProject(t.getProject().getId()))
+                .canChangeStatus(permissions.workOnTask(t.getId()))
                 .taskIdentifier(t.getTaskIdentifier())
                 .title(t.getTitle())
                 .description(t.getDescription())
@@ -300,7 +336,7 @@ public class TaskService implements com.teamsync.patterns.structural.proxy.TaskS
                 .workspaceName(t.getProject().getWorkspace().getName())
                 .commentCount(commentRepository.countByTask(t))
                 .subtasks(t.getSubtasks().stream()
-                        .map(subtask -> com.teamsync.presentation.dto.SubtaskResponseDTO.builder()
+                        .map(subtask -> SubtaskResponseDTO.builder()
                                 .id(subtask.getId())
                                 .title(subtask.getTitle())
                                 .completed(subtask.isCompleted())

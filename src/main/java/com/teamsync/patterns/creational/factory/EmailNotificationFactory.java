@@ -1,8 +1,8 @@
 package com.teamsync.patterns.creational.factory;
 
-import com.teamsync.domain.entity.Notification;
-import com.teamsync.domain.entity.User;
-import com.teamsync.domain.enums.NotificationType;
+import com.teamsync.entity.Notification;
+import com.teamsync.entity.User;
+import com.teamsync.enums.NotificationType;
 import com.teamsync.patterns.creational.singleton.AppLogger;
 import com.teamsync.repository.NotificationRepository;
 import org.springframework.stereotype.Component;

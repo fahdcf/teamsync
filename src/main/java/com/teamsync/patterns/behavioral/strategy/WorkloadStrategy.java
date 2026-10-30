@@ -1,8 +1,8 @@
 package com.teamsync.patterns.behavioral.strategy;
 
-import com.teamsync.domain.entity.Task;
-import com.teamsync.domain.entity.User;
-import com.teamsync.domain.enums.TaskStatus;
+import com.teamsync.entity.Task;
+import com.teamsync.entity.User;
+import com.teamsync.enums.TaskStatus;
 import com.teamsync.repository.TaskRepository;
 
 import java.util.Comparator;
@@ -15,6 +15,7 @@ public class WorkloadStrategy implements AssignmentStrategy {
         return projectMembers.stream()
                 .min(Comparator.comparingLong(member ->
                         taskRepository.findByAssignee(member).stream()
+                                .filter(t -> t.getProject().getWorkspace().getId().equals(task.getProject().getWorkspace().getId()))
                                 .filter(t -> t.getStatus() == TaskStatus.IN_PROGRESS)
                                 .count()))
                 .orElseThrow(() -> new IllegalStateException("No members available"));

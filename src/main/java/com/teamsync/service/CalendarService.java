@@ -1,14 +1,17 @@
 package com.teamsync.service;
 
-import com.teamsync.domain.entity.Project;
-import com.teamsync.domain.entity.Task;
-import com.teamsync.domain.entity.User;
-import com.teamsync.domain.entity.Workspace;
-import com.teamsync.domain.enums.TaskPriority;
+import java.util.stream.Stream;
+import com.teamsync.entity.Project;
+import com.teamsync.entity.Task;
+import com.teamsync.entity.User;
+import com.teamsync.entity.Workspace;
+import com.teamsync.enums.TaskPriority;
 import com.teamsync.repository.ProjectRepository;
 import com.teamsync.repository.TaskRepository;
 import com.teamsync.repository.WorkspaceRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
@@ -19,6 +22,8 @@ import java.util.Set;
 import java.util.UUID;
 
 @Service
+@Transactional(readOnly = true)
+@PreAuthorize("isAuthenticated()")
 public class CalendarService {
 
     private final UserService userService;
@@ -36,6 +41,7 @@ public class CalendarService {
         this.taskRepository = taskRepository;
     }
 
+    @PreAuthorize("@permissions.self(#userEmail)")
     public List<Map<String, Object>> getEvents(String userEmail, LocalDate from, LocalDate to, UUID workspaceId,
                                                UUID projectId, UUID assigneeId, TaskPriority priority) {
         User currentUser = userService.findByEmail(userEmail);
@@ -73,7 +79,7 @@ public class CalendarService {
                         .map(this::taskEvent)
                         .toList();
 
-        return java.util.stream.Stream.concat(projectEvents.stream(), taskEvents.stream()).toList();
+        return Stream.concat(projectEvents.stream(), taskEvents.stream()).toList();
     }
 
     private Set<Workspace> visibleWorkspaces(User user) {

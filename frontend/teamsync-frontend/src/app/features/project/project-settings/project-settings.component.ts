@@ -22,7 +22,7 @@ import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialo
           <label class="field-label">Deadline</label>
           <input type="date" class="field-input" formControlName="deadline">
         </div>
-        <app-button type="submit" size="sm" [loading]="isSaving">Save Changes</app-button>
+        <app-button type="submit" size="sm" [loading]="isSaving" [disabled]="!project.canManage">Save Changes</app-button>
       </form>
 
       <div *ngIf="canArchive" class="danger-zone">
@@ -83,8 +83,7 @@ export class ProjectSettingsComponent implements OnInit {
   isConfirmOpen = false;
 
   get canArchive(): boolean {
-    const role = this.authStore.getUser()?.role;
-    return role === 'ADMIN' || role === 'PROJECT_MANAGER';
+    return this.project?.canManage === true;
   }
 
   ngOnInit(): void {
@@ -96,7 +95,7 @@ export class ProjectSettingsComponent implements OnInit {
   }
 
   save(): void {
-    if (this.form.invalid) return;
+    if (this.form.invalid || !this.project.canManage) return;
     this.isSaving = true;
     const { title, description, deadline } = this.form.value;
     this.projectService.update(this.project.id, { title: title!, description: description || '', deadline: deadline || '' }).subscribe({
@@ -106,6 +105,7 @@ export class ProjectSettingsComponent implements OnInit {
   }
 
   archive(): void {
+    if (!this.project.canManage) return;
     this.isConfirmOpen = false;
     this.projectService.archive(this.project.id).subscribe({
       next: p => this.updated.emit(p)

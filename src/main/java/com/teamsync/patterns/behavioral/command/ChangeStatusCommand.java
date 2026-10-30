@@ -1,7 +1,8 @@
 package com.teamsync.patterns.behavioral.command;
 
-import com.teamsync.domain.entity.Task;
-import com.teamsync.domain.enums.TaskStatus;
+import java.util.UUID;
+import com.teamsync.entity.Task;
+import com.teamsync.enums.TaskStatus;
 import com.teamsync.patterns.behavioral.state.TaskStateMachine;
 import com.teamsync.repository.TaskRepository;
 
@@ -29,7 +30,10 @@ public class ChangeStatusCommand implements TaskCommand {
 
     @Override
     public void undo() {
-        task.setStatus(previousStatus);
-        taskRepository.save(task);
+        Task current = taskRepository.findForUpdate(task.getId()).orElseThrow();
+        stateMachine.undoTransition(current, newStatus, previousStatus, taskRepository);
     }
+
+    public UUID projectId() { return task.getProject().getId(); }
+    public UUID taskId() { return task.getId(); }
 }

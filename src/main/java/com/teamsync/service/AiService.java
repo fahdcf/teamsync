@@ -3,14 +3,15 @@ package com.teamsync.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.teamsync.infrastructure.exception.ValidationException;
+import com.teamsync.exception.ValidationException;
 import com.teamsync.patterns.creational.singleton.AppLogger;
-import com.teamsync.presentation.dto.AiRequestDTO;
-import com.teamsync.presentation.dto.AiResponseDTO;
+import com.teamsync.dto.AiRequestDTO;
+import com.teamsync.dto.AiResponseDTO;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.util.StreamUtils;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
@@ -20,6 +21,7 @@ import java.util.Map;
 import java.nio.charset.StandardCharsets;
 
 @Service
+@PreAuthorize("isAuthenticated()")
 public class AiService {
 
     private final RestClient restClient;
@@ -46,10 +48,12 @@ public class AiService {
                 .build();
     }
 
+    @PreAuthorize("@permissions.self(#username)")
     public AiResponseDTO chat(AiRequestDTO request, String username) {
         return askProvider(request, username, request.getQuestion());
     }
 
+    @PreAuthorize("@permissions.self(#username)")
     public AiResponseDTO insights(AiRequestDTO request, String username) {
         String question = "Generate 3 concise, specific TeamSync insights from this data. "
                 + "Mention exact numbers when they exist and avoid generic advice.";

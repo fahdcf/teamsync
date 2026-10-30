@@ -1,3 +1,5 @@
+> **Archive historique — avant refactoring.** Ce rapport décrit l'ancienne démonstration académique des patterns. Il ne décrit pas l'architecture ni les permissions actuelles. Voir [README](../README.md) et [audit de sécurité](SECURITY_AUDIT.md) pour le code actuel.
+
 ﻿# Rapport Genie Logiciel - TeamSync
 
 ## Sujet

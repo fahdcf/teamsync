@@ -51,13 +51,6 @@
           <small *ngIf="fieldError('password')">{{ fieldError('password') }}</small>
         </label>
 
-        <label class="field">
-          <span>Role</span>
-          <select formControlName="role">
-            <option value="TEAM_MEMBER">Team Member</option>
-            <option value="PROJECT_MANAGER">Project Manager</option>
-          </select>
-        </label>
 
         <button class="submit-btn" type="submit" [disabled]="isLoading">
           {{ isLoading ? 'Creating account...' : 'Create account →' }}

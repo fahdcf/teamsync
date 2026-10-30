@@ -1,15 +1,18 @@
 package com.teamsync.service;
 
-import com.teamsync.domain.entity.Task;
-import com.teamsync.domain.enums.TaskStatus;
-import com.teamsync.patterns.structural.proxy.TaskService;
+import com.teamsync.dto.TaskResponseDTO;
+import com.teamsync.entity.Task;
+import com.teamsync.enums.TaskStatus;
 import com.teamsync.repository.TaskRepository;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.util.*;
 
 @Service
+@Transactional
+@PreAuthorize("isAuthenticated()")
 public class TaskDependencyService {
 
     private final TaskRepository taskRepository;
@@ -17,13 +20,14 @@ public class TaskDependencyService {
     private final ProjectService projectService;
 
     public TaskDependencyService(TaskRepository taskRepository,
-                                  @Lazy TaskService taskService,
+                                  TaskService taskService,
                                   ProjectService projectService) {
         this.taskRepository = taskRepository;
         this.taskService = taskService;
         this.projectService = projectService;
     }
 
+    @PreAuthorize("@permissions.manageTask(#taskId) and @permissions.readTask(#dependsOnId)")
     public void addDependency(UUID taskId, UUID dependsOnId) {
         if (taskId.equals(dependsOnId)) {
             throw new IllegalArgumentException("A task cannot depend on itself");
@@ -32,6 +36,8 @@ public class TaskDependencyService {
         Task task = taskService.getTask(taskId);
         Task dependsOn = taskService.getTask(dependsOnId);
 
+        if (!task.getProject().getId().equals(dependsOn.getProject().getId()))
+            throw new IllegalArgumentException("Dependencies must belong to the same project");
         if (hasCircularDependency(dependsOn, taskId)) {
             throw new IllegalArgumentException("Circular dependency detected");
         }
@@ -40,6 +46,7 @@ public class TaskDependencyService {
         taskRepository.save(task);
     }
 
+    @PreAuthorize("@permissions.manageTask(#taskId)")
     public void removeDependency(UUID taskId, UUID depId) {
         Task task = taskService.getTask(taskId);
         task.getDependencies().removeIf(d -> d.getId().equals(depId));
@@ -51,10 +58,12 @@ public class TaskDependencyService {
                 .allMatch(dep -> dep.getStatus() == TaskStatus.DONE);
     }
 
-    public List<Task> getBlockedTasks(UUID projectId) {
+    @PreAuthorize("@permissions.readProject(#projectId)")
+    public List<TaskResponseDTO> getBlockedTasks(UUID projectId) {
         List<Task> all = taskRepository.findByProject(projectService.getProject(projectId));
         return all.stream()
                 .filter(t -> !t.getDependencies().isEmpty() && !canStart(t))
+                .map(taskService::toDTO)
                 .toList();
     }
 

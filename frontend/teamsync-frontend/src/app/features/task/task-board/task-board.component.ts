@@ -4,6 +4,7 @@ import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { DragDropModule, CdkDragDrop, moveItemInArray, transferArrayItem } from '@angular/cdk/drag-drop';
 import { debounceTime, distinctUntilChanged, forkJoin, Subject } from 'rxjs';
+import { ProjectService } from '../../../api/project.service';
 import { TaskService } from '../../../api/task.service';
 import { Task, TaskStatus, TaskPriority } from '../../../shared/models/task.model';
 import { TaskCardComponent } from '../task-card/task-card.component';
@@ -54,6 +55,8 @@ export default class TaskBoardComponent implements OnInit, OnChanges {
   @Input() groupMode: TaskBoardGroup = 'status';
   @Input() refreshToken = 0;
 
+  canManage = false;
+  private readonly projectService = inject(ProjectService);
   private readonly taskService = inject(TaskService);
   private readonly route = inject(ActivatedRoute);
   private readonly fb = inject(FormBuilder);
@@ -102,6 +105,7 @@ export default class TaskBoardComponent implements OnInit, OnChanges {
     this.projectId = this.projectId || this.route.snapshot.paramMap.get('id') || '';
     this.applyExternalFilters();
     this.initialized = true;
+    this.projectService.getById(this.projectId).subscribe(project => this.canManage = project.canManage === true);
     this.loadTasks();
     this.keywordSubject.pipe(debounceTime(300), distinctUntilChanged()).subscribe((keyword) => {
       this.filters = { ...this.filters, keyword: keyword || undefined };
@@ -157,7 +161,10 @@ export default class TaskBoardComponent implements OnInit, OnChanges {
   }
 
   onDrop(event: CdkDragDrop<Task[]>): void {
+    const dragged = event.previousContainer.data[event.previousIndex];
+    if (!dragged?.canChangeStatus) return;
     if (event.previousContainer === event.container) {
+      if (!this.canManage) return;
       moveItemInArray(event.container.data, event.previousIndex, event.currentIndex);
       this.persistColumnOrder(event.container.data);
       return;
@@ -168,6 +175,7 @@ export default class TaskBoardComponent implements OnInit, OnChanges {
     transferArrayItem(event.previousContainer.data, event.container.data, event.previousIndex, event.currentIndex);
 
     this.taskService.changeStatus(task.id, { status: newStatus }).subscribe({
+      next: (updated) => Object.assign(task, updated),
       error: () => {
         transferArrayItem(event.container.data, event.previousContainer.data, event.currentIndex, event.previousIndex);
         alert('Invalid status transition');
@@ -176,12 +184,13 @@ export default class TaskBoardComponent implements OnInit, OnChanges {
   }
 
   openCreate(status: TaskStatus): void {
-    this.selectedStatus = status;
+    if (!this.canManage) return;
+    this.selectedStatus = 'TODO';
     this.isCreateModalOpen = true;
   }
 
   createTask(): void {
-    if (this.createForm.invalid) return;
+    if (this.createForm.invalid || !this.canManage) return;
 
     this.isCreating = true;
     const { title, description, priority, dueDate } = this.createForm.value;
@@ -209,6 +218,7 @@ export default class TaskBoardComponent implements OnInit, OnChanges {
   }
 
   deleteTask(task: Task): void {
+    if (!task.canManage) return;
     this.taskService.delete(task.id).subscribe({
       next: () => {
         const column = this.columns.find((candidate) => candidate.status === task.status);

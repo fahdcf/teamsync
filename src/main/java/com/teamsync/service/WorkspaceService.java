@@ -1,25 +1,27 @@
 package com.teamsync.service;
 
-import com.teamsync.domain.entity.Project;
-import com.teamsync.domain.entity.User;
-import com.teamsync.domain.entity.Workspace;
-import com.teamsync.domain.enums.TaskStatus;
-import com.teamsync.infrastructure.exception.ValidationException;
+import com.teamsync.security.ResourceAuthorization;
+import com.teamsync.entity.Project;
+import com.teamsync.entity.User;
+import com.teamsync.entity.Workspace;
+import com.teamsync.enums.TaskStatus;
+import com.teamsync.exception.ValidationException;
 import com.teamsync.patterns.creational.singleton.AppLogger;
-import com.teamsync.presentation.dto.AddMemberRequestDTO;
-import com.teamsync.presentation.dto.UserResponseDTO;
-import com.teamsync.presentation.dto.WorkspaceRequestDTO;
-import com.teamsync.presentation.dto.WorkspaceResponseDTO;
-import com.teamsync.presentation.dto.WorkspaceSummaryResponseDTO;
+import com.teamsync.dto.AddMemberRequestDTO;
+import com.teamsync.dto.UserResponseDTO;
+import com.teamsync.dto.WorkspaceRequestDTO;
+import com.teamsync.dto.WorkspaceResponseDTO;
+import com.teamsync.dto.WorkspaceSummaryResponseDTO;
 import com.teamsync.repository.ProjectRepository;
 import com.teamsync.repository.TaskRepository;
 import com.teamsync.repository.UserRepository;
 import com.teamsync.repository.WorkspaceRepository;
 import com.teamsync.repository.WorkspaceSpecification;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -33,26 +35,32 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Service
+@Transactional
+@PreAuthorize("isAuthenticated()")
 public class WorkspaceService {
 
     private final WorkspaceRepository workspaceRepository;
+    private final ResourceAuthorization permissions;
     private final UserRepository userRepository;
     private final ProjectRepository projectRepository;
     private final TaskRepository taskRepository;
     private final ActivityLogService activityLogService;
 
     public WorkspaceService(WorkspaceRepository workspaceRepository,
+                            ResourceAuthorization permissions,
                             UserRepository userRepository,
                             ProjectRepository projectRepository,
                             TaskRepository taskRepository,
                             ActivityLogService activityLogService) {
         this.workspaceRepository = workspaceRepository;
+        this.permissions = permissions;
         this.userRepository = userRepository;
         this.projectRepository = projectRepository;
         this.taskRepository = taskRepository;
         this.activityLogService = activityLogService;
     }
 
+    @PreAuthorize("@permissions.self(#ownerEmail)")
     public WorkspaceResponseDTO create(WorkspaceRequestDTO request, String ownerEmail) {
         User owner = findUserByEmail(ownerEmail);
         Workspace workspace = Workspace.builder()
@@ -67,13 +75,14 @@ public class WorkspaceService {
         return dto;
     }
 
+    @PreAuthorize("@permissions.readWorkspace(#id)")
     public WorkspaceResponseDTO findById(UUID id) {
         return toDTO(getWorkspace(id));
     }
 
+    @PreAuthorize("@permissions.manageWorkspace(#workspaceId) and @permissions.self(#requesterEmail)")
     public WorkspaceResponseDTO update(UUID workspaceId, WorkspaceRequestDTO request, String requesterEmail) {
         Workspace workspace = getWorkspace(workspaceId);
-        requireOwner(workspace, requesterEmail);
         workspace.setName(request.getName());
         workspace.setDescription(request.getDescription());
         Workspace saved = workspaceRepository.save(workspace);
@@ -81,6 +90,7 @@ public class WorkspaceService {
         return toDTO(saved);
     }
 
+    @PreAuthorize("@permissions.readWorkspace(#workspaceId)")
     public WorkspaceSummaryResponseDTO getSummary(UUID workspaceId) {
         Workspace workspace = getWorkspace(workspaceId);
         List<Project> projects = projectRepository.findByWorkspace(workspace);
@@ -118,6 +128,7 @@ public class WorkspaceService {
                 .build();
     }
 
+    @PreAuthorize("@permissions.self(#email)")
     public List<WorkspaceResponseDTO> getMyWorkspaces(String email, String keyword) {
         User user = findUserByEmail(email);
         List<Workspace> owned = workspaceRepository.findByOwner(user);
@@ -139,9 +150,9 @@ public class WorkspaceService {
         return workspaceRepository.findAll(spec).stream().map(this::toDTO).collect(Collectors.toList());
     }
 
+    @PreAuthorize("@permissions.manageWorkspace(#workspaceId)")
     public List<UserResponseDTO> getAvailableMembers(UUID workspaceId, String requesterEmail) {
         Workspace workspace = getWorkspace(workspaceId);
-        requireParticipant(workspace, requesterEmail);
         Set<UUID> currentUserIds = new LinkedHashSet<>(workspace.getMembers().stream().map(User::getId).toList());
         if (workspace.getOwner() != null) {
             currentUserIds.add(workspace.getOwner().getId());
@@ -153,6 +164,7 @@ public class WorkspaceService {
                 .collect(Collectors.toList());
     }
 
+    @PreAuthorize("@permissions.manageWorkspace(#workspaceId) and @permissions.self(#requesterEmail)")
     public WorkspaceResponseDTO addMember(UUID workspaceId, AddMemberRequestDTO request, String requesterEmail) {
         Workspace workspace = getWorkspace(workspaceId);
         User member = resolveMember(request);
@@ -162,12 +174,14 @@ public class WorkspaceService {
         return toDTO(saved);
     }
 
+    @PreAuthorize("@permissions.manageWorkspace(#workspaceId) and @permissions.self(#requesterEmail)")
     public WorkspaceResponseDTO addMember(UUID workspaceId, String memberEmail, String requesterEmail) {
         AddMemberRequestDTO request = new AddMemberRequestDTO();
         request.setEmail(memberEmail);
         return addMember(workspaceId, request, requesterEmail);
     }
 
+    @PreAuthorize("@permissions.manageWorkspace(#workspaceId) and @permissions.self(#requesterEmail)")
     public void removeMember(UUID workspaceId, UUID userId, String requesterEmail) {
         Workspace workspace = getWorkspace(workspaceId);
         workspace.getMembers().removeIf(u -> u.getId().equals(userId));
@@ -175,6 +189,7 @@ public class WorkspaceService {
         activityLogService.log(findUserByEmail(requesterEmail), "WORKSPACE_MEMBER_REMOVED", "WORKSPACE", workspace.getId());
     }
 
+    @PreAuthorize("@permissions.readWorkspace(#id)")
     public Workspace getWorkspace(UUID id) {
         return workspaceRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Workspace not found: " + id));
@@ -198,20 +213,6 @@ public class WorkspaceService {
         return findUserByEmail(email);
     }
 
-    private void requireOwner(Workspace workspace, String requesterEmail) {
-        if (workspace.getOwner() == null || !workspace.getOwner().getEmail().equals(requesterEmail)) {
-            throw new AccessDeniedException("Only the workspace owner can update this workspace");
-        }
-    }
-
-    private void requireParticipant(Workspace workspace, String requesterEmail) {
-        boolean isOwner = workspace.getOwner() != null && workspace.getOwner().getEmail().equals(requesterEmail);
-        boolean isMember = workspace.getMembers().stream().anyMatch(member -> member.getEmail().equals(requesterEmail));
-        if (!isOwner && !isMember) {
-            throw new AccessDeniedException("Only workspace participants can view available members");
-        }
-    }
-
     private UserResponseDTO userToDTO(User u) {
         return UserResponseDTO.builder()
                 .id(u.getId())
@@ -226,6 +227,8 @@ public class WorkspaceService {
     private WorkspaceResponseDTO toDTO(Workspace w) {
         return WorkspaceResponseDTO.builder()
                 .id(w.getId())
+                .canManage(permissions.manageWorkspace(w.getId()))
+                .canCreateProject(permissions.createProject(w.getId()))
                 .name(w.getName())
                 .description(w.getDescription())
                 .owner(userToDTO(w.getOwner()))

@@ -1,9 +1,9 @@
 package com.teamsync.service;
 
-import com.teamsync.domain.entity.Notification;
-import com.teamsync.domain.entity.User;
-import com.teamsync.domain.enums.NotificationType;
-import com.teamsync.domain.enums.TaskPriority;
+import com.teamsync.entity.Notification;
+import com.teamsync.entity.User;
+import com.teamsync.enums.NotificationType;
+import com.teamsync.enums.TaskPriority;
 import com.teamsync.patterns.creational.factory.EmailNotificationFactory;
 import com.teamsync.patterns.creational.factory.InAppNotificationFactory;
 import com.teamsync.patterns.structural.adapter.EmailService;
@@ -11,9 +11,11 @@ import com.teamsync.patterns.structural.decorator.EmailDecorator;
 import com.teamsync.patterns.structural.decorator.InAppSender;
 import com.teamsync.patterns.structural.decorator.NotificationSender;
 import com.teamsync.patterns.structural.decorator.UrgentDecorator;
-import com.teamsync.presentation.dto.NotificationResponseDTO;
+import com.teamsync.dto.NotificationResponseDTO;
 import com.teamsync.repository.NotificationRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -21,6 +23,8 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
+@Transactional
+@PreAuthorize("isAuthenticated()")
 public class NotificationService {
 
     private final NotificationRepository notificationRepository;
@@ -62,12 +66,14 @@ public class NotificationService {
         sender.send(notification);
     }
 
+    @PreAuthorize("@permissions.selfId(#user.id)")
     public List<NotificationResponseDTO> getUnread(User user) {
         return notificationRepository.findByRecipientAndReadStatusFalse(user).stream()
                 .map(this::toDTO)
                 .collect(Collectors.toList());
     }
 
+    @PreAuthorize("@permissions.ownNotification(#id)")
     public NotificationResponseDTO markRead(UUID id) {
         Notification n = notificationRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Notification not found: " + id));

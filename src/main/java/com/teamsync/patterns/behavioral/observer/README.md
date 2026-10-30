@@ -1,6 +1,6 @@
-# Observer Pattern
+# Notifications through Spring events
 
-ProjectEventPublisher maintains a list of ProjectEventListeners.
-When a task changes status, the publisher calls onEvent() on all listeners.
-Listeners (ActivityLogListener, NotificationListener) react independently.
-The publisher knows nothing about what listeners do — fully decoupled.
+Transactional services publish ProjectEvent using Spring ApplicationEventPublisher.
+NotificationListener receives events with @EventListener. Audit records are written
+by services with real resource IDs; the old duplicate activity listener and custom
+publisher/listener framework have been removed.

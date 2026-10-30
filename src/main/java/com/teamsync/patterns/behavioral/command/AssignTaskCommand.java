@@ -1,7 +1,8 @@
 package com.teamsync.patterns.behavioral.command;
 
-import com.teamsync.domain.entity.Task;
-import com.teamsync.domain.entity.User;
+import java.util.UUID;
+import com.teamsync.entity.Task;
+import com.teamsync.entity.User;
 import com.teamsync.repository.TaskRepository;
 
 public class AssignTaskCommand implements TaskCommand {
@@ -26,7 +27,14 @@ public class AssignTaskCommand implements TaskCommand {
 
     @Override
     public void undo() {
-        task.setAssignee(previousAssignee);
-        taskRepository.save(task);
+        Task current = taskRepository.findForUpdate(task.getId()).orElseThrow();
+        if (current.getAssignee() == null || !current.getAssignee().getId().equals(newAssignee.getId()))
+            throw new IllegalStateException("Task assignment changed since this action");
+        current.setAssignee(previousAssignee);
+        taskRepository.save(current);
     }
+
+    public UUID projectId() { return task.getProject().getId(); }
+    public UUID taskId() { return task.getId(); }
+    public UUID restoredAssigneeId() { return previousAssignee == null ? null : previousAssignee.getId(); }
 }

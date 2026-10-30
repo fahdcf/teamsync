@@ -1,3 +1,4 @@
+import { ProjectService } from './api/project.service';
 import { TestBed, ComponentFixture } from '@angular/core/testing';
 import { provideAnimations } from '@angular/platform-browser/animations';
 import { provideRouter } from '@angular/router';
@@ -9,7 +10,7 @@ import { TaskService } from './api/task.service';
 import { Task } from './shared/models/task.model';
 
 const makeTask = (id: string, status: Task['status']): Task => ({
-  id, title: `Task ${id}`, description: '', priority: 'MEDIUM',
+  canManage: true, canChangeStatus: true, id, title: `Task ${id}`, description: '', priority: 'MEDIUM',
   status, assignee: null, project: null as any, dependencies: [],
   dueDate: null, createdAt: '', updatedAt: ''
 });
@@ -17,10 +18,12 @@ const makeTask = (id: string, status: Task['status']): Task => ({
 describe('Task Flow Integration', () => {
   let fixture: ComponentFixture<TaskBoardComponent>;
   let component: TaskBoardComponent;
-  let mockTaskService: { getByProject: any; changeStatus: any; create: any; delete: any };
+  let mockTaskService: { reorder: any; getBlockedByProject: any; getByProject: any; changeStatus: any; create: any; delete: any };
 
   beforeEach(async () => {
     mockTaskService = {
+      reorder: vi.fn().mockReturnValue(of(null)),
+      getBlockedByProject: vi.fn().mockReturnValue(of([])),
       getByProject: vi.fn().mockReturnValue(of([])),
       changeStatus: vi.fn().mockReturnValue(of({})),
       create: vi.fn().mockReturnValue(of(makeTask('new-1', 'TODO'))),
@@ -32,6 +35,7 @@ describe('Task Flow Integration', () => {
       providers: [
         provideAnimations(),
         provideRouter([]),
+        { provide: ProjectService, useValue: { getById: () => of({canManage: true}) } },
         { provide: TaskService, useValue: mockTaskService }
       ]
     }).compileComponents();
@@ -45,7 +49,7 @@ describe('Task Flow Integration', () => {
   it('initial render shows 5 columns, all empty', () => {
     const columns = fixture.debugElement.queryAll(By.css('.column'));
     expect(columns.length).toBe(5);
-    const emptyStates = fixture.debugElement.queryAll(By.css('app-empty-state'));
+    const emptyStates = fixture.debugElement.queryAll(By.css('.empty-column'));
     expect(emptyStates.length).toBe(5);
   });
 

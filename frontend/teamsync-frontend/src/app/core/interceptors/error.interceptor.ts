@@ -3,9 +3,12 @@ import { HttpInterceptorFn, HttpErrorResponse } from '@angular/common/http';
 import { catchError, throwError } from 'rxjs';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
+import { Injector } from '@angular/core';
+import { AuthStore } from '../../store/auth.store';
 import { TokenService } from '../services/token.service';
 
 export const errorInterceptor: HttpInterceptorFn = (req, next) => {
+  const injector = inject(Injector);
   const router = inject(Router);
   const toastr = inject(ToastrService);
   const tokenService = inject(TokenService);
@@ -20,6 +23,7 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
           toastr.error('Cannot connect to server');
         } else if (error.status === 401) {
           tokenService.removeToken();
+          injector.get(AuthStore).clearUser();
           router.navigate(['/login']);
           toastr.error('Session expired. Please sign in again.');
         } else if (error.status === 403) {

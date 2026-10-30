@@ -1,19 +1,19 @@
 package com.teamsync.service;
 
-import com.teamsync.domain.entity.Comment;
-import com.teamsync.domain.entity.Task;
-import com.teamsync.domain.entity.User;
-import com.teamsync.domain.enums.NotificationType;
-import com.teamsync.domain.enums.ProjectEventType;
+import com.teamsync.entity.Comment;
+import com.teamsync.entity.Task;
+import com.teamsync.entity.User;
+import com.teamsync.enums.NotificationType;
+import com.teamsync.enums.ProjectEventType;
 import com.teamsync.patterns.behavioral.observer.ProjectEvent;
-import com.teamsync.patterns.behavioral.observer.ProjectEventPublisher;
-import com.teamsync.patterns.structural.proxy.TaskService;
-import com.teamsync.presentation.dto.CommentRequestDTO;
-import com.teamsync.presentation.dto.CommentResponseDTO;
-import com.teamsync.presentation.dto.UserResponseDTO;
+import org.springframework.context.ApplicationEventPublisher;
+import com.teamsync.dto.CommentRequestDTO;
+import com.teamsync.dto.CommentResponseDTO;
+import com.teamsync.dto.UserResponseDTO;
 import com.teamsync.repository.CommentRepository;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -21,26 +21,31 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
+@Transactional
+@PreAuthorize("isAuthenticated()")
 public class CommentService {
 
     private final CommentRepository commentRepository;
+    private final ActivityLogService activityLogService;
     private final TaskService taskService;
     private final UserService userService;
     private final NotificationService notificationService;
-    private final ProjectEventPublisher eventPublisher;
+    private final ApplicationEventPublisher eventPublisher;
 
-    public CommentService(CommentRepository commentRepository,
+    public CommentService(CommentRepository commentRepository, ActivityLogService activityLogService,
                            TaskService taskService,
                            UserService userService,
                            NotificationService notificationService,
-                           ProjectEventPublisher eventPublisher) {
+                           ApplicationEventPublisher eventPublisher) {
         this.commentRepository = commentRepository;
+        this.activityLogService = activityLogService;
         this.taskService = taskService;
         this.userService = userService;
         this.notificationService = notificationService;
         this.eventPublisher = eventPublisher;
     }
 
+    @PreAuthorize("@permissions.readTask(#taskId) and @permissions.self(#authorEmail)")
     public CommentResponseDTO addComment(UUID taskId, CommentRequestDTO request, String authorEmail) {
         Task task = taskService.getTask(taskId);
         User author = userService.findByEmail(authorEmail);
@@ -52,8 +57,9 @@ public class CommentService {
                 .build();
 
         Comment saved = commentRepository.save(comment);
+        activityLogService.log(author, "COMMENT_ADDED", "TASK", task.getId());
 
-        eventPublisher.publish(new ProjectEvent(ProjectEventType.COMMENT_ADDED,
+        eventPublisher.publishEvent(new ProjectEvent(ProjectEventType.COMMENT_ADDED,
                 "Comment on " + task.getTitle(), author));
 
         if (task.getAssignee() != null && !task.getAssignee().getId().equals(author.getId())) {
@@ -65,6 +71,7 @@ public class CommentService {
         return toDTO(saved);
     }
 
+    @PreAuthorize("@permissions.readComment(#parentId) and @permissions.self(#authorEmail)")
     public CommentResponseDTO addReply(UUID parentId, CommentRequestDTO request, String authorEmail) {
         Comment parent = getComment(parentId);
         User author = userService.findByEmail(authorEmail);
@@ -76,25 +83,28 @@ public class CommentService {
                 .parentComment(parent)
                 .build();
 
+        activityLogService.log(author, "COMMENT_ADDED", "TASK", parent.getTask().getId());
         return toDTO(commentRepository.save(reply));
     }
 
+    @PreAuthorize("@permissions.deleteComment(#id) and @permissions.self(#requesterEmail)")
     public void deleteComment(UUID id, String requesterEmail) {
         Comment comment = getComment(id);
-        User requester = userService.findByEmail(requesterEmail);
-
-        if (!comment.getAuthor().getId().equals(requester.getId())
-                && requester.getRole() != com.teamsync.domain.enums.Role.ADMIN) {
-            throw new AccessDeniedException("Only the author or ADMIN can delete a comment");
-        }
-        commentRepository.delete(comment);
+        deleteTree(comment);
     }
 
+    @PreAuthorize("@permissions.readTask(#taskId)")
     public List<CommentResponseDTO> findByTask(UUID taskId) {
         Task task = taskService.getTask(taskId);
         return commentRepository.findByTaskAndParentCommentIsNull(task).stream()
                 .map(this::toDTO)
                 .collect(Collectors.toList());
+    }
+
+    private void deleteTree(Comment comment) {
+        commentRepository.findByParentComment(comment).forEach(this::deleteTree);
+        commentRepository.delete(comment);
+        commentRepository.flush();
     }
 
     private Comment getComment(UUID id) {

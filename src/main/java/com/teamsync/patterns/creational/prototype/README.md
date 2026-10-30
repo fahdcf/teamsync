@@ -1,5 +1,6 @@
-# Prototype Pattern
+# Task templates
 
-TaskTemplate implements cloneTask() to produce a deep copy of itself.
-Instead of constructing a new task from scratch, callers clone a template.
-This avoids re-specifying title, description, priority, and due date every time.
+TaskTemplate is a persistence entity in entity/. Its repository lives in repository/
+and its authorized workflow in service/TaskTemplateService. cloneTask copies template
+values; creating a task still goes through TaskService's validation and permissions.
+Source and destination must belong to the same project.

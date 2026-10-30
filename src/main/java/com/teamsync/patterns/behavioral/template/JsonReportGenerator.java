@@ -2,26 +2,17 @@ package com.teamsync.patterns.behavioral.template;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.teamsync.service.AnalyticsService;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
-import java.util.UUID;
 
 @Component
 public class JsonReportGenerator extends ReportGenerator {
 
-    private final AnalyticsService analyticsService;
     private final ObjectMapper objectMapper;
 
-    public JsonReportGenerator(AnalyticsService analyticsService, ObjectMapper objectMapper) {
-        this.analyticsService = analyticsService;
+    public JsonReportGenerator(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
-    }
-
-    @Override
-    protected Map<String, Object> collectData(UUID projectId) {
-        return analyticsService.getProjectStats(projectId);
     }
 
     @Override
@@ -30,11 +21,11 @@ public class JsonReportGenerator extends ReportGenerator {
     }
 
     @Override
-    protected String formatOutput(Map<String, Object> processed) {
+    protected byte[] formatOutput(Map<String, Object> processed) {
         try {
-            return objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(processed);
+            return objectMapper.writerWithDefaultPrettyPrinter().writeValueAsBytes(processed);
         } catch (JsonProcessingException e) {
-            return "{}";
+            throw new IllegalStateException("Could not generate report", e);
         }
     }
 }

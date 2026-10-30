@@ -6,6 +6,9 @@ export type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 
 export interface Task {
   id: string;
+  canManage?: boolean;
+  canChangeStatus?: boolean;
+
   taskIdentifier?: string;
   title: string;
   description: string;

@@ -1,0 +1,53 @@
+name: Verify
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        database: [h2, postgres]
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: teamsync_test
+          POSTGRES_DB: teamsync_test
+          # Disposable isolated CI database; no application credentials.
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports: ['5432:5432']
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+      - name: H2 verification
+        if: matrix.database == 'h2'
+        run: mvn -B clean verify
+      - name: PostgreSQL verification
+        if: matrix.database == 'postgres'
+        env:
+          TEST_DB_URL: jdbc:postgresql://localhost:5432/teamsync_test
+          TEST_DB_USERNAME: teamsync_test
+          TEST_DB_DRIVER: org.postgresql.Driver
+          TEST_DB_DIALECT: org.hibernate.dialect.PostgreSQLDialect
+        run: mvn -B clean verify
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend/teamsync-frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/teamsync-frontend/package-lock.json
+      - run: npm ci
+      - run: npm test -- --watch=false
+      - run: npm run build

@@ -1,19 +1,27 @@
-# Local secrets
+# Secrets and account rollout
 
-Copy `.env.example` to `.env` and set `DB_PASSWORD` and `JWT_SECRET`, or supply
-those variables through your process environment. The existing Spring config
-import reads the local `.env` file as Java properties. Use a unique JWT secret
-with at least 32 random bytes encoded as 64 hexadecimal characters. For example, this Python command generates a new
-64-character hexadecimal value locally:
+Copy .env.example to the ignored .env and set DB_PASSWORD and JWT_SECRET, or supply
+process environment variables. The local file uses Java properties syntax.
+Generate a unique key of at least 32 random bytes encoded as hexadecimal:
 
 ```sh
-python -c "import secrets; print(secrets.token_hex(32))"
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
-Do not copy the generated value into tracked configuration. Restart the server
-after changing it; existing tokens signed with the previous value must no longer
-be trusted. Rotate the old database password in PostgreSQL if it was reused.
-Supply `NVIDIA_AI_API_KEY` only if enabling the AI integration.
+Never commit the generated value. Rotate keys/passwords previously committed or
+reused in deployments. Source cleanup does not rotate provider credentials or
+rewrite Git history. Supply NVIDIA_AI_API_KEY only to enable the AI integration.
 
-The cleanup changes source configuration, not any running deployment, provider
-account or Git history. Review deployed settings and rotate exposed credentials.
+JWTs now contain a stable user UUID, issuer, expiration and password version.
+Existing email-subject tokens require a fresh login. Current database roles and
+workspace participation govern every new request. Password changes invalidate old
+tokens; logout only removes browser credentials. Session storage is still readable
+by JavaScript: deploy over HTTPS and maintain XSS protections.
+
+Registration only creates TEAM_MEMBER accounts. Review existing privileged users:
+the previous registration allowed arbitrary roles. Bootstrap a trusted initial
+administrator through an operator-controlled database procedure, never through a
+public endpoint. Subsequent role changes use the administrator-only role API.
+
+Read [the audit and rollout policy](docs/SECURITY_AUDIT.md) before deploying.
+No database relationships or stored role values are changed by this refactor.

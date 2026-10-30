@@ -1,7 +1,7 @@
 package com.teamsync.patterns.creational.factory;
 
-import com.teamsync.domain.entity.Notification;
-import com.teamsync.domain.entity.User;
+import com.teamsync.entity.Notification;
+import com.teamsync.entity.User;
 import com.teamsync.repository.NotificationRepository;
 
 public abstract class NotificationFactory {

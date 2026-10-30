@@ -1,7 +1,8 @@
 package com.teamsync.patterns.behavioral.strategy;
 
-import com.teamsync.domain.entity.Task;
-import com.teamsync.domain.entity.User;
+import java.util.Locale;
+import com.teamsync.entity.Task;
+import com.teamsync.entity.User;
 import com.teamsync.repository.TaskRepository;
 import org.springframework.stereotype.Component;
 
@@ -10,19 +11,18 @@ import java.util.List;
 @Component
 public class TaskAssignmentService {
 
-    private AssignmentStrategy strategy;
     private final TaskRepository taskRepository;
 
     public TaskAssignmentService(TaskRepository taskRepository) {
         this.taskRepository = taskRepository;
-        this.strategy = new WorkloadStrategy();
     }
 
-    public void setStrategy(AssignmentStrategy strategy) {
-        this.strategy = strategy;
-    }
-
-    public User autoAssign(Task task, List<User> members) {
+    public User autoAssign(Task task, List<User> members, String name) {
+        AssignmentStrategy strategy = switch (name.toLowerCase(Locale.ROOT)) {
+            case "workload" -> new WorkloadStrategy();
+            case "roundrobin" -> new RoundRobinStrategy();
+            default -> throw new IllegalArgumentException("Unknown assignment strategy");
+        };
         return strategy.assign(members, task, taskRepository);
     }
 }

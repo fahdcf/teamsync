@@ -1,7 +1,7 @@
 package com.teamsync.repository;
 
-import com.teamsync.domain.entity.Notification;
-import com.teamsync.domain.entity.User;
+import com.teamsync.entity.Notification;
+import com.teamsync.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;

@@ -1,14 +1,17 @@
 package com.teamsync.service;
 
-import com.teamsync.domain.entity.Project;
-import com.teamsync.domain.entity.Task;
-import com.teamsync.domain.entity.User;
-import com.teamsync.domain.entity.Workspace;
-import com.teamsync.domain.enums.TaskStatus;
+import java.util.stream.Collectors;
+import com.teamsync.entity.Project;
+import com.teamsync.entity.Task;
+import com.teamsync.entity.User;
+import com.teamsync.entity.Workspace;
+import com.teamsync.enums.TaskStatus;
 import com.teamsync.repository.ProjectRepository;
 import com.teamsync.repository.TaskRepository;
 import com.teamsync.repository.WorkspaceRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
@@ -27,6 +30,8 @@ import java.util.Set;
 import java.util.UUID;
 
 @Service
+@Transactional(readOnly = true)
+@PreAuthorize("isAuthenticated()")
 public class DashboardService {
 
     private final UserService userService;
@@ -44,6 +49,7 @@ public class DashboardService {
         this.workspaceRepository = workspaceRepository;
     }
 
+    @PreAuthorize("@permissions.self(#userEmail)")
     public Map<String, Object> getStats(String userEmail, LocalDate fromDate, LocalDate toDate) {
         User currentUser = userService.findByEmail(userEmail);
         Set<Project> userProjects = getUserProjects(currentUser);
@@ -51,24 +57,24 @@ public class DashboardService {
         DateRange range = normalizeRange(fromDate, toDate);
         DateRange previousRange = previousRange(range);
 
-        long activeTasks = taskRepository.countByAssigneeAndStatusAndUpdatedAtBetween(
-                currentUser, TaskStatus.IN_PROGRESS, range.startDateTime(), range.endDateTime());
-        long previousActiveTasks = taskRepository.countByAssigneeAndStatusAndUpdatedAtBetween(
-                currentUser, TaskStatus.IN_PROGRESS, previousRange.startDateTime(), previousRange.endDateTime());
+        long activeTasks = taskRepository.countByAssigneeAndProjectInAndStatusAndUpdatedAtBetween(
+                currentUser, userProjects, TaskStatus.IN_PROGRESS, range.startDateTime(), range.endDateTime());
+        long previousActiveTasks = taskRepository.countByAssigneeAndProjectInAndStatusAndUpdatedAtBetween(
+                currentUser, userProjects, TaskStatus.IN_PROGRESS, previousRange.startDateTime(), previousRange.endDateTime());
 
-        long totalMyTasks = taskRepository.countByAssigneeAndUpdatedAtBetween(
-                currentUser, range.startDateTime(), range.endDateTime());
-        long doneMyTasks = taskRepository.countByAssigneeAndStatusAndUpdatedAtBetween(
-                currentUser, TaskStatus.DONE, range.startDateTime(), range.endDateTime());
-        long previousTotalMyTasks = taskRepository.countByAssigneeAndUpdatedAtBetween(
-                currentUser, previousRange.startDateTime(), previousRange.endDateTime());
-        long previousDoneMyTasks = taskRepository.countByAssigneeAndStatusAndUpdatedAtBetween(
-                currentUser, TaskStatus.DONE, previousRange.startDateTime(), previousRange.endDateTime());
+        long totalMyTasks = taskRepository.countByAssigneeAndProjectInAndUpdatedAtBetween(
+                currentUser, userProjects, range.startDateTime(), range.endDateTime());
+        long doneMyTasks = taskRepository.countByAssigneeAndProjectInAndStatusAndUpdatedAtBetween(
+                currentUser, userProjects, TaskStatus.DONE, range.startDateTime(), range.endDateTime());
+        long previousTotalMyTasks = taskRepository.countByAssigneeAndProjectInAndUpdatedAtBetween(
+                currentUser, userProjects, previousRange.startDateTime(), previousRange.endDateTime());
+        long previousDoneMyTasks = taskRepository.countByAssigneeAndProjectInAndStatusAndUpdatedAtBetween(
+                currentUser, userProjects, TaskStatus.DONE, previousRange.startDateTime(), previousRange.endDateTime());
 
-        long overdueItems = taskRepository.countByAssigneeAndStatusNotAndDueDateBetween(
-                currentUser, TaskStatus.DONE, range.from(), range.to());
-        long previousOverdueItems = taskRepository.countByAssigneeAndStatusNotAndDueDateBetween(
-                currentUser, TaskStatus.DONE, previousRange.from(), previousRange.to());
+        long overdueItems = taskRepository.countByAssigneeAndProjectInAndStatusNotAndDueDateBetween(
+                currentUser, userProjects, TaskStatus.DONE, range.from(), range.to());
+        long previousOverdueItems = taskRepository.countByAssigneeAndProjectInAndStatusNotAndDueDateBetween(
+                currentUser, userProjects, TaskStatus.DONE, previousRange.from(), previousRange.to());
 
         long teamVelocity = teamVelocity(userProjects, range);
         long previousTeamVelocity = teamVelocity(userProjects, previousRange);
@@ -88,6 +94,7 @@ public class DashboardService {
         return result;
     }
 
+    @PreAuthorize("@permissions.self(#userEmail)")
     public List<Map<String, Object>> getUpcomingDeadlines(String userEmail, LocalDate fromDate, LocalDate toDate) {
         User currentUser = userService.findByEmail(userEmail);
         LocalDate today = LocalDate.now();
@@ -100,7 +107,8 @@ public class DashboardService {
         List<Task> tasks = taskRepository.findTop5ByAssigneeAndStatusNotAndDueDateBetweenOrderByDueDateAsc(
                 currentUser, TaskStatus.DONE, start, end);
 
-        return tasks.stream().map(task -> {
+        Set<UUID> visibleProjectIds = getUserProjects(currentUser).stream().map(Project::getId).collect(Collectors.toSet());
+        return tasks.stream().filter(task -> visibleProjectIds.contains(task.getProject().getId())).map(task -> {
             Map<String, Object> dto = new LinkedHashMap<>();
             dto.put("id", task.getId());
             dto.put("title", task.getTitle());
@@ -111,6 +119,7 @@ public class DashboardService {
         }).toList();
     }
 
+    @PreAuthorize("@permissions.self(#userEmail)")
     public List<Map<String, Object>> getProjectsOverview(String userEmail) {
         User currentUser = userService.findByEmail(userEmail);
         Set<Project> projects = getUserProjects(currentUser);
@@ -140,6 +149,7 @@ public class DashboardService {
                 .toList();
     }
 
+    @PreAuthorize("@permissions.self(#userEmail)")
     public Map<String, Object> getChartSeries(String userEmail, LocalDate fromDate, LocalDate toDate) {
         User currentUser = userService.findByEmail(userEmail);
         Set<Project> userProjects = getUserProjects(currentUser);
@@ -159,12 +169,12 @@ public class DashboardService {
             LocalDate bucketEnd = range.from().plusDays(nextOffset - 1);
             DateRange bucketRange = new DateRange(bucketStart, bucketEnd);
             dayLabels.add(formatBucketLabel(bucketStart, bucketEnd));
-            completionSeries.add(taskRepository.countByAssigneeAndStatusAndUpdatedAtBetween(
-                    currentUser, TaskStatus.DONE, bucketRange.startDateTime(), bucketRange.endDateTime()));
-            activeTasksSeries.add(taskRepository.countByAssigneeAndStatusAndUpdatedAtBetween(
-                    currentUser, TaskStatus.IN_PROGRESS, bucketRange.startDateTime(), bucketRange.endDateTime()));
-            overdueSeries.add(taskRepository.countByAssigneeAndStatusNotAndDueDateBetween(
-                    currentUser, TaskStatus.DONE, bucketRange.from(), bucketRange.to()));
+            completionSeries.add(taskRepository.countByAssigneeAndProjectInAndStatusAndUpdatedAtBetween(
+                    currentUser, userProjects, TaskStatus.DONE, bucketRange.startDateTime(), bucketRange.endDateTime()));
+            activeTasksSeries.add(taskRepository.countByAssigneeAndProjectInAndStatusAndUpdatedAtBetween(
+                    currentUser, userProjects, TaskStatus.IN_PROGRESS, bucketRange.startDateTime(), bucketRange.endDateTime()));
+            overdueSeries.add(taskRepository.countByAssigneeAndProjectInAndStatusNotAndDueDateBetween(
+                    currentUser, userProjects, TaskStatus.DONE, bucketRange.from(), bucketRange.to()));
             velocitySeries.add(teamVelocity(userProjects, bucketRange));
         }
 
@@ -192,6 +202,7 @@ public class DashboardService {
         return result;
     }
 
+    @PreAuthorize("@permissions.self(#userEmail)")
     public List<Map<String, Object>> getTeamWorkload(String userEmail) {
         User currentUser = userService.findByEmail(userEmail);
         Set<Workspace> workspaces = getUserWorkspaces(currentUser);
@@ -206,7 +217,8 @@ public class DashboardService {
         return members.values().stream()
                 .limit(6)
                 .map(member -> {
-                    List<Task> activeTasks = taskRepository.findByAssigneeAndStatus(member, TaskStatus.IN_PROGRESS);
+                    List<Task> activeTasks = taskRepository.findByAssigneeAndStatus(member, TaskStatus.IN_PROGRESS).stream()
+                            .filter(task -> workspaces.stream().anyMatch(w -> w.getId().equals(task.getProject().getWorkspace().getId()))).toList();
                     Task latestActiveTask = activeTasks.stream()
                             .max(Comparator.comparing(Task::getUpdatedAt, Comparator.nullsLast(Comparator.naturalOrder())))
                             .orElse(null);

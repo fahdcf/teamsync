@@ -1,59 +1,24 @@
-# TeamsyncFrontend
+# TeamSync Angular frontend
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.2.8.
+Angular 21 standalone components, API services, session-based bearer token storage,
+route guards and HTTP interceptors. The backend remains the permission authority.
+See the [root README](../../README.md) for architecture, roles and environment setup.
 
-## Development server
+Use Node 22.12+ (or a compatible Angular 21 Node release) and npm:
 
-To start a local development server, run:
-
-```bash
-ng serve
+```sh
+npm ci
+npm start
+npm test -- --watch=false
+npm run build
 ```
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+Development uses the API URL in src/environments/environment.ts. Production uses
+the same-origin /api path in environment.prod.ts and needs a reverse proxy.
+Bearer headers are only sent to this API. Credentials use session storage and
+expired sessions clear the rendered account. Backend permission flags control
+project/task management actions; there is no public role-selection field.
 
-## Code scaffolding
-
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
-
-```bash
-ng generate component component-name
-```
-
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
-
-```bash
-ng generate --help
-```
-
-## Building
-
-To build the project run:
-
-```bash
-ng build
-```
-
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
-
-## Running unit tests
-
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
-
-```bash
-ng test
-```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+Vitest covers authentication flows, token boundary and error handling, services,
+Kanban interactions and representative UI components. There is no configured
+end-to-end browser test runner.

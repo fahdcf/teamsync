@@ -1,22 +1,25 @@
 package com.teamsync.service;
 
-import com.teamsync.domain.enums.Role;
-import com.teamsync.infrastructure.exception.ValidationException;
-import com.teamsync.presentation.dto.AccountOverviewResponseDTO;
-import com.teamsync.presentation.dto.ChangePasswordRequestDTO;
-import com.teamsync.presentation.dto.SecurityOverviewResponseDTO;
-import com.teamsync.presentation.dto.UpdateProfileRequestDTO;
-import com.teamsync.domain.entity.User;
-import com.teamsync.domain.entity.UserPreference;
-import com.teamsync.presentation.dto.UpdateUserPreferencesRequestDTO;
-import com.teamsync.presentation.dto.UserPreferencesResponseDTO;
-import com.teamsync.presentation.dto.UserResponseDTO;
+import java.util.NoSuchElementException;
+import java.util.UUID;
+import com.teamsync.enums.Role;
+import com.teamsync.exception.ValidationException;
+import com.teamsync.dto.AccountOverviewResponseDTO;
+import com.teamsync.dto.ChangePasswordRequestDTO;
+import com.teamsync.dto.SecurityOverviewResponseDTO;
+import com.teamsync.dto.UpdateProfileRequestDTO;
+import com.teamsync.entity.User;
+import com.teamsync.entity.UserPreference;
+import com.teamsync.dto.UpdateUserPreferencesRequestDTO;
+import com.teamsync.dto.UserPreferencesResponseDTO;
+import com.teamsync.dto.UserResponseDTO;
 import com.teamsync.repository.UserPreferenceRepository;
 import com.teamsync.repository.UserRepository;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -24,6 +27,8 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
+@Transactional
+@PreAuthorize("isAuthenticated()")
 public class UserService {
 
     private final UserRepository userRepository;
@@ -38,12 +43,14 @@ public class UserService {
         this.passwordEncoder = passwordEncoder;
     }
 
+    @PreAuthorize("@permissions.self(#email)")
     public UserResponseDTO getCurrentUser(String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found: " + email));
         return toDTO(user);
     }
 
+    @PreAuthorize("@permissions.self(#email)")
     public AccountOverviewResponseDTO getAccountOverview(String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found: " + email));
@@ -75,17 +82,20 @@ public class UserService {
                 .build();
     }
 
+    @PreAuthorize("@permissions.self(#email)")
     public UserResponseDTO updateUsername(String email, String newUsername) {
         UpdateProfileRequestDTO request = new UpdateProfileRequestDTO();
         request.setUsername(newUsername);
         return updateProfile(email, request);
     }
 
+    @PreAuthorize("@permissions.self(#email)")
     public UserPreferencesResponseDTO getPreferences(String email) {
         User user = findByEmail(email);
         return toPreferencesDTO(findOrCreatePreferences(user));
     }
 
+    @PreAuthorize("@permissions.self(#email)")
     public UserPreferencesResponseDTO updatePreferences(String email, UpdateUserPreferencesRequestDTO request) {
         User user = findByEmail(email);
         UserPreference preferences = findOrCreatePreferences(user);
@@ -115,6 +125,7 @@ public class UserService {
         return toPreferencesDTO(userPreferenceRepository.save(preferences));
     }
 
+    @PreAuthorize("@permissions.self(#email)")
     public SecurityOverviewResponseDTO getSecurityOverview(String email) {
         User user = findByEmail(email);
         return SecurityOverviewResponseDTO.builder()
@@ -126,6 +137,7 @@ public class UserService {
                 .build();
     }
 
+    @PreAuthorize("@permissions.self(#email)")
     public void changePassword(String email, ChangePasswordRequestDTO request) {
         User user = findByEmail(email);
         if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
@@ -139,6 +151,7 @@ public class UserService {
         userRepository.save(user);
     }
 
+    @PreAuthorize("@permissions.self(#email) and @permissions.profileRoleUnchanged(#request)")
     public UserResponseDTO updateProfile(String email, UpdateProfileRequestDTO request) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found: " + email));
@@ -173,22 +186,24 @@ public class UserService {
             user.setAvatarUrl(clean(request.getAvatarUrl()));
         }
 
-        if (request.getRole() != null && request.getRole() != user.getRole()) {
-            if (roleRank(request.getRole()) > roleRank(user.getRole())) {
-                throw new AccessDeniedException("Cannot elevate your own role");
-            }
-            user.setRole(request.getRole());
-        }
-
         return toDTO(userRepository.save(user));
     }
 
+    @PreAuthorize("hasRole('ADMIN') and !@permissions.selfId(#id)")
+    public UserResponseDTO changeRole(UUID id, Role role) {
+        User user = userRepository.findById(id).orElseThrow(() -> new NoSuchElementException("User not found"));
+        user.setRole(role);
+        return toDTO(userRepository.save(user));
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
     public List<UserResponseDTO> getAllUsers() {
         return userRepository.findAll().stream()
                 .map(this::toDTO)
                 .collect(Collectors.toList());
     }
 
+    @PreAuthorize("@permissions.self(#email)")
     public User findByEmail(String email) {
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found: " + email));
@@ -253,11 +268,4 @@ public class UserService {
         return cleaned;
     }
 
-    private int roleRank(Role role) {
-        return switch (role) {
-            case ADMIN -> 3;
-            case PROJECT_MANAGER -> 2;
-            case TEAM_MEMBER -> 1;
-        };
-    }
 }

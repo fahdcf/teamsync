@@ -70,7 +70,7 @@ describe('NavbarComponent', () => {
   it('unreadCount badge not visible when unreadCount$ = 0', () => {
     notificationsSubject.next([]);
     fixture.detectChanges();
-    const badge = fixture.nativeElement.querySelector('.badge-count');
+    const badge = fixture.nativeElement.querySelector('.notif-badge');
     expect(badge).toBeNull();
   });
 
@@ -82,7 +82,7 @@ describe('NavbarComponent', () => {
     };
     notificationsSubject.next([unreadNotif]);
     fixture.detectChanges();
-    const badge = fixture.nativeElement.querySelector('.badge-count');
+    const badge = fixture.nativeElement.querySelector('.notif-badge');
     expect(badge).not.toBeNull();
     expect(badge.textContent.trim()).toBe('1');
   });

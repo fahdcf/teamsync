@@ -1,17 +1,20 @@
 package com.teamsync.service;
 
-import com.teamsync.domain.entity.Project;
-import com.teamsync.domain.entity.Task;
-import com.teamsync.domain.entity.User;
-import com.teamsync.domain.entity.Workspace;
-import com.teamsync.domain.enums.ProjectStatus;
-import com.teamsync.domain.enums.TaskStatus;
+import java.time.Duration;
+import com.teamsync.entity.Project;
+import com.teamsync.entity.Task;
+import com.teamsync.entity.User;
+import com.teamsync.entity.Workspace;
+import com.teamsync.enums.ProjectStatus;
+import com.teamsync.enums.TaskStatus;
 import com.teamsync.repository.ProjectRepository;
 import com.teamsync.repository.TaskRepository;
 import com.teamsync.repository.UserRepository;
 import com.teamsync.repository.WorkspaceRepository;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -22,6 +25,8 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Service
+@Transactional(readOnly = true)
+@PreAuthorize("isAuthenticated()")
 public class AnalyticsService {
 
     private final ProjectService projectService;
@@ -42,10 +47,12 @@ public class AnalyticsService {
         this.workspaceRepository = workspaceRepository;
     }
 
+    @PreAuthorize("@permissions.readProject(#projectId)")
     public Map<String, Object> getProjectStats(UUID projectId) {
         return getProjectStats(projectId, null, null);
     }
 
+    @PreAuthorize("@permissions.readProject(#projectId)")
     public Map<String, Object> getProjectStats(UUID projectId, LocalDate from, LocalDate to) {
         Project project = projectService.getProject(projectId);
         List<Task> tasks = filterTasksByDateRange(taskRepository.findByProject(project), from, to);
@@ -78,6 +85,7 @@ public class AnalyticsService {
         return result;
     }
 
+    @PreAuthorize("@permissions.readProject(#projectId)")
     public List<Map<String, Object>> getTeamWorkload(UUID projectId) {
         Project project = projectService.getProject(projectId);
         List<Task> tasks = taskRepository.findByProject(project);
@@ -104,6 +112,7 @@ public class AnalyticsService {
         }).collect(Collectors.toList());
     }
 
+    @PreAuthorize("@permissions.readProject(#projectId)")
     public Map<String, Object> getProjectHealth(UUID projectId) {
         Project project = projectService.getProject(projectId);
         List<Task> tasks = taskRepository.findByProject(project);
@@ -131,10 +140,12 @@ public class AnalyticsService {
         return result;
     }
 
+    @PreAuthorize("@permissions.self(#userEmail)")
     public Map<String, Object> getTeamPerformance(String userEmail) {
         return getTeamPerformance(userEmail, null, null, null, null);
     }
 
+    @PreAuthorize("@permissions.self(#userEmail)")
     public Map<String, Object> getTeamPerformance(String userEmail, LocalDate from, LocalDate to,
                                                   UUID workspaceId, UUID projectId) {
         List<Project> projects = filterProjects(getProjectsForUser(userEmail), workspaceId, projectId);
@@ -162,6 +173,7 @@ public class AnalyticsService {
         return result;
     }
 
+    @PreAuthorize("@permissions.self(#userEmail)")
     public Map<String, Object> getTeamPerformanceSeries(String userEmail, LocalDate from, LocalDate to,
                                                         UUID workspaceId, UUID projectId) {
         List<Project> projects = filterProjects(getProjectsForUser(userEmail), workspaceId, projectId);
@@ -207,10 +219,12 @@ public class AnalyticsService {
         return result;
     }
 
+    @PreAuthorize("@permissions.self(#userEmail)")
     public List<Map<String, Object>> getInsights(String userEmail) {
         return getInsights(userEmail, null, null, null, null);
     }
 
+    @PreAuthorize("@permissions.self(#userEmail)")
     public List<Map<String, Object>> getInsights(String userEmail, LocalDate from, LocalDate to,
                                                  UUID workspaceId, UUID projectId) {
         List<Project> projects = filterProjects(getProjectsForUser(userEmail), workspaceId, projectId);
@@ -399,7 +413,7 @@ public class AnalyticsService {
                 .toList();
         if (completed.isEmpty()) return 0;
         double avgDays = completed.stream()
-                .mapToLong(t -> Math.max(1, java.time.Duration.between(t.getCreatedAt(), t.getUpdatedAt()).toDays()))
+                .mapToLong(t -> Math.max(1, Duration.between(t.getCreatedAt(), t.getUpdatedAt()).toDays()))
                 .average()
                 .orElse(0);
         return roundOneDecimal(avgDays);

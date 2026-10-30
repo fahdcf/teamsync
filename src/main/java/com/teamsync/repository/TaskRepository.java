@@ -1,9 +1,14 @@
 package com.teamsync.repository;
 
-import com.teamsync.domain.entity.Project;
-import com.teamsync.domain.entity.Task;
-import com.teamsync.domain.entity.User;
-import com.teamsync.domain.enums.TaskStatus;
+import org.springframework.data.repository.query.Param;
+import java.util.Optional;
+import org.springframework.data.jpa.repository.Query;
+import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.Lock;
+import com.teamsync.entity.Project;
+import com.teamsync.entity.Task;
+import com.teamsync.entity.User;
+import com.teamsync.enums.TaskStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
@@ -14,8 +19,14 @@ import java.util.Set;
 import java.util.UUID;
 
 public interface TaskRepository extends JpaRepository<Task, UUID>, JpaSpecificationExecutor<Task> {
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select t from Task t where t.id = :id")
+    Optional<Task> findForUpdate(@Param("id") UUID id);
     List<Task> findByProject(Project project);
     List<Task> findByAssignee(User assignee);
+    long countByAssigneeAndProjectInAndStatusAndUpdatedAtBetween(User user, Set<Project> projects, TaskStatus status, LocalDateTime start, LocalDateTime end);
+    long countByAssigneeAndProjectInAndUpdatedAtBetween(User user, Set<Project> projects, LocalDateTime start, LocalDateTime end);
+    long countByAssigneeAndProjectInAndStatusNotAndDueDateBetween(User user, Set<Project> projects, TaskStatus status, LocalDate from, LocalDate to);
     List<Task> findByAssigneeAndStatus(User assignee, TaskStatus status);
     List<Task> findByProjectAndStatus(Project project, TaskStatus status);
     List<Task> findByDependenciesContaining(Task task);

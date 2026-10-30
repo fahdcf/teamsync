@@ -1,16 +1,18 @@
 package com.teamsync.service;
 
-import com.teamsync.domain.entity.Project;
-import com.teamsync.domain.entity.Task;
-import com.teamsync.domain.entity.User;
-import com.teamsync.domain.entity.Workspace;
-import com.teamsync.presentation.dto.SearchResultResponseDTO;
+import com.teamsync.entity.Project;
+import com.teamsync.entity.Task;
+import com.teamsync.entity.User;
+import com.teamsync.entity.Workspace;
+import com.teamsync.dto.SearchResultResponseDTO;
 import com.teamsync.repository.ProjectRepository;
 import com.teamsync.repository.TaskRepository;
 import com.teamsync.repository.UserRepository;
 import com.teamsync.repository.WorkspaceRepository;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
@@ -22,6 +24,8 @@ import java.util.UUID;
 import java.util.stream.Stream;
 
 @Service
+@Transactional(readOnly = true)
+@PreAuthorize("isAuthenticated()")
 public class SearchService {
 
     private static final int LIMIT_PER_TYPE = 6;
@@ -42,6 +46,7 @@ public class SearchService {
     }
 
     @Transactional(readOnly = true)
+    @PreAuthorize("@permissions.self(#email)")
     public List<SearchResultResponseDTO> search(String email, String keyword) {
         if (keyword == null || keyword.isBlank()) {
             return List.of();

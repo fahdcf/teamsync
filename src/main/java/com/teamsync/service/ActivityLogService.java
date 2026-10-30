@@ -1,17 +1,20 @@
 package com.teamsync.service;
 
-import com.teamsync.domain.entity.ActivityLog;
-import com.teamsync.domain.entity.Project;
-import com.teamsync.domain.entity.Task;
-import com.teamsync.domain.entity.User;
-import com.teamsync.domain.entity.Workspace;
-import com.teamsync.presentation.dto.ActivityLogResponseDTO;
-import com.teamsync.presentation.dto.UserResponseDTO;
+import java.util.ArrayList;
+import java.util.NoSuchElementException;
+import com.teamsync.entity.ActivityLog;
+import com.teamsync.entity.Project;
+import com.teamsync.entity.User;
+import com.teamsync.entity.Workspace;
+import com.teamsync.dto.ActivityLogResponseDTO;
+import com.teamsync.dto.UserResponseDTO;
 import com.teamsync.repository.ActivityLogRepository;
 import com.teamsync.repository.ProjectRepository;
 import com.teamsync.repository.TaskRepository;
 import com.teamsync.repository.WorkspaceRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.util.Comparator;
 import java.util.LinkedHashSet;
@@ -20,6 +23,8 @@ import java.util.Set;
 import java.util.UUID;
 
 @Service
+@Transactional
+@PreAuthorize("isAuthenticated()")
 public class ActivityLogService {
 
     private final ActivityLogRepository activityLogRepository;
@@ -47,14 +52,12 @@ public class ActivityLogService {
         activityLogRepository.save(entry);
     }
 
-    public List<ActivityLog> findByEntityId(UUID entityId) {
-        return activityLogRepository.findByEntityId(entityId);
-    }
-
+    @PreAuthorize("@permissions.readProject(#entityId)")
     public ActivityLog findLatestForEntity(String entityType, UUID entityId) {
         return activityLogRepository.findTopByEntityTypeAndEntityIdOrderByCreatedAtDesc(entityType, entityId);
     }
 
+    @PreAuthorize("@permissions.readProject(#entityId)")
     public List<ActivityLogResponseDTO> findDTOsByEntityId(UUID entityId) {
         return activityLogRepository.findByEntityId(entityId).stream()
                 .sorted(Comparator.comparing(ActivityLog::getCreatedAt).reversed())
@@ -63,9 +66,10 @@ public class ActivityLogService {
                 .toList();
     }
 
+    @PreAuthorize("@permissions.readWorkspace(#workspaceId)")
     public List<ActivityLogResponseDTO> findWorkspaceActivityDTOs(UUID workspaceId) {
         Workspace workspace = workspaceRepository.findById(workspaceId)
-                .orElseThrow(() -> new java.util.NoSuchElementException("Workspace not found: " + workspaceId));
+                .orElseThrow(() -> new NoSuchElementException("Workspace not found: " + workspaceId));
         List<Project> projects = projectRepository.findByWorkspace(workspace);
         Set<UUID> projectIds = new LinkedHashSet<>(projects.stream().map(Project::getId).toList());
         Set<UUID> taskIds = new LinkedHashSet<>();
@@ -73,7 +77,7 @@ public class ActivityLogService {
             taskRepository.findByProject(project).forEach(task -> taskIds.add(task.getId()));
         }
 
-        List<ActivityLog> entries = new java.util.ArrayList<>(
+        List<ActivityLog> entries = new ArrayList<>(
                 activityLogRepository.findTop50ByEntityTypeAndEntityIdOrderByCreatedAtDesc("WORKSPACE", workspaceId));
         if (!projectIds.isEmpty()) {
             entries.addAll(activityLogRepository.findTop50ByEntityTypeAndEntityIdInOrderByCreatedAtDesc("PROJECT", projectIds));
@@ -89,18 +93,21 @@ public class ActivityLogService {
                 .toList();
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     public List<ActivityLogResponseDTO> findRecentDTOs() {
         return activityLogRepository.findTop50ByOrderByCreatedAtDesc().stream()
                 .map(this::toDTO)
                 .toList();
     }
 
+    @PreAuthorize("@permissions.self(#email)")
     public List<ActivityLogResponseDTO> findRecentDTOsByUserEmail(String email) {
         return activityLogRepository.findTop50ByUserEmailOrderByCreatedAtDesc(email).stream()
                 .map(this::toDTO)
                 .toList();
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     public List<ActivityLog> findRecent() {
         return activityLogRepository.findTop50ByOrderByCreatedAtDesc();
     }

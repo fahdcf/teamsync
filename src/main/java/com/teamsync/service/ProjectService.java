@@ -1,20 +1,21 @@
 package com.teamsync.service;
 
-import com.teamsync.domain.entity.Project;
-import com.teamsync.domain.entity.ProjectFavorite;
-import com.teamsync.domain.entity.Task;
-import com.teamsync.domain.entity.User;
-import com.teamsync.domain.entity.Workspace;
-import com.teamsync.domain.entity.ActivityLog;
-import com.teamsync.domain.enums.ProjectEventType;
-import com.teamsync.domain.enums.ProjectStatus;
-import com.teamsync.domain.enums.TaskStatus;
+import com.teamsync.enums.Role;
+import com.teamsync.entity.Project;
+import com.teamsync.entity.ProjectFavorite;
+import com.teamsync.entity.Task;
+import com.teamsync.entity.User;
+import com.teamsync.entity.Workspace;
+import com.teamsync.entity.ActivityLog;
+import com.teamsync.enums.ProjectEventType;
+import com.teamsync.enums.ProjectStatus;
+import com.teamsync.enums.TaskStatus;
 import com.teamsync.patterns.behavioral.observer.ProjectEvent;
-import com.teamsync.patterns.behavioral.observer.ProjectEventPublisher;
+import org.springframework.context.ApplicationEventPublisher;
 import com.teamsync.patterns.creational.singleton.AppLogger;
-import com.teamsync.presentation.dto.ProjectRequestDTO;
-import com.teamsync.presentation.dto.ProjectResponseDTO;
-import com.teamsync.presentation.dto.UserResponseDTO;
+import com.teamsync.dto.ProjectRequestDTO;
+import com.teamsync.dto.ProjectResponseDTO;
+import com.teamsync.dto.UserResponseDTO;
 import com.teamsync.repository.ProjectRepository;
 import com.teamsync.repository.ProjectFavoriteRepository;
 import com.teamsync.repository.ProjectSpecification;
@@ -22,8 +23,10 @@ import com.teamsync.repository.TaskRepository;
 import com.teamsync.repository.UserRepository;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.context.annotation.Lazy;
+import com.teamsync.security.ResourceAuthorization;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -32,23 +35,28 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
+@Transactional
+@PreAuthorize("isAuthenticated()")
 public class ProjectService {
+
+    private final ResourceAuthorization permissions;
 
     private final ProjectRepository projectRepository;
     private final ProjectFavoriteRepository projectFavoriteRepository;
     private final UserRepository userRepository;
     private final TaskRepository taskRepository;
     private final WorkspaceService workspaceService;
-    private final ProjectEventPublisher eventPublisher;
+    private final ApplicationEventPublisher eventPublisher;
     private final ActivityLogService activityLogService;
 
-    public ProjectService(ProjectRepository projectRepository,
+    public ProjectService(ResourceAuthorization permissions, ProjectRepository projectRepository,
                           ProjectFavoriteRepository projectFavoriteRepository,
                           UserRepository userRepository,
                           TaskRepository taskRepository,
                           WorkspaceService workspaceService,
-                          @Lazy ProjectEventPublisher eventPublisher,
+                          ApplicationEventPublisher eventPublisher,
                           ActivityLogService activityLogService) {
+        this.permissions = permissions;
         this.projectRepository = projectRepository;
         this.projectFavoriteRepository = projectFavoriteRepository;
         this.userRepository = userRepository;
@@ -58,13 +66,15 @@ public class ProjectService {
         this.activityLogService = activityLogService;
     }
 
+    @PreAuthorize("@permissions.createProject(#workspaceId)")
     public ProjectResponseDTO create(UUID workspaceId, ProjectRequestDTO request) {
         return create(workspaceId, request, null);
     }
 
+    @PreAuthorize("@permissions.createProject(#workspaceId)")
     public ProjectResponseDTO create(UUID workspaceId, ProjectRequestDTO request, String actorEmail) {
         Workspace workspace = workspaceService.getWorkspace(workspaceId);
-        User manager = resolveManager(request.getManagerId());
+        User manager = resolveManager(request.getManagerId() != null ? request.getManagerId() : permissions.currentUser().getId(), workspace);
 
         Project project = Project.builder()
                 .title(request.getTitle())
@@ -82,10 +92,12 @@ public class ProjectService {
         return dto;
     }
 
+    @PreAuthorize("@permissions.updateProject(#id, #request)")
     public ProjectResponseDTO update(UUID id, ProjectRequestDTO request) {
         return update(id, request, null);
     }
 
+    @PreAuthorize("@permissions.updateProject(#id, #request)")
     public ProjectResponseDTO update(UUID id, ProjectRequestDTO request, String actorEmail) {
         Project project = getProject(id);
 
@@ -93,20 +105,22 @@ public class ProjectService {
         if (request.getDescription() != null) project.setDescription(request.getDescription());
         if (request.getDeadline() != null) project.setDeadline(request.getDeadline());
         if (request.getProgress() != null) project.setProgress(request.getProgress());
-        if (request.getManagerId() != null) project.setManager(resolveManager(request.getManagerId()));
+        if (request.getManagerId() != null) project.setManager(resolveManager(request.getManagerId(), project.getWorkspace()));
 
         Project saved = projectRepository.save(project);
         ProjectResponseDTO dto = toDTO(saved);
         activityLogService.log(resolveActor(actorEmail, saved.getManager()), "PROJECT_UPDATED", "PROJECT", saved.getId());
         AppLogger.getInstance().info("Project updated: " + project.getTitle());
-        eventPublisher.publish(new ProjectEvent(ProjectEventType.PROJECT_UPDATED, project.getTitle(), null));
+        eventPublisher.publishEvent(new ProjectEvent(ProjectEventType.PROJECT_UPDATED, project.getTitle(), null));
         return dto;
     }
 
+    @PreAuthorize("@permissions.manageProject(#id)")
     public ProjectResponseDTO archive(UUID id) {
         return archive(id, null);
     }
 
+    @PreAuthorize("@permissions.manageProject(#id)")
     public ProjectResponseDTO archive(UUID id, String actorEmail) {
         Project project = getProject(id);
         project.setStatus(ProjectStatus.ARCHIVED);
@@ -115,16 +129,19 @@ public class ProjectService {
         return toDTO(saved);
     }
 
+    @PreAuthorize("@permissions.readWorkspace(#workspaceId)")
     public List<ProjectResponseDTO> findByWorkspace(UUID workspaceId) {
         return findByWorkspace(workspaceId, null, null, null, null, null, null, null);
     }
 
+    @PreAuthorize("@permissions.readWorkspace(#workspaceId)")
     public List<ProjectResponseDTO> findByWorkspace(UUID workspaceId, ProjectStatus status, String health,
                                                     UUID managerId, LocalDate dueFrom, LocalDate dueTo,
                                                     String keyword, String sort) {
         return findByWorkspace(workspaceId, status, health, managerId, dueFrom, dueTo, keyword, sort, null);
     }
 
+    @PreAuthorize("@permissions.readWorkspace(#workspaceId)")
     public List<ProjectResponseDTO> findByWorkspace(UUID workspaceId, ProjectStatus status, String health,
                                                     UUID managerId, LocalDate dueFrom, LocalDate dueTo,
                                                     String keyword, String sort, String userEmail) {
@@ -149,7 +166,7 @@ public class ProjectService {
 
     public List<ProjectResponseDTO> search(UUID workspaceId, ProjectStatus status, UUID managerId, UUID teamMemberId,
                                            LocalDate dueFrom, LocalDate dueTo, String keyword, String sort, String userEmail) {
-        Specification<Project> spec = Specification.where(null);
+        Specification<Project> spec = Specification.where(ProjectSpecification.visibleTo(permissions.currentUser()));
         if (workspaceId != null) spec = spec.and(ProjectSpecification.hasWorkspace(workspaceService.getWorkspace(workspaceId)));
         if (status != null) spec = spec.and(ProjectSpecification.hasStatus(status));
         if (managerId != null) spec = spec.and(ProjectSpecification.hasManager(managerId));
@@ -163,14 +180,17 @@ public class ProjectService {
                 .collect(Collectors.toList());
     }
 
+    @PreAuthorize("@permissions.readProject(#id)")
     public ProjectResponseDTO findById(UUID id) {
         return toDTO(getProject(id));
     }
 
+    @PreAuthorize("@permissions.readProject(#id)")
     public ProjectResponseDTO findById(UUID id, String userEmail) {
         return toDTO(getProject(id), resolveActor(userEmail, null));
     }
 
+    @PreAuthorize("@permissions.readProject(#id) and @permissions.self(#userEmail)")
     public ProjectResponseDTO toggleFavorite(UUID id, String userEmail) {
         Project project = getProject(id);
         User user = resolveActor(userEmail, null);
@@ -181,22 +201,32 @@ public class ProjectService {
         return toDTO(project, user);
     }
 
+    @PreAuthorize("@permissions.readProject(#id)")
     public Project getProject(UUID id) {
         return projectRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Project not found: " + id));
     }
 
-    private User resolveManager(UUID managerId) {
+    @PreAuthorize("@permissions.createProject(#workspaceId)")
+    public ProjectResponseDTO initializeProject(UUID workspaceId, String projectTitle, String managerEmail) {
+        User manager = userRepository.findByEmail(managerEmail).orElseThrow(() -> new IllegalArgumentException("Invalid manager"));
+        ProjectRequestDTO request = new ProjectRequestDTO();
+        request.setTitle(projectTitle);
+        request.setManagerId(manager.getId());
+        return create(workspaceId, request, permissions.currentUser().getEmail());
+    }
+
+    private User resolveManager(UUID managerId, Workspace workspace) {
         if (managerId == null) return null;
-        return userRepository.findById(managerId)
-                .orElseThrow(() -> new NoSuchElementException("User not found: " + managerId));
+        User manager = userRepository.findById(managerId).orElseThrow(() -> new IllegalArgumentException("Invalid manager"));
+        if (!permissions.participant(workspace, manager)) throw new IllegalArgumentException("Manager must belong to the workspace");
+        if (manager.getRole() != Role.PROJECT_MANAGER && manager.getRole() != Role.ADMIN
+                && !workspace.getOwner().getId().equals(manager.getId())) throw new IllegalArgumentException("Manager must have a management role or own the workspace");
+        return manager;
     }
 
     private User resolveActor(String actorEmail, User fallback) {
-        if (actorEmail == null || actorEmail.isBlank()) {
-            return fallback;
-        }
-        return userRepository.findByEmail(actorEmail).orElse(fallback);
+        return permissions.currentUser();
     }
 
     private UserResponseDTO userToDTO(User u) {
@@ -219,6 +249,8 @@ public class ProjectService {
         ActivityLog latestActivity = activityLogService.findLatestForEntity("PROJECT", p.getId());
         return ProjectResponseDTO.builder()
                 .id(p.getId())
+                .canManage(permissions.manageProject(p.getId()))
+                .canChangeManager(permissions.manageWorkspace(p.getWorkspace().getId()))
                 .title(p.getTitle())
                 .description(p.getDescription())
                 .status(p.getStatus())

@@ -1,5 +1,5 @@
-# Strategy Pattern
+# Assignment strategies
 
-AssignmentStrategy defines the algorithm interface. WorkloadStrategy and RoundRobinStrategy
-are interchangeable implementations. TaskAssignmentService runs whichever strategy is injected,
-with no if/else logic in the service itself.
+TaskAssignmentService selects workload or round-robin for each call, without mutable
+shared strategy selection. Candidates come from the authorized project's workspace;
+workload counts stay in that workspace. TaskService checks task/project consistency.

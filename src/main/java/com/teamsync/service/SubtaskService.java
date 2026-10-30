@@ -1,36 +1,46 @@
 package com.teamsync.service;
 
-import com.teamsync.domain.entity.Subtask;
-import com.teamsync.domain.entity.Task;
-import com.teamsync.domain.entity.User;
-import com.teamsync.presentation.dto.SubtaskRequestDTO;
-import com.teamsync.presentation.dto.SubtaskResponseDTO;
-import com.teamsync.presentation.dto.UserResponseDTO;
+import com.teamsync.entity.Subtask;
+import com.teamsync.entity.Task;
+import com.teamsync.entity.User;
+import com.teamsync.dto.SubtaskRequestDTO;
+import com.teamsync.dto.SubtaskResponseDTO;
+import com.teamsync.dto.UserResponseDTO;
 import com.teamsync.repository.SubtaskRepository;
 import com.teamsync.repository.TaskRepository;
 import com.teamsync.repository.UserRepository;
+import com.teamsync.security.ResourceAuthorization;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.util.NoSuchElementException;
 import java.util.UUID;
 
 @Service
+@Transactional
+@PreAuthorize("isAuthenticated()")
 public class SubtaskService {
+
+    private final ResourceAuthorization permissions;
 
     private final SubtaskRepository subtaskRepository;
     private final TaskRepository taskRepository;
     private final UserRepository userRepository;
 
-    public SubtaskService(SubtaskRepository subtaskRepository,
+    public SubtaskService(ResourceAuthorization permissions, SubtaskRepository subtaskRepository,
                           TaskRepository taskRepository,
                           UserRepository userRepository) {
+        this.permissions = permissions;
         this.subtaskRepository = subtaskRepository;
         this.taskRepository = taskRepository;
         this.userRepository = userRepository;
     }
 
+    @PreAuthorize("@permissions.manageTask(#taskId)")
     public SubtaskResponseDTO createSubtask(UUID taskId, SubtaskRequestDTO request) {
         Task task = findTask(taskId);
+        permissions.validateAssignee(task.getProject(), request.getAssigneeId());
         Subtask subtask = Subtask.builder()
                 .title(request.getTitle())
                 .task(task)
@@ -40,6 +50,7 @@ public class SubtaskService {
         return toDTO(subtaskRepository.save(subtask));
     }
 
+    @PreAuthorize("@permissions.workOnTask(#taskId)")
     public SubtaskResponseDTO toggleSubtask(UUID taskId, UUID subtaskId) {
         findTask(taskId);
         Subtask subtask = findSubtaskForTask(taskId, subtaskId);
@@ -47,15 +58,18 @@ public class SubtaskService {
         return toDTO(subtaskRepository.save(subtask));
     }
 
+    @PreAuthorize("@permissions.manageTask(#taskId)")
     public SubtaskResponseDTO updateSubtask(UUID taskId, UUID subtaskId, SubtaskRequestDTO request) {
         findTask(taskId);
         Subtask subtask = findSubtaskForTask(taskId, subtaskId);
+        permissions.validateAssignee(subtask.getTask().getProject(), request.getAssigneeId());
         subtask.setTitle(request.getTitle());
         subtask.setAssignee(resolveUser(request.getAssigneeId()));
         subtask.setDueDate(request.getDueDate());
         return toDTO(subtaskRepository.save(subtask));
     }
 
+    @PreAuthorize("@permissions.manageTask(#taskId)")
     public void deleteSubtask(UUID taskId, UUID subtaskId) {
         findTask(taskId);
         Subtask subtask = findSubtaskForTask(taskId, subtaskId);

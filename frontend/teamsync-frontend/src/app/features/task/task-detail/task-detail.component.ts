@@ -83,8 +83,7 @@ export default class TaskDetailComponent implements OnInit {
   }
 
   get canDelete(): boolean {
-    const role = this.authStore.getUser()?.role;
-    return role === 'ADMIN' || role === 'PROJECT_MANAGER';
+    return this.task?.canManage === true;
   }
 
   get subtasks(): Subtask[] {
@@ -411,7 +410,7 @@ export default class TaskDetailComponent implements OnInit {
       title: `${this.task.title} copy`,
       description: this.task.description || '',
       priority: this.task.priority,
-      status: this.task.status,
+      status: 'TODO',
       dueDate: this.task.dueDate || undefined,
       assigneeId: this.task.assignee?.id,
     }).subscribe({

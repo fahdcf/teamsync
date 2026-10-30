@@ -5,6 +5,9 @@ export type ProjectStatus = 'PLANNING' | 'ACTIVE' | 'ON_HOLD' | 'COMPLETED' | 'A
 
 export interface Project {
   id: string;
+  canManage?: boolean;
+  canChangeManager?: boolean;
+
   title: string;
   description: string;
   status: ProjectStatus;

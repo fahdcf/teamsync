@@ -23,13 +23,13 @@
       <div class="td-options-wrap">
         <button class="td-icon-btn" type="button" aria-label="Task options" (click)="toggleOptionsMenu()">...</button>
         <div class="td-options-menu" *ngIf="showOptionsMenu">
-          <button type="button" (click)="duplicateTask()">Duplicate task</button>
-          <button type="button" (click)="saveTaskAsTemplate()">Save as template</button>
+          <button type="button" [disabled]="!task.canManage" (click)="duplicateTask()">Duplicate task</button>
+          <button type="button" [disabled]="!task.canManage" (click)="saveTaskAsTemplate()">Save as template</button>
           <label class="td-options-field">
             <span>Dependency task ID</span>
             <input [(ngModel)]="dependencyTaskId" placeholder="Paste task ID">
           </label>
-          <button type="button" (click)="addDependencyFromMenu()">Add dependency</button>
+          <button type="button" [disabled]="!task.canManage" (click)="addDependencyFromMenu()">Add dependency</button>
           <button type="button" (click)="undoLastAction()">Undo last action</button>
           <button *ngIf="canDelete" class="danger" type="button" (click)="deleteTask()">Delete task</button>
           <small *ngIf="actionMessage">{{ actionMessage }}</small>
@@ -37,7 +37,7 @@
       </div>
     </div>
     <div class="td-header-right">
-      <button class="td-create-btn" type="button" (click)="startSubtaskCreate()">Create subtask</button>
+      <button class="td-create-btn" type="button" [disabled]="!task.canManage" (click)="startSubtaskCreate()">Create subtask</button>
       <button class="td-icon-btn close" type="button" aria-label="Close task details" (click)="closeDrawer()">x</button>
     </div>
   </header>
@@ -54,11 +54,11 @@
         <div class="td-title-copy">
           <h1 *ngIf="!isEditingTitle" class="td-title">
             {{ task.title }}
-            <button class="td-edit-icon" type="button" aria-label="Edit title" (click)="isEditingTitle = true">Edit</button>
+            <button class="td-edit-icon" type="button" aria-label="Edit title" [disabled]="!task.canManage" (click)="isEditingTitle = true">Edit</button>
           </h1>
           <input *ngIf="isEditingTitle" class="title-input" [value]="task.title" (blur)="onTitleBlur($event)" autofocus>
 
-          <p *ngIf="!isEditingDescription" class="td-description" (click)="isEditingDescription = true">
+          <p *ngIf="!isEditingDescription" class="td-description" (click)="task.canManage && (isEditingDescription = true)">
             {{ task.description || 'Add a clear description for this task...' }}
           </p>
           <textarea *ngIf="isEditingDescription" class="description-input" [value]="task.description || ''" (blur)="onDescBlur($event)" autofocus></textarea>
@@ -78,7 +78,7 @@
             <span class="td-dot" [class]="dotClass(task.priority)"></span>
             {{ priorityLabel(task.priority) }}
             <span class="chevron">v</span>
-            <select [ngModel]="task.priority" (ngModelChange)="onPriorityChange($event)">
+            <select [disabled]="!task.canManage" [ngModel]="task.priority" (ngModelChange)="onPriorityChange($event)">
               <option *ngFor="let p of priorities" [value]="p">{{ priorityLabel(p) }}</option>
             </select>
           </div>
@@ -90,7 +90,7 @@
             <span class="td-dot" [class]="dotClass(task.status)"></span>
             {{ statusLabel(task.status) }}
             <span class="chevron">v</span>
-            <select [ngModel]="task.status" (ngModelChange)="onStatusChange($event)">
+            <select [disabled]="!task.canChangeStatus" [ngModel]="task.status" (ngModelChange)="onStatusChange($event)">
               <option *ngFor="let s of statuses" [value]="s">{{ statusLabel(s) }}</option>
             </select>
           </div>
@@ -103,7 +103,7 @@
             <span class="td-av muted" *ngIf="!task.assignee">?</span>
             {{ task.assignee?.username || 'Unassigned' }}
             <span class="chevron">v</span>
-            <select [ngModel]="task.assignee?.id || ''" (ngModelChange)="onAssigneeChange($event)">
+            <select [disabled]="!task.canManage" [ngModel]="task.assignee?.id || ''" (ngModelChange)="onAssigneeChange($event)">
               <option value="" disabled>Choose assignee</option>
               <option *ngFor="let member of assigneeOptions" [value]="member.id">{{ member.username }}</option>
             </select>
@@ -115,12 +115,12 @@
           <div class="td-meta-btn td-date-btn">
             <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M5 1.5v3M11 1.5v3M2 7h12"/></svg>
             {{ task.dueDate ? (task.dueDate | date:'MMM d, yyyy') : 'No date' }}
-            <input type="date" [ngModel]="task.dueDate" (ngModelChange)="onDueDateChange($event)">
+            <input type="date" [disabled]="!task.canManage" [ngModel]="task.dueDate" (ngModelChange)="onDueDateChange($event)">
           </div>
         </div>
       </div>
 
-      <section class="td-assignment-panel" aria-label="Task assignment">
+      <section *ngIf="task.canManage" class="td-assignment-panel" aria-label="Task assignment">
         <div class="td-assignment-copy">
           <span>Assignment</span>
           <strong>{{ task.assignee?.username || 'Unassigned' }}</strong>
@@ -159,20 +159,20 @@
 
       <div class="td-subtask-list">
         <div *ngFor="let subtask of subtasks" class="td-subtask-row" [class.checked]="subtask.completed">
-          <button class="td-check-btn-wrapper" type="button" (click)="toggleSubtask(subtask)" [attr.aria-label]="subtask.completed ? 'Mark incomplete' : 'Mark complete'">
+          <button class="td-check-btn-wrapper" type="button" [disabled]="!task.canChangeStatus" (click)="toggleSubtask(subtask)" [attr.aria-label]="subtask.completed ? 'Mark incomplete' : 'Mark complete'">
             <span *ngIf="subtask.completed" class="td-check-icon">&#10003;</span>
             <span *ngIf="!subtask.completed" class="td-uncheck-icon"></span>
           </button>
           <span class="td-subtask-name">{{ subtask.title }}</span>
-          <select class="td-subtask-select" [ngModel]="subtask.assignee?.id || ''" (ngModelChange)="updateSubtaskAssignee(subtask, $event)">
+          <select class="td-subtask-select" [disabled]="!task.canManage" [ngModel]="subtask.assignee?.id || ''" (ngModelChange)="updateSubtaskAssignee(subtask, $event)">
             <option value="">Unassigned</option>
             <option *ngFor="let member of assigneeOptions" [value]="member.id">{{ member.username }}</option>
           </select>
-          <input class="td-subtask-date-input" type="date" [ngModel]="subtask.dueDate" (ngModelChange)="updateSubtaskDueDate(subtask, $event)">
-          <button class="td-delete-subtask" type="button" (click)="deleteSubtask(subtask)" aria-label="Delete subtask">x</button>
+          <input class="td-subtask-date-input" type="date" [disabled]="!task.canManage" [ngModel]="subtask.dueDate" (ngModelChange)="updateSubtaskDueDate(subtask, $event)">
+          <button class="td-delete-subtask" type="button" [disabled]="!task.canManage" (click)="deleteSubtask(subtask)" aria-label="Delete subtask">x</button>
         </div>
 
-        <button *ngIf="!isAddingSubtask" class="add-subtask-placeholder" type="button" (click)="isAddingSubtask = true">
+        <button *ngIf="!isAddingSubtask && task.canManage" class="add-subtask-placeholder" type="button" (click)="isAddingSubtask = true">
           + Add a subtask...
         </button>
         <div *ngIf="isAddingSubtask" class="add-subtask-form">

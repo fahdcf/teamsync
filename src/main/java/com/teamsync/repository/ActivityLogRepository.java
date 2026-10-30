@@ -1,6 +1,6 @@
 package com.teamsync.repository;
 
-import com.teamsync.domain.entity.ActivityLog;
+import com.teamsync.entity.ActivityLog;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Collection;
