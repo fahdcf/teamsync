@@ -39,9 +39,8 @@ public class ProjectController {
                                            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dueFrom,
                                            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dueTo,
                                            @RequestParam(required = false) String keyword,
-                                           @RequestParam(required = false) String sort,
-                                           Authentication auth) {
-        return projectService.search(workspaceId, status, managerId, teamMemberId, dueFrom, dueTo, keyword, sort, auth.getName());
+                                           @RequestParam(required = false) String sort) {
+        return projectService.search(workspaceId, status, managerId, teamMemberId, dueFrom, dueTo, keyword, sort);
     }
 
     @Operation(summary = "Create a project in a workspace")
@@ -52,9 +51,8 @@ public class ProjectController {
     @PostMapping("/workspaces/{workspaceId}/projects")
     @ResponseStatus(HttpStatus.CREATED)
     public ProjectResponseDTO create(@PathVariable UUID workspaceId,
-                                     @Valid @RequestBody ProjectRequestDTO request,
-                                     Authentication auth) {
-        return projectService.create(workspaceId, request, auth.getName());
+                                     @Valid @RequestBody ProjectRequestDTO request) {
+        return projectService.create(workspaceId, request);
     }
 
     @Operation(summary = "List projects in a workspace")
@@ -67,9 +65,8 @@ public class ProjectController {
                                                     @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dueFrom,
                                                     @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dueTo,
                                                     @RequestParam(required = false) String keyword,
-                                                    @RequestParam(required = false) String sort,
-                                                    Authentication auth) {
-        return projectService.findByWorkspace(workspaceId, status, health, managerId, dueFrom, dueTo, keyword, sort, auth.getName());
+                                                    @RequestParam(required = false) String sort) {
+        return projectService.findByWorkspace(workspaceId, status, health, managerId, dueFrom, dueTo, keyword, sort);
     }
 
     @Operation(summary = "Get project details by ID")
@@ -89,9 +86,8 @@ public class ProjectController {
     })
     @PutMapping("/projects/{id}")
     public ProjectResponseDTO update(@PathVariable UUID id,
-                                     @Valid @RequestBody ProjectRequestDTO request,
-                                     Authentication auth) {
-        return projectService.update(id, request, auth.getName());
+                                     @Valid @RequestBody ProjectRequestDTO request) {
+        return projectService.update(id, request);
     }
 
     @Operation(summary = "Archive a project (ADMIN or PROJECT_MANAGER)")
@@ -101,8 +97,8 @@ public class ProjectController {
         @ApiResponse(responseCode = "404", description = "Project not found")
     })
     @PutMapping("/projects/{id}/archive")
-    public ProjectResponseDTO archive(@PathVariable UUID id, Authentication auth) {
-        return projectService.archive(id, auth.getName());
+    public ProjectResponseDTO archive(@PathVariable UUID id) {
+        return projectService.archive(id);
     }
 
     @Operation(summary = "Toggle project favorite for the authenticated user")

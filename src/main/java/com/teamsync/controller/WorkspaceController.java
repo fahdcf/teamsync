@@ -84,8 +84,8 @@ public class WorkspaceController {
     @Operation(summary = "List users that can still be added to the workspace")
     @ApiResponse(responseCode = "200", description = "Available users returned")
     @GetMapping("/{id}/available-members")
-    public List<UserResponseDTO> getAvailableMembers(@PathVariable UUID id, Authentication auth) {
-        return workspaceService.getAvailableMembers(id, auth.getName());
+    public List<UserResponseDTO> getAvailableMembers(@PathVariable UUID id) {
+        return workspaceService.getAvailableMembers(id);
     }
 
     @Operation(summary = "Add a member to a workspace by user id or email")

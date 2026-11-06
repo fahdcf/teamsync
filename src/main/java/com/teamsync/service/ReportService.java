@@ -42,7 +42,7 @@ public class ReportService {
             default -> jsonGenerator;
         };
 
-        return generator.generate(analyticsService.getProjectStats(projectId));
+        return generator.generate(analyticsService.getProjectStats(projectId, null, null));
     }
 
     public String normalizeFormat(String format) {

@@ -86,7 +86,7 @@ public class UserService {
     public UserResponseDTO updateUsername(String email, String newUsername) {
         UpdateProfileRequestDTO request = new UpdateProfileRequestDTO();
         request.setUsername(newUsername);
-        return updateProfile(email, request);
+        return applyProfileUpdate(email, request);
     }
 
     @PreAuthorize("@permissions.self(#email)")
@@ -153,6 +153,10 @@ public class UserService {
 
     @PreAuthorize("@permissions.self(#email) and @permissions.profileRoleUnchanged(#request)")
     public UserResponseDTO updateProfile(String email, UpdateProfileRequestDTO request) {
+        return applyProfileUpdate(email, request);
+    }
+
+    private UserResponseDTO applyProfileUpdate(String email, UpdateProfileRequestDTO request) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found: " + email));
 

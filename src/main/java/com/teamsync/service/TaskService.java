@@ -87,11 +87,6 @@ public class TaskService {
 
     @PreAuthorize("@permissions.manageProject(#projectId)")
     public TaskResponseDTO create(UUID projectId, TaskRequestDTO request) {
-        return create(projectId, request, null);
-    }
-
-    @PreAuthorize("@permissions.manageProject(#projectId)")
-    public TaskResponseDTO create(UUID projectId, TaskRequestDTO request, UUID userId) {
         Project project = projectService.getProject(projectId);
         validateRequest(request, project);
         if (request.getDueDate() != null && request.getDueDate().isBefore(LocalDate.now()))
@@ -113,18 +108,13 @@ public class TaskService {
         if (request.getStatus() != null && request.getStatus() != TaskStatus.TODO)
             stateMachine.transition(task, request.getStatus(), taskRepository);
         Task saved = taskRepository.save(task);
-        activityLogService.log(resolveActor(userId, assignee), "TASK_CREATED", "TASK", saved.getId());
+        activityLogService.log(permissions.currentUser(), "TASK_CREATED", "TASK", saved.getId());
         eventPublisher.publishEvent(new ProjectEvent(ProjectEventType.TASK_CREATED, saved.getTitle(), null));
         return toDTO(saved);
     }
 
     @PreAuthorize("@permissions.manageTask(#id)")
     public TaskResponseDTO update(UUID id, TaskRequestDTO request) {
-        return update(id, request, null);
-    }
-
-    @PreAuthorize("@permissions.manageTask(#id)")
-    public TaskResponseDTO update(UUID id, TaskRequestDTO request, UUID userId) {
         Task task = getTaskForUpdate(id);
         validateRequest(request, task.getProject());
 
@@ -137,7 +127,7 @@ public class TaskService {
         if (request.getStatus() != null && request.getStatus() != task.getStatus())
             stateMachine.transition(task, request.getStatus(), taskRepository);
         Task saved = taskRepository.save(task);
-        activityLogService.log(resolveActor(userId, saved.getAssignee()), "TASK_UPDATED", "TASK", saved.getId());
+        activityLogService.log(permissions.currentUser(), "TASK_UPDATED", "TASK", saved.getId());
         return toDTO(saved);
     }
 
@@ -266,10 +256,6 @@ public class TaskService {
         if (userId == null) return null;
         return userRepository.findById(userId)
                 .orElseThrow(() -> new NoSuchElementException("User not found: " + userId));
-    }
-
-    private User resolveActor(UUID userId, User fallback) {
-        return permissions.currentUser();
     }
 
     private UserResponseDTO userToDTO(User u) {

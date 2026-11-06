@@ -48,11 +48,6 @@ public class AnalyticsService {
     }
 
     @PreAuthorize("@permissions.readProject(#projectId)")
-    public Map<String, Object> getProjectStats(UUID projectId) {
-        return getProjectStats(projectId, null, null);
-    }
-
-    @PreAuthorize("@permissions.readProject(#projectId)")
     public Map<String, Object> getProjectStats(UUID projectId, LocalDate from, LocalDate to) {
         Project project = projectService.getProject(projectId);
         List<Task> tasks = filterTasksByDateRange(taskRepository.findByProject(project), from, to);
@@ -141,11 +136,6 @@ public class AnalyticsService {
     }
 
     @PreAuthorize("@permissions.self(#userEmail)")
-    public Map<String, Object> getTeamPerformance(String userEmail) {
-        return getTeamPerformance(userEmail, null, null, null, null);
-    }
-
-    @PreAuthorize("@permissions.self(#userEmail)")
     public Map<String, Object> getTeamPerformance(String userEmail, LocalDate from, LocalDate to,
                                                   UUID workspaceId, UUID projectId) {
         List<Project> projects = filterProjects(getProjectsForUser(userEmail), workspaceId, projectId);
@@ -217,11 +207,6 @@ public class AnalyticsService {
         result.put("workloadSeries", workloadSeries);
         result.put("projectHealthSeries", projectHealthSeries);
         return result;
-    }
-
-    @PreAuthorize("@permissions.self(#userEmail)")
-    public List<Map<String, Object>> getInsights(String userEmail) {
-        return getInsights(userEmail, null, null, null, null);
     }
 
     @PreAuthorize("@permissions.self(#userEmail)")
@@ -376,10 +361,6 @@ public class AnalyticsService {
             ));
         }
         return history;
-    }
-
-    private List<Map<String, Object>> buildWorkloadDistribution(Workspace workspace) {
-        return buildWorkloadDistribution(workspace, null, null);
     }
 
     private List<Map<String, Object>> buildWorkloadDistribution(Workspace workspace, LocalDate from, LocalDate to) {

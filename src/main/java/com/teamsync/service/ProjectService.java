@@ -68,11 +68,10 @@ public class ProjectService {
 
     @PreAuthorize("@permissions.createProject(#workspaceId)")
     public ProjectResponseDTO create(UUID workspaceId, ProjectRequestDTO request) {
-        return create(workspaceId, request, null);
+        return createProject(workspaceId, request);
     }
 
-    @PreAuthorize("@permissions.createProject(#workspaceId)")
-    public ProjectResponseDTO create(UUID workspaceId, ProjectRequestDTO request, String actorEmail) {
+    private ProjectResponseDTO createProject(UUID workspaceId, ProjectRequestDTO request) {
         Workspace workspace = workspaceService.getWorkspace(workspaceId);
         User manager = resolveManager(request.getManagerId() != null ? request.getManagerId() : permissions.currentUser().getId(), workspace);
 
@@ -86,19 +85,14 @@ public class ProjectService {
                 .build();
 
         Project saved = projectRepository.save(project);
-        ProjectResponseDTO dto = toDTO(saved);
-        activityLogService.log(resolveActor(actorEmail, manager), "PROJECT_CREATED", "PROJECT", saved.getId());
+        ProjectResponseDTO dto = toDTO(saved, null);
+        activityLogService.log(permissions.currentUser(), "PROJECT_CREATED", "PROJECT", saved.getId());
         AppLogger.getInstance().info("Project created: " + project.getTitle());
         return dto;
     }
 
     @PreAuthorize("@permissions.updateProject(#id, #request)")
     public ProjectResponseDTO update(UUID id, ProjectRequestDTO request) {
-        return update(id, request, null);
-    }
-
-    @PreAuthorize("@permissions.updateProject(#id, #request)")
-    public ProjectResponseDTO update(UUID id, ProjectRequestDTO request, String actorEmail) {
         Project project = getProject(id);
 
         project.setTitle(request.getTitle());
@@ -108,8 +102,8 @@ public class ProjectService {
         if (request.getManagerId() != null) project.setManager(resolveManager(request.getManagerId(), project.getWorkspace()));
 
         Project saved = projectRepository.save(project);
-        ProjectResponseDTO dto = toDTO(saved);
-        activityLogService.log(resolveActor(actorEmail, saved.getManager()), "PROJECT_UPDATED", "PROJECT", saved.getId());
+        ProjectResponseDTO dto = toDTO(saved, null);
+        activityLogService.log(permissions.currentUser(), "PROJECT_UPDATED", "PROJECT", saved.getId());
         AppLogger.getInstance().info("Project updated: " + project.getTitle());
         eventPublisher.publishEvent(new ProjectEvent(ProjectEventType.PROJECT_UPDATED, project.getTitle(), null));
         return dto;
@@ -117,36 +111,19 @@ public class ProjectService {
 
     @PreAuthorize("@permissions.manageProject(#id)")
     public ProjectResponseDTO archive(UUID id) {
-        return archive(id, null);
-    }
-
-    @PreAuthorize("@permissions.manageProject(#id)")
-    public ProjectResponseDTO archive(UUID id, String actorEmail) {
         Project project = getProject(id);
         project.setStatus(ProjectStatus.ARCHIVED);
         Project saved = projectRepository.save(project);
-        activityLogService.log(resolveActor(actorEmail, saved.getManager()), "PROJECT_ARCHIVED", "PROJECT", saved.getId());
-        return toDTO(saved);
-    }
-
-    @PreAuthorize("@permissions.readWorkspace(#workspaceId)")
-    public List<ProjectResponseDTO> findByWorkspace(UUID workspaceId) {
-        return findByWorkspace(workspaceId, null, null, null, null, null, null, null);
+        activityLogService.log(permissions.currentUser(), "PROJECT_ARCHIVED", "PROJECT", saved.getId());
+        return toDTO(saved, null);
     }
 
     @PreAuthorize("@permissions.readWorkspace(#workspaceId)")
     public List<ProjectResponseDTO> findByWorkspace(UUID workspaceId, ProjectStatus status, String health,
                                                     UUID managerId, LocalDate dueFrom, LocalDate dueTo,
                                                     String keyword, String sort) {
-        return findByWorkspace(workspaceId, status, health, managerId, dueFrom, dueTo, keyword, sort, null);
-    }
-
-    @PreAuthorize("@permissions.readWorkspace(#workspaceId)")
-    public List<ProjectResponseDTO> findByWorkspace(UUID workspaceId, ProjectStatus status, String health,
-                                                    UUID managerId, LocalDate dueFrom, LocalDate dueTo,
-                                                    String keyword, String sort, String userEmail) {
         Workspace workspace = workspaceService.getWorkspace(workspaceId);
-        User currentUser = resolveActor(userEmail, null);
+        User currentUser = permissions.currentUser();
         Specification<Project> spec = Specification.where(ProjectSpecification.hasWorkspace(workspace));
         if (status != null) spec = spec.and(ProjectSpecification.hasStatus(status));
         if (managerId != null) spec = spec.and(ProjectSpecification.hasManager(managerId));
@@ -160,12 +137,8 @@ public class ProjectService {
                 .collect(Collectors.toList());
     }
 
-    public List<ProjectResponseDTO> search(ProjectStatus status, UUID managerId) {
-        return search(null, status, managerId, null, null, null, null, null, null);
-    }
-
     public List<ProjectResponseDTO> search(UUID workspaceId, ProjectStatus status, UUID managerId, UUID teamMemberId,
-                                           LocalDate dueFrom, LocalDate dueTo, String keyword, String sort, String userEmail) {
+                                           LocalDate dueFrom, LocalDate dueTo, String keyword, String sort) {
         Specification<Project> spec = Specification.where(ProjectSpecification.visibleTo(permissions.currentUser()));
         if (workspaceId != null) spec = spec.and(ProjectSpecification.hasWorkspace(workspaceService.getWorkspace(workspaceId)));
         if (status != null) spec = spec.and(ProjectSpecification.hasStatus(status));
@@ -174,7 +147,7 @@ public class ProjectService {
         if (dueFrom != null) spec = spec.and(ProjectSpecification.deadlineFrom(dueFrom));
         if (dueTo != null) spec = spec.and(ProjectSpecification.deadlineTo(dueTo));
         if (keyword != null && !keyword.isBlank()) spec = spec.and(ProjectSpecification.hasKeyword(keyword));
-        User currentUser = resolveActor(userEmail, null);
+        User currentUser = permissions.currentUser();
         return projectRepository.findAll(spec, sortForWorkspaceProjects(sort)).stream()
                 .map(project -> toDTO(project, currentUser))
                 .collect(Collectors.toList());
@@ -182,18 +155,18 @@ public class ProjectService {
 
     @PreAuthorize("@permissions.readProject(#id)")
     public ProjectResponseDTO findById(UUID id) {
-        return toDTO(getProject(id));
+        return toDTO(getProject(id), null);
     }
 
     @PreAuthorize("@permissions.readProject(#id)")
     public ProjectResponseDTO findById(UUID id, String userEmail) {
-        return toDTO(getProject(id), resolveActor(userEmail, null));
+        return toDTO(getProject(id), permissions.currentUser());
     }
 
     @PreAuthorize("@permissions.readProject(#id) and @permissions.self(#userEmail)")
     public ProjectResponseDTO toggleFavorite(UUID id, String userEmail) {
         Project project = getProject(id);
-        User user = resolveActor(userEmail, null);
+        User user = permissions.currentUser();
         projectFavoriteRepository.findByProjectAndUser(project, user).ifPresentOrElse(
                 projectFavoriteRepository::delete,
                 () -> projectFavoriteRepository.save(ProjectFavorite.builder().project(project).user(user).build())
@@ -213,7 +186,7 @@ public class ProjectService {
         ProjectRequestDTO request = new ProjectRequestDTO();
         request.setTitle(projectTitle);
         request.setManagerId(manager.getId());
-        return create(workspaceId, request, permissions.currentUser().getEmail());
+        return createProject(workspaceId, request);
     }
 
     private User resolveManager(UUID managerId, Workspace workspace) {
@@ -225,10 +198,6 @@ public class ProjectService {
         return manager;
     }
 
-    private User resolveActor(String actorEmail, User fallback) {
-        return permissions.currentUser();
-    }
-
     private UserResponseDTO userToDTO(User u) {
         if (u == null) return null;
         return UserResponseDTO.builder()
@@ -238,10 +207,6 @@ public class ProjectService {
                 .role(u.getRole())
                 .createdAt(u.getCreatedAt())
                 .build();
-    }
-
-    private ProjectResponseDTO toDTO(Project p) {
-        return toDTO(p, null);
     }
 
     private ProjectResponseDTO toDTO(Project p, User currentUser) {

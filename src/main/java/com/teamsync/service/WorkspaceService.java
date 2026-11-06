@@ -151,7 +151,7 @@ public class WorkspaceService {
     }
 
     @PreAuthorize("@permissions.manageWorkspace(#workspaceId)")
-    public List<UserResponseDTO> getAvailableMembers(UUID workspaceId, String requesterEmail) {
+    public List<UserResponseDTO> getAvailableMembers(UUID workspaceId) {
         Workspace workspace = getWorkspace(workspaceId);
         Set<UUID> currentUserIds = new LinkedHashSet<>(workspace.getMembers().stream().map(User::getId).toList());
         if (workspace.getOwner() != null) {
@@ -172,13 +172,6 @@ public class WorkspaceService {
         Workspace saved = workspaceRepository.save(workspace);
         activityLogService.log(findUserByEmail(requesterEmail), "WORKSPACE_MEMBER_ADDED", "WORKSPACE", saved.getId());
         return toDTO(saved);
-    }
-
-    @PreAuthorize("@permissions.manageWorkspace(#workspaceId) and @permissions.self(#requesterEmail)")
-    public WorkspaceResponseDTO addMember(UUID workspaceId, String memberEmail, String requesterEmail) {
-        AddMemberRequestDTO request = new AddMemberRequestDTO();
-        request.setEmail(memberEmail);
-        return addMember(workspaceId, request, requesterEmail);
     }
 
     @PreAuthorize("@permissions.manageWorkspace(#workspaceId) and @permissions.self(#requesterEmail)")

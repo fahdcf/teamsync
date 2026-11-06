@@ -6,10 +6,17 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.teamsync.entity.*;
 import com.teamsync.enums.*;
+import com.teamsync.exception.ValidationException;
 import com.teamsync.repository.*;
 import com.teamsync.security.JwtService;
+import com.teamsync.dto.ProjectRequestDTO;
+import com.teamsync.dto.TaskRequestDTO;
+import com.teamsync.dto.UpdateProfileRequestDTO;
+import com.teamsync.service.AnalyticsService;
 import com.teamsync.service.ProjectService;
 import com.teamsync.service.TaskService;
+import com.teamsync.service.UserService;
+import com.teamsync.service.WorkspaceService;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -18,6 +25,8 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.*;
@@ -52,6 +61,9 @@ class SecurityIntegrationTests {
     @Autowired TransactionTemplate transaction;
     @Autowired TaskService taskService;
     @Autowired ProjectService projectService;
+    @Autowired AnalyticsService analyticsService;
+    @Autowired WorkspaceService workspaceService;
+    @Autowired UserService userService;
 
     User owner, manager, member, outsider, otherManager, admin;
     Workspace workspace, otherWorkspace;
@@ -272,6 +284,103 @@ class SecurityIntegrationTests {
     void springManagedServicesEnforceSecurityOutsideControllers() {
         assertThatThrownBy(() -> projectService.archive(project.getId())).isInstanceOf(AccessDeniedException.class);
         assertThatThrownBy(() -> taskService.delete(task.getId(),member.getId())).isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test @WithMockUser
+    void simplifiedServiceEntryPointsRetainMethodAuthorization() {
+        SecurityContextHolder.getContext().setAuthentication(
+                UsernamePasswordAuthenticationToken.authenticated(member.getEmail(), "unused", List.of()));
+        TaskRequestDTO taskRequest = new TaskRequestDTO();
+        taskRequest.setTitle("Unauthorized task");
+        ProjectRequestDTO projectRequest = new ProjectRequestDTO();
+        projectRequest.setTitle("Unauthorized project");
+        UpdateProfileRequestDTO profileRequest = new UpdateProfileRequestDTO();
+        profileRequest.setRole(Role.ADMIN);
+
+        assertThatThrownBy(() -> taskService.create(project.getId(), taskRequest)).isInstanceOf(AccessDeniedException.class);
+        assertThatThrownBy(() -> taskService.update(task.getId(), taskRequest)).isInstanceOf(AccessDeniedException.class);
+        assertThatThrownBy(() -> projectService.create(workspace.getId(), projectRequest)).isInstanceOf(AccessDeniedException.class);
+        assertThatThrownBy(() -> projectService.update(project.getId(), projectRequest)).isInstanceOf(AccessDeniedException.class);
+        assertThatThrownBy(() -> projectService.archive(project.getId())).isInstanceOf(AccessDeniedException.class);
+        assertThatThrownBy(() -> projectService.initializeProject(workspace.getId(), "Unauthorized", manager.getEmail()))
+                .isInstanceOf(AccessDeniedException.class);
+        assertThatThrownBy(() -> workspaceService.getAvailableMembers(workspace.getId())).isInstanceOf(AccessDeniedException.class);
+        assertThatThrownBy(() -> analyticsService.getTeamPerformance(owner.getEmail(), null, null, null, null))
+                .isInstanceOf(AccessDeniedException.class);
+        assertThatThrownBy(() -> analyticsService.getInsights(owner.getEmail(), null, null, null, null))
+                .isInstanceOf(AccessDeniedException.class);
+        assertThatThrownBy(() -> userService.updateUsername(owner.getEmail(), "Unauthorized")).isInstanceOf(AccessDeniedException.class);
+        assertThatThrownBy(() -> userService.updateProfile(member.getEmail(), profileRequest)).isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test void simplifiedMutationsKeepAuthenticatedAuditActorAndInitialization() throws Exception {
+        String createdTask = as(manager, body(post(projectPath()+"/tasks"),
+                Map.of("title", "Audit task", "assigneeId", member.getId())))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        String createdTaskId = json.readTree(createdTask).get("id").asText();
+        as(manager, body(put("/tasks/"+createdTaskId), Map.of("title", "Updated audit task"))).andExpect(status().isOk());
+        List<JsonNode> taskActivity = new ArrayList<>();
+        json.readTree(as(owner, get(workspacePath()+"/activity")).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString()).forEach(taskActivity::add);
+        assertThat(taskActivity).extracting(entry -> entry.path("action").asText())
+                .containsExactlyInAnyOrder("TASK_CREATED", "TASK_UPDATED");
+        assertThat(taskActivity).allSatisfy(entry -> assertThat(entry.path("user").path("id").asText())
+                .isEqualTo(manager.getId().toString()));
+
+        for (String endpoint : List.of("create", "initialize")) {
+            MockHttpServletRequestBuilder request = endpoint.equals("create")
+                    ? body(post(workspacePath()+"/projects"), Map.of("title", "Audit project", "managerId", manager.getId()))
+                    : body(post("/projects/initialize"), Map.of("workspaceId", workspace.getId(),
+                            "projectTitle", "Initialized audit project", "managerEmail", manager.getEmail()));
+            String createdProject = as(owner, request).andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.manager.id").value(manager.getId().toString()))
+                    .andReturn().getResponse().getContentAsString();
+            String createdProjectPath = "/projects/"+json.readTree(createdProject).get("id").asText();
+            as(owner, body(put(createdProjectPath), Map.of("title", "Updated audit project"))).andExpect(status().isOk());
+            as(owner, put(createdProjectPath+"/archive")).andExpect(status().isOk());
+            List<JsonNode> projectActivity = new ArrayList<>();
+            json.readTree(as(owner, get(createdProjectPath+"/activity")).andExpect(status().isOk())
+                    .andReturn().getResponse().getContentAsString()).forEach(projectActivity::add);
+            assertThat(projectActivity).extracting(entry -> entry.path("action").asText())
+                    .containsExactlyInAnyOrder("PROJECT_CREATED", "PROJECT_UPDATED", "PROJECT_ARCHIVED");
+            assertThat(projectActivity).allSatisfy(entry -> assertThat(entry.path("user").path("id").asText())
+                    .isEqualTo(owner.getId().toString()));
+        }
+    }
+
+    @Test void simplifiedTaskUpdateRollsBackEarlierChangesWhenTransitionFails() throws Exception {
+        as(manager, body(put(taskPath()), Map.of("title", "Must roll back", "priority", "CRITICAL", "status", "DONE")))
+                .andExpect(status().isBadRequest());
+        Task unchanged = tasks.findById(task.getId()).orElseThrow();
+        assertThat(unchanged.getTitle()).isEqualTo(task.getTitle());
+        assertThat(unchanged.getPriority()).isEqualTo(task.getPriority());
+        assertThat(unchanged.getStatus()).isEqualTo(TaskStatus.TODO);
+        as(owner, get(workspacePath()+"/activity")).andExpect(jsonPath("$[?(@.action == 'TASK_UPDATED')]").isEmpty());
+    }
+
+    @Test @WithMockUser
+    void projectLookupOverloadsKeepDistinctFavoriteBehavior() {
+        SecurityContextHolder.getContext().setAuthentication(
+                UsernamePasswordAuthenticationToken.authenticated(manager.getEmail(), "unused", List.of()));
+        assertThat(projectService.toggleFavorite(project.getId(), manager.getEmail()).isFavorite()).isTrue();
+        assertThat(projectService.findById(project.getId(), manager.getEmail()).isFavorite()).isTrue();
+        assertThat(projectService.findById(project.getId()).isFavorite()).isFalse();
+    }
+
+    @Test @WithMockUser
+    void usernameAndProfileEntryPointsKeepUpdatesAndRollback() {
+        SecurityContextHolder.getContext().setAuthentication(
+                UsernamePasswordAuthenticationToken.authenticated(member.getEmail(), "unused", List.of()));
+        String username = UUID.randomUUID().toString();
+        assertThat(userService.updateUsername(member.getEmail(), username).getUsername()).isEqualTo(username);
+        UpdateProfileRequestDTO request = new UpdateProfileRequestDTO();
+        request.setUsername(UUID.randomUUID().toString());
+        request.setEmail(owner.getEmail());
+        assertThatThrownBy(() -> userService.updateProfile(member.getEmail(), request)).isInstanceOf(ValidationException.class);
+        assertThat(users.findById(member.getId()).orElseThrow().getUsername()).isEqualTo(username);
+        request.setEmail(member.getEmail());
+        assertThat(userService.updateProfile(member.getEmail(), request).getUsername()).isEqualTo(request.getUsername());
+        assertThat(users.findById(member.getId()).orElseThrow().getRole()).isEqualTo(Role.TEAM_MEMBER);
     }
 
     @ParameterizedTest
