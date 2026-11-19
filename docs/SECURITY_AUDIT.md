@@ -4,6 +4,9 @@ Baseline: GitHub `main` at `ad3e261`. Scope: Java application, all MVC controlle
 services, JPA models/repositories, supporting patterns, Angular authentication,
 API clients, routes and management screens, configuration, tests and documentation.
 
+This is the historical security migration audit. For the subsequent pattern cleanup
+and current implementations, see [the current pattern inventory](DESIGN_PATTERNS.md).
+
 ## Findings and migration
 
 The actual backend was already largely layered, not hexagonal: no application ports

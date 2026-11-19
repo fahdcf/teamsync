@@ -1,4 +1,4 @@
-package com.teamsync.patterns.behavioral.template;
+package com.teamsync.report;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 import java.util.Map;
 
 @Component
-public class JsonReportGenerator extends ReportGenerator {
+public class JsonReportGenerator implements ReportGenerator {
 
     private final ObjectMapper objectMapper;
 
@@ -16,12 +16,7 @@ public class JsonReportGenerator extends ReportGenerator {
     }
 
     @Override
-    protected Map<String, Object> processData(Map<String, Object> data) {
-        return data;
-    }
-
-    @Override
-    protected byte[] formatOutput(Map<String, Object> processed) {
+    public byte[] generate(Map<String, Object> processed) {
         try {
             return objectMapper.writerWithDefaultPrettyPrinter().writeValueAsBytes(processed);
         } catch (JsonProcessingException e) {

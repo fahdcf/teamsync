@@ -2,6 +2,9 @@
 
 Review date: 2026-10-30.
 
+This records that integration milestone. The subsequent design-pattern cleanup is
+documented in [the current pattern inventory](DESIGN_PATTERNS.md).
+
 ## What the previous review was seeing
 
 Remote `main` was still at `ad3e261`. The local `main` checkout was at `85c4c99`

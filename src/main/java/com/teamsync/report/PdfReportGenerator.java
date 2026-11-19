@@ -1,4 +1,4 @@
-package com.teamsync.patterns.behavioral.template;
+package com.teamsync.report;
 
 import java.io.IOException;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
@@ -14,15 +14,10 @@ import org.springframework.stereotype.Component;
 import java.util.Map;
 
 @Component
-public class PdfReportGenerator extends ReportGenerator {
+public class PdfReportGenerator implements ReportGenerator {
 
     @Override
-    protected Map<String, Object> processData(Map<String, Object> data) {
-        return data;
-    }
-
-    @Override
-    protected byte[] formatOutput(Map<String, Object> processed) {
+    public byte[] generate(Map<String, Object> processed) {
         try (var document = new PDDocument();
              var output = new ByteArrayOutputStream()) {
             var font = new PDType1Font(

@@ -1,12 +1,12 @@
 package com.teamsync.controller;
 
 import com.teamsync.service.ReportService;
+import com.teamsync.patterns.creational.factory.ReportExportFactory;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,9 +18,11 @@ import java.util.UUID;
 public class ReportController {
 
     private final ReportService reportService;
+    private final ReportExportFactory exportFactory;
 
-    public ReportController(ReportService reportService) {
+    public ReportController(ReportService reportService, ReportExportFactory exportFactory) {
         this.reportService = reportService;
+        this.exportFactory = exportFactory;
     }
 
     @Operation(summary = "Generate a project report in json, csv, or pdf format")
@@ -32,17 +34,12 @@ public class ReportController {
     public ResponseEntity<byte[]> generateReport(@PathVariable UUID id,
                                                  @RequestParam(defaultValue = "json") String format,
                                                  @RequestParam(defaultValue = "false") boolean download) {
-        String normalizedFormat = reportService.normalizeFormat(format);
-        byte[] report = reportService.generateReport(id, normalizedFormat);
-        MediaType mediaType = switch (normalizedFormat) {
-            case "csv" -> MediaType.parseMediaType("text/csv");
-            case "pdf" -> MediaType.APPLICATION_PDF;
-            default -> MediaType.APPLICATION_JSON;
-        };
-        ResponseEntity.BodyBuilder response = ResponseEntity.ok().contentType(mediaType);
+        ReportExportFactory.Format export = exportFactory.resolve(format);
+        byte[] report = reportService.generateReport(id, export.generator());
+        ResponseEntity.BodyBuilder response = ResponseEntity.ok().contentType(export.contentType());
         if (download) {
             response.header(HttpHeaders.CONTENT_DISPOSITION,
-                    "attachment; filename=\"teamsync-project-report-" + id + "." + normalizedFormat + "\"");
+                    "attachment; filename=\"teamsync-project-report-" + id + "." + export.extension() + "\"");
         }
         return response.body(report);
     }

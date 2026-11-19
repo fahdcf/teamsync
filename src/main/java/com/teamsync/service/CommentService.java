@@ -3,7 +3,6 @@ package com.teamsync.service;
 import com.teamsync.entity.Comment;
 import com.teamsync.entity.Task;
 import com.teamsync.entity.User;
-import com.teamsync.enums.NotificationType;
 import com.teamsync.enums.ProjectEventType;
 import com.teamsync.patterns.behavioral.observer.ProjectEvent;
 import org.springframework.context.ApplicationEventPublisher;
@@ -29,19 +28,16 @@ public class CommentService {
     private final ActivityLogService activityLogService;
     private final TaskService taskService;
     private final UserService userService;
-    private final NotificationService notificationService;
     private final ApplicationEventPublisher eventPublisher;
 
     public CommentService(CommentRepository commentRepository, ActivityLogService activityLogService,
                            TaskService taskService,
                            UserService userService,
-                           NotificationService notificationService,
                            ApplicationEventPublisher eventPublisher) {
         this.commentRepository = commentRepository;
         this.activityLogService = activityLogService;
         this.taskService = taskService;
         this.userService = userService;
-        this.notificationService = notificationService;
         this.eventPublisher = eventPublisher;
     }
 
@@ -59,13 +55,10 @@ public class CommentService {
         Comment saved = commentRepository.save(comment);
         activityLogService.log(author, "COMMENT_ADDED", "TASK", task.getId());
 
-        eventPublisher.publishEvent(new ProjectEvent(ProjectEventType.COMMENT_ADDED,
-                "Comment on " + task.getTitle(), author));
-
         if (task.getAssignee() != null && !task.getAssignee().getId().equals(author.getId())) {
-            notificationService.notify(task.getAssignee(),
+            eventPublisher.publishEvent(new ProjectEvent(ProjectEventType.COMMENT_ADDED,
                     author.getUsername() + " commented on task: " + task.getTitle(),
-                    NotificationType.IN_APP);
+                    task.getAssignee()));
         }
 
         return toDTO(saved);

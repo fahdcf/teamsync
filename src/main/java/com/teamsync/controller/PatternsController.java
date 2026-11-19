@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import java.util.Map;
 
-@Tag(name = "Patterns", description = "Academic catalogue of retained supporting design patterns")
+@Tag(name = "Patterns", description = "Design patterns supporting current application behavior")
 @RestController
 public class PatternsController {
 
@@ -22,42 +22,26 @@ public class PatternsController {
                    "package", "com.teamsync.patterns.creational.singleton",
                    "keyClasses", List.of("AppLogger"),
                    "purpose", "Ensures one shared logger instance exists across the application"),
-            Map.of("id", 2, "name", "Factory Method", "category", "Creational",
+            Map.of("id", 2, "name", "Simple Factory", "category", "Creational",
                    "package", "com.teamsync.patterns.creational.factory",
-                   "keyClasses", List.of("NotificationFactory", "InAppNotificationFactory", "EmailNotificationFactory"),
-                   "purpose", "Creates IN_APP or EMAIL notifications without exposing construction logic"),
+                   "keyClasses", List.of("ReportExportFactory", "ReportGenerator", "JsonReportGenerator", "CsvReportGenerator", "PdfReportGenerator"),
+                   "purpose", "Selects a report formatter together with its content type and filename extension; not GoF Factory Method"),
             Map.of("id", 4, "name", "Prototype", "category", "Creational",
                    "package", "com.teamsync.entity",
                    "keyClasses", List.of("CloneableTask", "TaskTemplate"),
                    "purpose", "Clones task templates to create new tasks with pre-filled fields"),
-            Map.of("id", 6, "name", "Adapter", "category", "Structural",
-                   "package", "com.teamsync.patterns.structural.adapter",
-                   "keyClasses", List.of("EmailService", "EmailServiceAdapter", "MockExternalEmailClient"),
-                   "purpose", "Translates MockExternalEmailClient.sendMessage() to our EmailService.sendEmail()"),
-            Map.of("id", 8, "name", "Decorator", "category", "Structural",
-                   "package", "com.teamsync.patterns.structural.decorator",
-                   "keyClasses", List.of("NotificationSender", "InAppSender", "EmailDecorator", "UrgentDecorator"),
-                   "purpose", "Wraps NotificationSender to add email or urgent prefix dynamically"),
             Map.of("id", 9, "name", "Observer", "category", "Behavioral",
                    "package", "com.teamsync.patterns.behavioral.observer",
-                   "keyClasses", List.of("ApplicationEventPublisher", "NotificationListener"),
-                   "purpose", "Publishes project events; listeners react independently without coupling"),
+                   "keyClasses", List.of("ApplicationEventPublisher", "ProjectEvent", "NotificationListener"),
+                   "purpose", "Creates recipient notifications through synchronous Spring events in the publishing transaction"),
             Map.of("id", 10, "name", "Strategy", "category", "Behavioral",
                    "package", "com.teamsync.patterns.behavioral.strategy",
                    "keyClasses", List.of("AssignmentStrategy", "WorkloadStrategy", "RoundRobinStrategy"),
                    "purpose", "Swappable task assignment algorithms: workload-based or round-robin"),
-            Map.of("id", 11, "name", "State", "category", "Behavioral",
-                   "package", "com.teamsync.patterns.behavioral.state",
-                   "keyClasses", List.of("TaskStateMachine", "TodoState", "InProgressState", "InReviewState", "BlockedState", "DoneState"),
-                   "purpose", "Each TaskStatus owns its valid transitions; invalid ones throw immediately"),
             Map.of("id", 12, "name", "Command", "category", "Behavioral",
                    "package", "com.teamsync.patterns.behavioral.command",
                    "keyClasses", List.of("TaskCommandInvoker", "DeleteTaskCommand", "AssignTaskCommand", "ChangeStatusCommand"),
-                   "purpose", "Wraps delete/assign/status-change as undoable commands with per-user history"),
-            Map.of("id", 14, "name", "Template Method", "category", "Behavioral",
-                   "package", "com.teamsync.patterns.behavioral.template",
-                   "keyClasses", List.of("ReportGenerator", "JsonReportGenerator", "CsvReportGenerator", "PdfReportGenerator"),
-                   "purpose", "ReportGenerator formats authorized service data without accessing repositories or services")
+                   "purpose", "Wraps delete/assign/status-change as undoable commands with per-user history")
         );
     }
 }

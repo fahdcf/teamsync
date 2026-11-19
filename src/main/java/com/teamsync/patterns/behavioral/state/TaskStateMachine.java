@@ -5,22 +5,21 @@ import com.teamsync.enums.TaskStatus;
 import com.teamsync.repository.TaskRepository;
 import org.springframework.stereotype.Component;
 
+import java.util.Map;
+import java.util.Set;
+
 @Component
 public class TaskStateMachine {
 
-    public TaskState getCurrentState(Task task) {
-        return switch (task.getStatus()) {
-            case TODO -> new TodoState();
-            case IN_PROGRESS -> new InProgressState();
-            case BLOCKED -> new BlockedState();
-            case IN_REVIEW -> new InReviewState();
-            case DONE -> new DoneState();
-        };
-    }
+    private static final Map<TaskStatus, Set<TaskStatus>> TRANSITIONS = Map.of(
+            TaskStatus.TODO, Set.of(TaskStatus.IN_PROGRESS),
+            TaskStatus.IN_PROGRESS, Set.of(TaskStatus.IN_REVIEW, TaskStatus.BLOCKED),
+            TaskStatus.BLOCKED, Set.of(TaskStatus.IN_PROGRESS),
+            TaskStatus.IN_REVIEW, Set.of(TaskStatus.DONE, TaskStatus.IN_PROGRESS),
+            TaskStatus.DONE, Set.of());
 
     public void transition(Task task, TaskStatus target, TaskRepository repo) {
-        TaskState currentState = getCurrentState(task);
-        if (!currentState.canTransitionTo(target)) {
+        if (target == null || !TRANSITIONS.get(task.getStatus()).contains(target)) {
             throw new IllegalStateException(
                     "Invalid transition: " + task.getStatus() + " → " + target);
         }
@@ -29,7 +28,8 @@ public class TaskStateMachine {
             throw new IllegalStateException(
                     "Cannot start task: unfinished dependencies exist");
         }
-        currentState.handle(task, target, repo);
+        task.setStatus(target);
+        repo.save(task);
     }
 
     /** Undo reverses a recorded transition only while its resulting state is still current. */

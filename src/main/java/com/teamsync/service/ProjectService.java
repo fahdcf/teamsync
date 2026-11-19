@@ -7,11 +7,8 @@ import com.teamsync.entity.Task;
 import com.teamsync.entity.User;
 import com.teamsync.entity.Workspace;
 import com.teamsync.entity.ActivityLog;
-import com.teamsync.enums.ProjectEventType;
 import com.teamsync.enums.ProjectStatus;
 import com.teamsync.enums.TaskStatus;
-import com.teamsync.patterns.behavioral.observer.ProjectEvent;
-import org.springframework.context.ApplicationEventPublisher;
 import com.teamsync.patterns.creational.singleton.AppLogger;
 import com.teamsync.dto.ProjectRequestDTO;
 import com.teamsync.dto.ProjectResponseDTO;
@@ -46,7 +43,6 @@ public class ProjectService {
     private final UserRepository userRepository;
     private final TaskRepository taskRepository;
     private final WorkspaceService workspaceService;
-    private final ApplicationEventPublisher eventPublisher;
     private final ActivityLogService activityLogService;
 
     public ProjectService(ResourceAuthorization permissions, ProjectRepository projectRepository,
@@ -54,7 +50,6 @@ public class ProjectService {
                           UserRepository userRepository,
                           TaskRepository taskRepository,
                           WorkspaceService workspaceService,
-                          ApplicationEventPublisher eventPublisher,
                           ActivityLogService activityLogService) {
         this.permissions = permissions;
         this.projectRepository = projectRepository;
@@ -62,7 +57,6 @@ public class ProjectService {
         this.userRepository = userRepository;
         this.taskRepository = taskRepository;
         this.workspaceService = workspaceService;
-        this.eventPublisher = eventPublisher;
         this.activityLogService = activityLogService;
     }
 
@@ -105,7 +99,6 @@ public class ProjectService {
         ProjectResponseDTO dto = toDTO(saved, null);
         activityLogService.log(permissions.currentUser(), "PROJECT_UPDATED", "PROJECT", saved.getId());
         AppLogger.getInstance().info("Project updated: " + project.getTitle());
-        eventPublisher.publishEvent(new ProjectEvent(ProjectEventType.PROJECT_UPDATED, project.getTitle(), null));
         return dto;
     }
 

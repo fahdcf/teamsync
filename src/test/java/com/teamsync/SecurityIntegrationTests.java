@@ -9,10 +9,15 @@ import com.teamsync.enums.*;
 import com.teamsync.exception.ValidationException;
 import com.teamsync.repository.*;
 import com.teamsync.security.JwtService;
+import com.teamsync.dto.CommentRequestDTO;
+import com.teamsync.patterns.behavioral.command.TaskCommandInvoker;
+import com.teamsync.patterns.behavioral.observer.ProjectEvent;
+import com.teamsync.patterns.behavioral.strategy.TaskAssignmentService;
 import com.teamsync.dto.ProjectRequestDTO;
 import com.teamsync.dto.TaskRequestDTO;
 import com.teamsync.dto.UpdateProfileRequestDTO;
 import com.teamsync.service.AnalyticsService;
+import com.teamsync.service.CommentService;
 import com.teamsync.service.ProjectService;
 import com.teamsync.service.TaskService;
 import com.teamsync.service.UserService;
@@ -21,10 +26,13 @@ import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -55,6 +63,7 @@ class SecurityIntegrationTests {
     @Autowired CommentRepository comments;
     @Autowired NotificationRepository notifications;
     @Autowired TaskTemplateRepository templates;
+    @Autowired ActivityLogRepository activityLogs;
     @Autowired PasswordEncoder passwords;
     @Autowired JwtService tokens;
     @Autowired JwtEncoder encoder;
@@ -64,6 +73,10 @@ class SecurityIntegrationTests {
     @Autowired AnalyticsService analyticsService;
     @Autowired WorkspaceService workspaceService;
     @Autowired UserService userService;
+    @Autowired CommentService commentService;
+    @Autowired TaskAssignmentService assignmentService;
+    @Autowired TaskCommandInvoker commands;
+    @Autowired ApplicationEventPublisher events;
 
     User owner, manager, member, outsider, otherManager, admin;
     Workspace workspace, otherWorkspace;
@@ -446,5 +459,188 @@ class SecurityIntegrationTests {
         as(owner,delete(workspacePath()+"/members/"+member.getId())).andExpect(status().isNoContent());
         as(manager,post("/tasks/undo")).andExpect(status().isBadRequest());
         assertThat(tasks.findById(task.getId()).orElseThrow().getAssignee().getId()).isEqualTo(owner.getId());
+    }
+
+    @Test void commentEventsNotifyOnlyTheAssigneeAndSkipSelfOrAbsentRecipients() throws Exception {
+        long initial = notifications.count();
+        as(manager, body(post(taskPath()+"/comments"), Map.of("content", "Review this task"))).andExpect(status().isCreated());
+        List<Notification> received = notifications.findByRecipientAndReadStatusFalse(member);
+        assertThat(received).hasSize(2).anySatisfy(n -> assertThat(n.getMessage())
+                .isEqualTo(manager.getUsername()+" commented on task: "+task.getTitle()));
+        assertThat(notifications.findByRecipientAndReadStatusFalse(manager)).isEmpty();
+        as(member, body(post(taskPath()+"/comments"), Map.of("content", "My own task"))).andExpect(status().isCreated());
+        as(outsider, body(post("/tasks/"+otherTask.getId()+"/comments"), Map.of("content", "Unassigned task")))
+                .andExpect(status().isCreated());
+        assertThat(notifications.count()).isEqualTo(initial+1);
+        as(member, get("/notifications")).andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(2));
+    }
+
+    @Test void assignmentAndStatusEventsRetainAssigneeMessagesWithoutNotifyingTheActor() throws Exception {
+        as(manager, body(put(taskPath()+"/assign"), Map.of("userId", owner.getId()))).andExpect(status().isOk());
+        as(manager, body(put(taskPath()+"/status"), Map.of("status", "IN_PROGRESS"))).andExpect(status().isOk());
+        assertThat(notifications.findByRecipientAndReadStatusFalse(owner)).extracting(Notification::getMessage)
+                .containsExactlyInAnyOrder("NOTIFY: [TASK_ASSIGNED] — "+task.getTitle()+" → "+owner.getUsername(),
+                        "NOTIFY: [TASK_STATUS_CHANGED] — "+task.getTitle()+" → IN_PROGRESS");
+        assertThat(notifications.findByRecipientAndReadStatusFalse(manager)).isEmpty();
+        long beforeUnassigned = notifications.count();
+        as(outsider, body(put("/tasks/"+otherTask.getId()+"/status"), Map.of("status", "IN_PROGRESS")))
+                .andExpect(status().isOk());
+        assertThat(notifications.count()).isEqualTo(beforeUnassigned);
+    }
+
+    @Test @WithMockUser
+    void eventsWithoutRecipientsHaveNoPersistenceEffect() {
+        SecurityContextHolder.getContext().setAuthentication(
+                UsernamePasswordAuthenticationToken.authenticated(manager.getEmail(), "unused", List.of()));
+        long before = notifications.count();
+        transaction.executeWithoutResult(tx -> events.publishEvent(
+                new ProjectEvent(ProjectEventType.TASK_ASSIGNED, "No recipient", null)));
+        assertThat(notifications.count()).isEqualTo(before);
+    }
+
+    @ParameterizedTest @ValueSource(strings = {"assignment", "status", "comment"}) @WithMockUser
+    void publishingTransactionRollbackRemovesNotificationsAuditAndUndoHistory(String operation) {
+        SecurityContextHolder.getContext().setAuthentication(
+                UsernamePasswordAuthenticationToken.authenticated(manager.getEmail(), "unused", List.of()));
+        long beforeNotifications = notifications.count();
+        long beforeComments = comments.count();
+        transaction.executeWithoutResult(tx -> {
+            switch (operation) {
+                case "assignment" -> taskService.assign(task.getId(), owner.getId(), manager.getId());
+                case "status" -> taskService.changeStatus(task.getId(), TaskStatus.IN_PROGRESS, manager.getId());
+                case "comment" -> {
+                    CommentRequestDTO request = new CommentRequestDTO();
+                    request.setContent("Rolled back comment");
+                    commentService.addComment(task.getId(), request, manager.getEmail());
+                }
+                default -> throw new AssertionError(operation);
+            }
+            assertThat(notifications.count()).isEqualTo(beforeNotifications+1);
+            assertThatThrownBy(() -> commands.peek(manager.getId())).isInstanceOf(IllegalStateException.class);
+            tx.setRollbackOnly();
+        });
+        assertThat(notifications.count()).isEqualTo(beforeNotifications);
+        assertThat(comments.count()).isEqualTo(beforeComments);
+        assertThat(tasks.findById(task.getId()).orElseThrow().getStatus()).isEqualTo(TaskStatus.TODO);
+        assertThat(tasks.findById(task.getId()).orElseThrow().getAssignee().getId()).isEqualTo(member.getId());
+        assertThatThrownBy(() -> commands.peek(manager.getId())).isInstanceOf(IllegalStateException.class);
+        assertThat(activityLogs.findByEntityId(task.getId())).isEmpty();
+    }
+
+    @Test @WithMockUser
+    void notificationListenerFailureRollsBackThePublishingTransaction() {
+        var authentication = UsernamePasswordAuthenticationToken.authenticated(manager.getEmail(), "unused", List.of());
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+        long beforeNotifications = notifications.count();
+        boolean[] returnedFromListener = {false};
+        assertThatThrownBy(() -> transaction.executeWithoutResult(tx -> {
+            taskService.assign(task.getId(), owner.getId(), manager.getId());
+            SecurityContextHolder.getContext().setAuthentication(null);
+            try {
+                events.publishEvent(new ProjectEvent(ProjectEventType.TASK_ASSIGNED, "Unauthorized listener", owner));
+                returnedFromListener[0] = true;
+            } finally {
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+            }
+        })).isInstanceOf(AuthenticationCredentialsNotFoundException.class);
+        assertThat(returnedFromListener[0]).isFalse();
+        assertThat(notifications.count()).isEqualTo(beforeNotifications);
+        assertThat(tasks.findById(task.getId()).orElseThrow().getAssignee().getId()).isEqualTo(member.getId());
+        assertThat(activityLogs.findByEntityId(task.getId())).isEmpty();
+        assertThatThrownBy(() -> commands.peek(manager.getId())).isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test @WithMockUser
+    void commitFailureAfterNotificationDispatchDoesNotPublishUndoHistory() {
+        SecurityContextHolder.getContext().setAuthentication(
+                UsernamePasswordAuthenticationToken.authenticated(manager.getEmail(), "unused", List.of()));
+        long beforeNotifications = notifications.count();
+        boolean[] returnedFromListener = {false};
+        assertThatThrownBy(() -> transaction.executeWithoutResult(tx -> {
+            taskService.assign(task.getId(), owner.getId(), manager.getId());
+            // Exceed the existing VARCHAR(255) limit; no flush occurs until outer commit.
+            events.publishEvent(new ProjectEvent(ProjectEventType.TASK_ASSIGNED, "x".repeat(300), owner));
+            returnedFromListener[0] = true;
+        })).isInstanceOf(DataIntegrityViolationException.class);
+        assertThat(returnedFromListener[0]).isTrue();
+        assertThat(notifications.count()).isEqualTo(beforeNotifications);
+        assertThat(tasks.findById(task.getId()).orElseThrow().getAssignee().getId()).isEqualTo(member.getId());
+        assertThat(activityLogs.findByEntityId(task.getId())).isEmpty();
+        assertThatThrownBy(() -> commands.peek(manager.getId())).isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test @WithMockUser
+    void rolledBackUndoKeepsCommittedHistoryForRetry() {
+        SecurityContextHolder.getContext().setAuthentication(
+                UsernamePasswordAuthenticationToken.authenticated(manager.getEmail(), "unused", List.of()));
+        taskService.assign(task.getId(), owner.getId(), manager.getId());
+        var command = commands.peek(manager.getId());
+        transaction.executeWithoutResult(tx -> {
+            taskService.undo(manager.getId());
+            tx.setRollbackOnly();
+        });
+        assertThat(commands.peek(manager.getId())).isSameAs(command);
+        assertThat(tasks.findById(task.getId()).orElseThrow().getAssignee().getId()).isEqualTo(owner.getId());
+        taskService.undo(manager.getId());
+        assertThat(tasks.findById(task.getId()).orElseThrow().getAssignee().getId()).isEqualTo(member.getId());
+        assertThatThrownBy(() -> commands.peek(manager.getId())).isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test void groupedWorkloadCountsOnlyInProgressCandidateTasksInTheSameWorkspace() {
+        tasks.saveAll(List.of(
+                Task.builder().title("Owner active").project(project).assignee(owner).status(TaskStatus.IN_PROGRESS).build(),
+                Task.builder().title("Member active").project(project).assignee(member).status(TaskStatus.IN_PROGRESS).build(),
+                Task.builder().title("Member active in another project").project(unmanagedProject).assignee(member).status(TaskStatus.IN_PROGRESS).build(),
+                Task.builder().title("Other workspace").project(otherProject).assignee(owner).status(TaskStatus.IN_PROGRESS).build(),
+                Task.builder().title("Completed").project(project).assignee(owner).status(TaskStatus.DONE).build(),
+                Task.builder().title("Noncandidate").project(project).assignee(manager).status(TaskStatus.IN_PROGRESS).build()));
+        var counts = tasks.countWorkloads(workspace.getId(), List.of(owner.getId(), member.getId()), TaskStatus.IN_PROGRESS)
+                .stream().collect(java.util.stream.Collectors.toMap(TaskRepository.AssigneeWorkload::getAssigneeId,
+                        TaskRepository.AssigneeWorkload::getTaskCount));
+        assertThat(counts).containsExactlyInAnyOrderEntriesOf(Map.of(owner.getId(), 1L, member.getId(), 2L));
+        transaction.executeWithoutResult(tx -> assertThat(assignmentService.autoAssign(tasks.findById(task.getId()).orElseThrow(),
+                List.of(member, owner), "workload").getId()).isEqualTo(owner.getId()));
+    }
+
+    @ParameterizedTest @ValueSource(strings = {"workload", "roundrobin"})
+    void bothAutoAssignmentEndpointsKeepWorkspaceCandidatesAndPermissions(String strategy) throws Exception {
+        as(member, body(post(projectPath()+"/tasks/auto-assign").param("strategy", strategy), Map.of("taskId", task.getId())))
+                .andExpect(status().isForbidden());
+        String result = as(manager, body(post(projectPath()+"/tasks/auto-assign").param("strategy", strategy), Map.of("taskId", task.getId())))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        assertThat(json.readTree(result).path("assignee").path("id").asText())
+                .isIn(owner.getId().toString(), manager.getId().toString(), member.getId().toString(), otherManager.getId().toString());
+    }
+
+    @Test void catalogueKeepsItsResponseShapeAndReportsOnlyRetainedPatterns() throws Exception {
+        String result = mvc.perform(get("/patterns")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        List<JsonNode> catalogue = new ArrayList<>();
+        json.readTree(result).forEach(catalogue::add);
+        assertThat(catalogue).extracting(entry -> entry.path("name").asText())
+                .containsExactly("Singleton", "Simple Factory", "Prototype", "Observer", "Strategy", "Command");
+        assertThat(catalogue).allSatisfy(entry -> {
+            assertThat(entry.has("id") && entry.has("category") && entry.has("package") && entry.has("purpose")).isTrue();
+            assertThat(entry.path("keyClasses").isArray()).isTrue();
+        });
+    }
+
+    @ParameterizedTest @ValueSource(strings = {"json", " CSV ", "pDf"})
+    void exportsKeepExactContentTypesFilenamesAndValidationOrder(String format) throws Exception {
+        String extension = format.trim().toLowerCase(Locale.ROOT);
+        String contentType = switch (extension) {
+            case "csv" -> "text/csv";
+            case "pdf" -> "application/pdf";
+            default -> "application/json";
+        };
+        String path = "/reports/projects/"+project.getId();
+        as(member, get(path).param("format", format)).andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.CONTENT_TYPE, contentType))
+                .andExpect(header().doesNotExist(HttpHeaders.CONTENT_DISPOSITION));
+        as(member, get(path).param("format", format).param("download", "true")).andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.CONTENT_TYPE, contentType))
+                .andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"teamsync-project-report-"+project.getId()+"."+extension+"\""));
+        as(outsider, get(path).param("format", format)).andExpect(status().isNotFound());
+        as(outsider, get(path).param("format", "invalid")).andExpect(status().isBadRequest());
     }
 }

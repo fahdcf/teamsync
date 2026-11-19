@@ -24,6 +24,18 @@ public interface TaskRepository extends JpaRepository<Task, UUID>, JpaSpecificat
     Optional<Task> findForUpdate(@Param("id") UUID id);
     List<Task> findByProject(Project project);
     List<Task> findByAssignee(User assignee);
+
+    @Query("select t.assignee.id as assigneeId, count(t) as taskCount from Task t "
+            + "where t.project.workspace.id = :workspaceId and t.assignee.id in :memberIds "
+            + "and t.status = :status group by t.assignee.id")
+    List<AssigneeWorkload> countWorkloads(@Param("workspaceId") UUID workspaceId,
+                                         @Param("memberIds") List<UUID> memberIds,
+                                         @Param("status") TaskStatus status);
+
+    interface AssigneeWorkload {
+        UUID getAssigneeId();
+        long getTaskCount();
+    }
     long countByAssigneeAndProjectInAndStatusAndUpdatedAtBetween(User user, Set<Project> projects, TaskStatus status, LocalDateTime start, LocalDateTime end);
     long countByAssigneeAndProjectInAndUpdatedAtBetween(User user, Set<Project> projects, LocalDateTime start, LocalDateTime end);
     long countByAssigneeAndProjectInAndStatusNotAndDueDateBetween(User user, Set<Project> projects, TaskStatus status, LocalDate from, LocalDate to);

@@ -1,9 +1,7 @@
 package com.teamsync.patterns.behavioral.observer;
 
 import org.springframework.context.event.EventListener;
-import com.teamsync.entity.User;
 import com.teamsync.enums.NotificationType;
-import com.teamsync.patterns.creational.singleton.AppLogger;
 import com.teamsync.service.NotificationService;
 import org.springframework.stereotype.Component;
 
@@ -18,12 +16,8 @@ public class NotificationListener {
 
     @EventListener
     public void onEvent(ProjectEvent event) {
-        User triggeredBy = event.triggeredBy();
-        if (triggeredBy == null) return;
-
-        String message = "NOTIFY: [" + event.eventType() + "] — " + event.payload();
-        AppLogger.getInstance().info(message);
-
-        notificationService.notify(triggeredBy, message, NotificationType.IN_APP);
+        if (event.recipient() == null) return;
+        // Synchronous persistence joins the publisher's transaction, including rollback.
+        notificationService.notify(event.recipient(), event.message(), NotificationType.IN_APP);
     }
 }

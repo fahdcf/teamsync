@@ -3,14 +3,6 @@ package com.teamsync.service;
 import com.teamsync.entity.Notification;
 import com.teamsync.entity.User;
 import com.teamsync.enums.NotificationType;
-import com.teamsync.enums.TaskPriority;
-import com.teamsync.patterns.creational.factory.EmailNotificationFactory;
-import com.teamsync.patterns.creational.factory.InAppNotificationFactory;
-import com.teamsync.patterns.structural.adapter.EmailService;
-import com.teamsync.patterns.structural.decorator.EmailDecorator;
-import com.teamsync.patterns.structural.decorator.InAppSender;
-import com.teamsync.patterns.structural.decorator.NotificationSender;
-import com.teamsync.patterns.structural.decorator.UrgentDecorator;
 import com.teamsync.dto.NotificationResponseDTO;
 import com.teamsync.repository.NotificationRepository;
 import org.springframework.stereotype.Service;
@@ -28,42 +20,18 @@ import java.util.stream.Collectors;
 public class NotificationService {
 
     private final NotificationRepository notificationRepository;
-    private final InAppNotificationFactory inAppFactory;
-    private final EmailNotificationFactory emailFactory;
-    private final InAppSender inAppSender;
-    private final EmailService emailService;
 
-    public NotificationService(NotificationRepository notificationRepository,
-                                InAppNotificationFactory inAppFactory,
-                                EmailNotificationFactory emailFactory,
-                                InAppSender inAppSender,
-                                EmailService emailService) {
+    public NotificationService(NotificationRepository notificationRepository) {
         this.notificationRepository = notificationRepository;
-        this.inAppFactory = inAppFactory;
-        this.emailFactory = emailFactory;
-        this.inAppSender = inAppSender;
-        this.emailService = emailService;
     }
 
+    /** Stores a notification record only; EMAIL is a stored type, not proof of delivery. */
     public void notify(User recipient, String message, NotificationType type) {
-        if (type == NotificationType.EMAIL) {
-            emailFactory.notifyUser(recipient, message);
-        } else {
-            inAppFactory.notifyUser(recipient, message);
-        }
-    }
-
-    public void notifyWithPriority(User recipient, String message, TaskPriority priority) {
-        Notification notification = inAppFactory.createNotification(recipient, message);
-        notificationRepository.save(notification);
-
-        NotificationSender sender;
-        if (priority == TaskPriority.HIGH || priority == TaskPriority.CRITICAL) {
-            sender = new UrgentDecorator(new EmailDecorator(inAppSender, emailService));
-        } else {
-            sender = inAppSender;
-        }
-        sender.send(notification);
+        notificationRepository.save(Notification.builder()
+                .type(type == NotificationType.EMAIL ? NotificationType.EMAIL : NotificationType.IN_APP)
+                .message(message)
+                .recipient(recipient)
+                .build());
     }
 
     @PreAuthorize("@permissions.selfId(#user.id)")

@@ -109,7 +109,6 @@ public class TaskService {
             stateMachine.transition(task, request.getStatus(), taskRepository);
         Task saved = taskRepository.save(task);
         activityLogService.log(permissions.currentUser(), "TASK_CREATED", "TASK", saved.getId());
-        eventPublisher.publishEvent(new ProjectEvent(ProjectEventType.TASK_CREATED, saved.getTitle(), null));
         return toDTO(saved);
     }
 
@@ -147,7 +146,7 @@ public class TaskService {
         commandInvoker.execute(userId, new AssignTaskCommand(task, assignee, taskRepository));
         activityLogService.log(resolveUser(userId), "TASK_ASSIGNED", "TASK", task.getId());
         eventPublisher.publishEvent(new ProjectEvent(ProjectEventType.TASK_ASSIGNED,
-                task.getTitle() + " → " + assignee.getUsername(), assignee));
+                "NOTIFY: [TASK_ASSIGNED] — " + task.getTitle() + " → " + assignee.getUsername(), assignee));
         return toDTO(taskRepository.findById(id).orElse(task));
     }
 
@@ -171,8 +170,10 @@ public class TaskService {
         Task task = getTaskForUpdate(id);
         commandInvoker.execute(userId, new ChangeStatusCommand(task, targetStatus, stateMachine, taskRepository));
         activityLogService.log(resolveUser(userId), "TASK_STATUS_CHANGED", "TASK", task.getId());
-        eventPublisher.publishEvent(new ProjectEvent(ProjectEventType.TASK_STATUS_CHANGED,
-                task.getTitle() + " → " + targetStatus, task.getAssignee()));
+        if (task.getAssignee() != null) {
+            eventPublisher.publishEvent(new ProjectEvent(ProjectEventType.TASK_STATUS_CHANGED,
+                    "NOTIFY: [TASK_STATUS_CHANGED] — " + task.getTitle() + " → " + targetStatus, task.getAssignee()));
+        }
         return toDTO(taskRepository.findById(id).orElseThrow());
     }
 
