@@ -13,6 +13,8 @@ import com.teamsync.dto.CommentRequestDTO;
 import com.teamsync.patterns.behavioral.command.TaskCommandInvoker;
 import com.teamsync.patterns.behavioral.observer.ProjectEvent;
 import com.teamsync.patterns.behavioral.strategy.TaskAssignmentService;
+import com.teamsync.patterns.creational.factory.WorkspaceStarterKitFactory;
+import com.teamsync.patterns.creational.factory.WorkspaceStarterKitFactory.StarterProject;
 import com.teamsync.dto.ProjectRequestDTO;
 import com.teamsync.dto.TaskRequestDTO;
 import com.teamsync.dto.UpdateProfileRequestDTO;
@@ -30,6 +32,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
@@ -47,6 +50,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import java.time.Instant;
 import java.util.*;
 import static org.assertj.core.api.Assertions.*;
+import static org.mockito.Mockito.doReturn;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -77,6 +81,7 @@ class SecurityIntegrationTests {
     @Autowired TaskAssignmentService assignmentService;
     @Autowired TaskCommandInvoker commands;
     @Autowired ApplicationEventPublisher events;
+    @SpyBean WorkspaceStarterKitFactory starterKits;
 
     User owner, manager, member, outsider, otherManager, admin;
     Workspace workspace, otherWorkspace;
@@ -622,6 +627,67 @@ class SecurityIntegrationTests {
             assertThat(entry.has("id") && entry.has("category") && entry.has("package") && entry.has("purpose")).isTrue();
             assertThat(entry.path("keyClasses").isArray()).isTrue();
         });
+    }
+
+    @ParameterizedTest @ValueSource(strings = {"SOFTWARE_DEVELOPMENT", "UNIVERSITY_PROJECT", "EVENT_PLANNING"})
+    void starterKitsCreateOwnedProjectsWithOrdinaryEditableTasks(String kit) throws Exception {
+        var expected = switch (kit) {
+            case "SOFTWARE_DEVELOPMENT" -> Map.of("Product Development", 3, "Release Readiness", 2);
+            case "UNIVERSITY_PROJECT" -> Map.of("Research and Delivery", 4);
+            default -> Map.of("Event Logistics", 3, "Guest Communications", 2);
+        };
+        String created = as(member, body(post("/workspaces"), Map.of("name", "New workspace", "starterKit", kit)))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.owner.id").value(member.getId().toString()))
+                .andReturn().getResponse().getContentAsString();
+        String id = json.readTree(created).path("id").asText();
+        String path = "/workspaces/" + id + "/projects";
+        var createdProjects = json.readTree(as(member, get(path)).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString());
+        assertThat(createdProjects.size()).isEqualTo(expected.size());
+        for (JsonNode createdProject : createdProjects) {
+            String projectId = createdProject.path("id").asText();
+            assertThat(createdProject.path("workspaceId").asText()).isEqualTo(id);
+            assertThat(createdProject.path("manager").path("id").asText()).isEqualTo(member.getId().toString());
+            var createdTasks = json.readTree(as(member, get("/projects/" + projectId + "/tasks"))
+                    .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+            assertThat(createdTasks.size()).isEqualTo(expected.get(createdProject.path("title").asText()));
+            assertThat(createdTasks).allSatisfy(item -> {
+                assertThat(item.path("projectId").asText()).isEqualTo(projectId);
+                assertThat(item.path("status").asText()).isEqualTo("TODO");
+            });
+            String starterTaskPath = "/tasks/" + createdTasks.get(0).path("id").asText();
+            as(outsider, body(put(starterTaskPath), Map.of("title", "Outside edit"))).andExpect(status().isNotFound());
+            as(member, body(put(starterTaskPath), Map.of("title", "Edited starter task")))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.title").value("Edited starter task"));
+            as(member, delete(starterTaskPath)).andExpect(status().isNoContent());
+        }
+        as(outsider, get(path)).andExpect(status().isNotFound());
+    }
+
+    @Test void workspaceCreationStillSupportsEmptyAndRejectsInvalidOrAnonymousRequests() throws Exception {
+        var request = Map.of("name", "Empty workspace", "starterKit", "NOT_A_KIT");
+        long before = workspaces.count();
+        mvc.perform(body(post("/workspaces"), request)).andExpect(status().isUnauthorized());
+        as(member, body(post("/workspaces"), request)).andExpect(status().isBadRequest());
+        assertThat(workspaces.count()).isEqualTo(before);
+
+        String created = as(member, body(post("/workspaces"), Map.of("name", "Empty workspace")))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        as(member, get("/workspaces/" + json.readTree(created).path("id").asText() + "/projects"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$").isEmpty());
+    }
+
+    @Test void starterKitRollsBackAllResourcesAndAuditsWhenALaterTaskFailsValidation() throws Exception {
+        doReturn(List.of(new StarterProject("Build", List.of("Write tests", ""))))
+                .when(starterKits).create("SOFTWARE_DEVELOPMENT");
+        long workspaceCount = workspaces.count(), projectCount = projects.count(), taskCount = tasks.count();
+        long auditCount = activityLogs.count();
+        as(member, body(post("/workspaces"), Map.of("name", "Roll back", "starterKit", "SOFTWARE_DEVELOPMENT")))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.message").value("Task title must contain 1 to 100 characters"));
+        assertThat(workspaces.count()).isEqualTo(workspaceCount);
+        assertThat(projects.count()).isEqualTo(projectCount);
+        assertThat(tasks.count()).isEqualTo(taskCount);
+        assertThat(activityLogs.count()).isEqualTo(auditCount);
     }
 
     @ParameterizedTest @ValueSource(strings = {"json", " CSV ", "pDf"})

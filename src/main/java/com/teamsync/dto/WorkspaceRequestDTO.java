@@ -13,4 +13,6 @@ public class WorkspaceRequestDTO {
     private String name;
 
     private String description;
+
+    private String starterKit;
 }

@@ -6,6 +6,7 @@ import com.teamsync.dto.WorkspaceRequestDTO;
 import com.teamsync.dto.WorkspaceResponseDTO;
 import com.teamsync.dto.WorkspaceSummaryResponseDTO;
 import com.teamsync.service.WorkspaceService;
+import com.teamsync.service.WorkspaceCreationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -24,9 +25,11 @@ import java.util.UUID;
 public class WorkspaceController {
 
     private final WorkspaceService workspaceService;
+    private final WorkspaceCreationService workspaceCreationService;
 
-    public WorkspaceController(WorkspaceService workspaceService) {
+    public WorkspaceController(WorkspaceService workspaceService, WorkspaceCreationService workspaceCreationService) {
         this.workspaceService = workspaceService;
+        this.workspaceCreationService = workspaceCreationService;
     }
 
     @Operation(summary = "Create a new workspace")
@@ -37,7 +40,7 @@ public class WorkspaceController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public WorkspaceResponseDTO create(@Valid @RequestBody WorkspaceRequestDTO request, Authentication auth) {
-        return workspaceService.create(request, auth.getName());
+        return workspaceCreationService.create(request, auth.getName());
     }
 
     @Operation(summary = "List workspaces the current user owns or is a member of, with optional keyword filter")

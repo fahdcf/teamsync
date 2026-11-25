@@ -20,7 +20,7 @@ import { Project } from '../../shared/models/project.model';
 import { SearchResult, SearchResultType } from '../../shared/models/search.model';
 import { TaskPriority } from '../../shared/models/task.model';
 import { User } from '../../shared/models/user.model';
-import { Workspace } from '../../shared/models/workspace.model';
+import { Workspace, WORKSPACE_STARTER_KITS } from '../../shared/models/workspace.model';
 import { RelativeTimePipe } from '../../shared/pipes/relative-time.pipe';
 
 interface BreadcrumbItem {
@@ -209,6 +209,13 @@ interface BreadcrumbItem {
         <label>
           <span>Description</span>
           <textarea formControlName="description" placeholder="What is this workspace for?"></textarea>
+        </label>
+        <label>
+          <span>Starter kit</span>
+          <select formControlName="starterKit">
+            <option value="">Empty workspace</option>
+            <option *ngFor="let kit of starterKits" [value]="kit.value">{{ kit.label }}</option>
+          </select>
         </label>
         <p class="quick-error" *ngIf="createError">{{ createError }}</p>
         <div class="quick-actions">
@@ -869,7 +876,9 @@ export class NavbarComponent implements OnDestroy {
 
   readonly priorities: TaskPriority[] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
 
+  readonly starterKits = WORKSPACE_STARTER_KITS;
   readonly workspaceForm = this.fb.group({
+    starterKit: [''],
     name: ['', Validators.required],
     description: [''],
   });
@@ -1018,15 +1027,16 @@ export class NavbarComponent implements OnDestroy {
   }
 
   createWorkspace(): void {
+    if (this.isCreating) return;
     if (this.workspaceForm.invalid) {
       this.workspaceForm.markAllAsTouched();
       return;
     }
 
-    const { name, description } = this.workspaceForm.value;
+    const { name, description, starterKit } = this.workspaceForm.value;
     this.isCreating = true;
     this.createError = '';
-    this.workspaceService.create({ name: name!, description: description || '' })
+    this.workspaceService.create({ name: name!, description: description || '', starterKit: starterKit || undefined })
       .pipe(finalize(() => (this.isCreating = false)))
       .subscribe({
         next: (workspace) => {

@@ -5,7 +5,7 @@ import { Router } from '@angular/router';
 import { catchError, forkJoin, map, of } from 'rxjs';
 import { AiService } from '../../../api/ai.service';
 import { WorkspaceActivity, WorkspaceService, WorkspaceSummary } from '../../../api/workspace.service';
-import { Workspace } from '../../../shared/models/workspace.model';
+import { Workspace, WORKSPACE_STARTER_KITS } from '../../../shared/models/workspace.model';
 import { User } from '../../../shared/models/user.model';
 
 @Component({
@@ -228,6 +228,13 @@ import { User } from '../../../shared/models/user.model';
           <div class="field-group">
             <label>Description</label>
             <input class="field-input" type="text" placeholder="What is this workspace for?" formControlName="description" />
+          </div>
+          <div class="field-group">
+            <label for="workspace-starter-kit">Starter kit</label>
+            <select id="workspace-starter-kit" class="field-input" formControlName="starterKit">
+              <option value="">Empty workspace</option>
+              <option *ngFor="let kit of starterKits" [value]="kit.value">{{ kit.label }}</option>
+            </select>
           </div>
           <div class="modal-actions">
             <button class="cancel-btn" type="button" (click)="isCreateOpen = false">Cancel</button>
@@ -1143,7 +1150,9 @@ export default class WorkspaceListComponent implements OnInit {
   isAiLoading = false;
   aiInsightText = 'Start adding projects and tasks to get AI-powered insights about your team productivity.';
 
+  readonly starterKits = WORKSPACE_STARTER_KITS;
   form = this.fb.group({
+    starterKit: [''],
     name: ['', Validators.required],
     description: ['']
   });
@@ -1179,10 +1188,10 @@ export default class WorkspaceListComponent implements OnInit {
   }
 
   create(): void {
-    if (this.form.invalid) return;
+    if (this.form.invalid || this.isCreating) return;
     this.isCreating = true;
-    const { name, description } = this.form.value;
-    this.workspaceService.create({ name: name!, description: description || '' }).subscribe({
+    const { name, description, starterKit } = this.form.value;
+    this.workspaceService.create({ name: name!, description: description || '', starterKit: starterKit || undefined }).subscribe({
       next: ws => {
         this.workspaces = [ws, ...this.workspaces];
         this.selectedWorkspaceId = ws.id;

@@ -1,7 +1,8 @@
 import { TestBed, ComponentFixture } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
+import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { provideHttpClient } from '@angular/common/http';
-import { provideHttpClientTesting } from '@angular/common/http/testing';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { BehaviorSubject, of } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { NavbarComponent } from './navbar.component';
@@ -51,6 +52,7 @@ describe('NavbarComponent', () => {
       imports: [NavbarComponent],
       providers: [
         provideRouter([]),
+        provideNoopAnimations(),
         provideHttpClient(),
         provideHttpClientTesting(),
         { provide: AuthStore, useValue: mockAuthStore },
@@ -92,5 +94,24 @@ describe('NavbarComponent', () => {
     expect(mockAuthStore.clearUser).toHaveBeenCalled();
     expect(mockTokenService.removeToken).toHaveBeenCalled();
     expect(router.navigate).toHaveBeenCalledWith(['/login']);
+  });
+
+  it('submits the starter kit selected in the workspace form once', () => {
+    component.activeCreateModal = 'workspace';
+    component.workspaceForm.patchValue({ name: 'Campus team' });
+    fixture.detectChanges();
+
+    const select = fixture.nativeElement.querySelector('select[formControlName="starterKit"]') as HTMLSelectElement;
+    select.value = 'UNIVERSITY_PROJECT';
+    select.dispatchEvent(new Event('change'));
+    const form = select.closest('form')!;
+    form.dispatchEvent(new Event('submit'));
+    form.dispatchEvent(new Event('submit'));
+
+    const http = TestBed.inject(HttpTestingController);
+    const request = http.expectOne(req => req.method === 'POST' && req.url.endsWith('/workspaces'));
+    expect(request.request.body).toEqual({ name: 'Campus team', description: '', starterKit: 'UNIVERSITY_PROJECT' });
+    request.flush({ id: 'campus', name: 'Campus team' });
+    expect(component.activeCreateModal).toBeNull();
   });
 });
