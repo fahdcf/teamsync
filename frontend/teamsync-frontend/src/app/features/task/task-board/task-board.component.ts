@@ -176,9 +176,9 @@ export default class TaskBoardComponent implements OnInit, OnChanges {
 
     this.taskService.changeStatus(task.id, { status: newStatus }).subscribe({
       next: (updated) => Object.assign(task, updated),
-      error: () => {
+      error: (error) => {
         transferArrayItem(event.container.data, event.previousContainer.data, event.currentIndex, event.previousIndex);
-        alert('Invalid status transition');
+        alert(error?.error?.message || 'Invalid status transition');
       },
     });
   }

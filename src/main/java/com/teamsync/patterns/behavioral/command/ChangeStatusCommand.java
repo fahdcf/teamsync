@@ -25,13 +25,15 @@ public class ChangeStatusCommand implements TaskCommand {
     @Override
     public void execute() {
         previousStatus = task.getStatus();
-        stateMachine.transition(task, newStatus, taskRepository);
+        stateMachine.transition(task, newStatus);
+        taskRepository.save(task);
     }
 
     @Override
     public void undo() {
         Task current = taskRepository.findForUpdate(task.getId()).orElseThrow();
-        stateMachine.undoTransition(current, newStatus, previousStatus, taskRepository);
+        stateMachine.undoTransition(current, newStatus, previousStatus);
+        taskRepository.save(current);
     }
 
     public UUID projectId() { return task.getProject().getId(); }

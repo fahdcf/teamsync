@@ -106,7 +106,7 @@ public class TaskService {
                 .build();
 
         if (request.getStatus() != null && request.getStatus() != TaskStatus.TODO)
-            stateMachine.transition(task, request.getStatus(), taskRepository);
+            stateMachine.transition(task, request.getStatus());
         Task saved = taskRepository.save(task);
         activityLogService.log(permissions.currentUser(), "TASK_CREATED", "TASK", saved.getId());
         return toDTO(saved);
@@ -124,7 +124,7 @@ public class TaskService {
         if (request.getAssigneeId() != null) task.setAssignee(resolveUser(request.getAssigneeId()));
 
         if (request.getStatus() != null && request.getStatus() != task.getStatus())
-            stateMachine.transition(task, request.getStatus(), taskRepository);
+            stateMachine.transition(task, request.getStatus());
         Task saved = taskRepository.save(task);
         activityLogService.log(permissions.currentUser(), "TASK_UPDATED", "TASK", saved.getId());
         return toDTO(saved);

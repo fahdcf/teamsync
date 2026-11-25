@@ -48,6 +48,8 @@ export default class TaskDetailComponent implements OnInit {
   assigneeOptions: User[] = [];
   isLoading = true;
   hasError = false;
+  statusError = '';
+  isChangingStatus = false;
   isEditingTitle = false;
   isEditingDescription = false;
   isAddingSubtask = false;
@@ -203,9 +205,22 @@ export default class TaskDetailComponent implements OnInit {
     }
   }
 
-  onStatusChange(status: TaskStatus): void {
-    if (!this.task || status === this.task.status) return;
-    this.taskService.changeStatus(this.task.id, { status }).subscribe({ next: (task) => (this.task = task) });
+  onStatusChange(status: TaskStatus, select: HTMLSelectElement): void {
+    if (!this.task || status === this.task.status || this.isChangingStatus) return;
+    const previousStatus = this.task.status;
+    this.statusError = '';
+    this.isChangingStatus = true;
+    this.taskService.changeStatus(this.task.id, { status }).subscribe({
+      next: (task) => {
+        this.task = task;
+        this.isChangingStatus = false;
+      },
+      error: (error) => {
+        this.statusError = error?.error?.message || 'Could not change task status';
+        select.value = previousStatus;
+        this.isChangingStatus = false;
+      },
+    });
   }
 
   onPriorityChange(priority: TaskPriority): void {

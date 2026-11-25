@@ -39,7 +39,7 @@ public class SubtaskService {
 
     @PreAuthorize("@permissions.manageTask(#taskId)")
     public SubtaskResponseDTO createSubtask(UUID taskId, SubtaskRequestDTO request) {
-        Task task = findTask(taskId);
+        Task task = lockTask(taskId);
         permissions.validateAssignee(task.getProject(), request.getAssigneeId());
         Subtask subtask = Subtask.builder()
                 .title(request.getTitle())
@@ -52,7 +52,7 @@ public class SubtaskService {
 
     @PreAuthorize("@permissions.workOnTask(#taskId)")
     public SubtaskResponseDTO toggleSubtask(UUID taskId, UUID subtaskId) {
-        findTask(taskId);
+        lockTask(taskId);
         Subtask subtask = findSubtaskForTask(taskId, subtaskId);
         subtask.setCompleted(!subtask.isCompleted());
         return toDTO(subtaskRepository.save(subtask));
@@ -60,7 +60,7 @@ public class SubtaskService {
 
     @PreAuthorize("@permissions.manageTask(#taskId)")
     public SubtaskResponseDTO updateSubtask(UUID taskId, UUID subtaskId, SubtaskRequestDTO request) {
-        findTask(taskId);
+        lockTask(taskId);
         Subtask subtask = findSubtaskForTask(taskId, subtaskId);
         permissions.validateAssignee(subtask.getTask().getProject(), request.getAssigneeId());
         subtask.setTitle(request.getTitle());
@@ -71,13 +71,13 @@ public class SubtaskService {
 
     @PreAuthorize("@permissions.manageTask(#taskId)")
     public void deleteSubtask(UUID taskId, UUID subtaskId) {
-        findTask(taskId);
+        lockTask(taskId);
         Subtask subtask = findSubtaskForTask(taskId, subtaskId);
         subtaskRepository.delete(subtask);
     }
 
-    private Task findTask(UUID taskId) {
-        return taskRepository.findById(taskId)
+    private Task lockTask(UUID taskId) {
+        return taskRepository.findForUpdate(taskId)
                 .orElseThrow(() -> new NoSuchElementException("Task not found: " + taskId));
     }
 

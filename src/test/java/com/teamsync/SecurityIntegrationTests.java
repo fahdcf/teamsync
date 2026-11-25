@@ -22,6 +22,7 @@ import com.teamsync.service.AnalyticsService;
 import com.teamsync.service.CommentService;
 import com.teamsync.service.ProjectService;
 import com.teamsync.service.TaskService;
+import com.teamsync.service.SubtaskService;
 import com.teamsync.service.UserService;
 import com.teamsync.service.WorkspaceService;
 import org.junit.jupiter.api.*;
@@ -49,6 +50,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.*;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.doReturn;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -73,6 +75,7 @@ class SecurityIntegrationTests {
     @Autowired JwtEncoder encoder;
     @Autowired TransactionTemplate transaction;
     @Autowired TaskService taskService;
+    @Autowired SubtaskService subtaskService;
     @Autowired ProjectService projectService;
     @Autowired AnalyticsService analyticsService;
     @Autowired WorkspaceService workspaceService;
@@ -688,6 +691,80 @@ class SecurityIntegrationTests {
         assertThat(projects.count()).isEqualTo(projectCount);
         assertThat(tasks.count()).isEqualTo(taskCount);
         assertThat(activityLogs.count()).isEqualTo(auditCount);
+    }
+
+    @Test void statusAndEditEndpointsEnforceChecklistAndUndoPreservesLaterSubtaskEdits() throws Exception {
+        String subtaskJson = as(manager, body(post(taskPath() + "/subtasks"), Map.of("title", "Verify result")))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        String toggle = taskPath() + "/subtasks/" + json.readTree(subtaskJson).path("id").asText() + "/toggle";
+        as(manager, body(post(projectPath() + "/tasks"), Map.of("title", "Initial review", "status", "IN_REVIEW")))
+                .andExpect(status().isBadRequest());
+        as(member, body(put(taskPath() + "/status"), Map.of("status", "IN_PROGRESS"))).andExpect(status().isOk());
+        as(member, body(put(taskPath() + "/status"), Map.of("status", "IN_REVIEW")))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.message").value("Cannot send task to review: complete all subtasks first"));
+        as(manager, body(put(taskPath()), Map.of("title", "Cannot bypass", "status", "IN_REVIEW")))
+                .andExpect(status().isBadRequest());
+        assertThat(tasks.findById(task.getId()).orElseThrow().getTitle()).isEqualTo(task.getTitle());
+
+        as(member, put(toggle)).andExpect(status().isOk());
+        as(member, body(put(taskPath() + "/status"), Map.of("status", "IN_REVIEW"))).andExpect(status().isOk());
+        as(member, put(toggle)).andExpect(status().isOk());
+        as(member, body(put(taskPath() + "/status"), Map.of("status", "DONE")))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.message").value("Cannot complete task: complete all subtasks first"));
+        as(outsider, body(put(taskPath() + "/status"), Map.of("status", "DONE"))).andExpect(status().isNotFound());
+        as(member, put(toggle)).andExpect(status().isOk());
+        as(member, body(put(taskPath() + "/status"), Map.of("status", "DONE"))).andExpect(status().isOk());
+        as(member, post("/tasks/undo")).andExpect(status().isOk());
+        as(member, get(taskPath())).andExpect(status().isOk()).andExpect(jsonPath("$.status").value("IN_REVIEW"))
+                .andExpect(jsonPath("$.subtasks[0].completed").value(true));
+    }
+
+    @Test void concurrentReviewWaitsForSubtaskEditAndUsesTheCommittedChecklist() throws Exception {
+        String subtaskJson = as(manager, body(post(taskPath() + "/subtasks"), Map.of("title", "Verify result")))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        UUID subtaskId = UUID.fromString(json.readTree(subtaskJson).path("id").asText());
+        as(member, put(taskPath() + "/subtasks/" + subtaskId + "/toggle")).andExpect(status().isOk());
+        as(member, body(put(taskPath() + "/status"), Map.of("status", "IN_PROGRESS"))).andExpect(status().isOk());
+
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        CountDownLatch editStarted = new CountDownLatch(1);
+        CountDownLatch letEditCommit = new CountDownLatch(1);
+        try {
+            Future<?> edit = executor.submit(() -> {
+                SecurityContextHolder.getContext().setAuthentication(
+                        UsernamePasswordAuthenticationToken.authenticated(member.getEmail(), "unused", List.of()));
+                try {
+                    transaction.executeWithoutResult(tx -> {
+                        subtaskService.toggleSubtask(task.getId(), subtaskId);
+                        editStarted.countDown();
+                        try {
+                            if (!letEditCommit.await(10, TimeUnit.SECONDS)) throw new AssertionError("Edit timed out");
+                        } catch (InterruptedException ex) {
+                            Thread.currentThread().interrupt();
+                            throw new AssertionError(ex);
+                        }
+                    });
+                } finally {
+                    SecurityContextHolder.clearContext();
+                }
+            });
+            assertThat(editStarted.await(10, TimeUnit.SECONDS)).isTrue();
+            CompletableFuture<ResultActions> review = CompletableFuture.supplyAsync(() -> {
+                try {
+                    return as(member, body(put(taskPath() + "/status"), Map.of("status", "IN_REVIEW")));
+                } catch (Exception ex) {
+                    throw new CompletionException(ex);
+                }
+            });
+            assertThatThrownBy(() -> review.get(200, TimeUnit.MILLISECONDS)).isInstanceOf(TimeoutException.class);
+            letEditCommit.countDown();
+            edit.get(10, TimeUnit.SECONDS);
+            review.get(10, TimeUnit.SECONDS).andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.message").value("Cannot send task to review: complete all subtasks first"));
+        } finally {
+            letEditCommit.countDown();
+            executor.shutdownNow();
+        }
     }
 
     @ParameterizedTest @ValueSource(strings = {"json", " CSV ", "pDf"})

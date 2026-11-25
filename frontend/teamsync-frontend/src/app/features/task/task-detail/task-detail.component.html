@@ -90,10 +90,11 @@
             <span class="td-dot" [class]="dotClass(task.status)"></span>
             {{ statusLabel(task.status) }}
             <span class="chevron">v</span>
-            <select [disabled]="!task.canChangeStatus" [ngModel]="task.status" (ngModelChange)="onStatusChange($event)">
+            <select #statusSelect [disabled]="!task.canChangeStatus || isChangingStatus" [ngModel]="task.status" (ngModelChange)="onStatusChange($event, statusSelect)">
               <option *ngFor="let s of statuses" [value]="s">{{ statusLabel(s) }}</option>
             </select>
           </div>
+          <p *ngIf="statusError" role="alert">{{ statusError }}</p>
         </div>
 
         <div class="td-meta-item">
