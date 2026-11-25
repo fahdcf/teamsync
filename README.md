@@ -41,9 +41,10 @@ Useful domain patterns remain, but the project does not target a pattern count.
 The authorization proxy/interface, CRUD facade, redundant validation chain,
 discarded report builder and custom event publisher were removed. Spring events
 notify listeners; service audit entries contain actual resource IDs. `/patterns`
-lists Singleton, Prototype, Simple Factory, Observer, Strategy and Command. The
-[current pattern inventory](docs/DESIGN_PATTERNS.md) explains the report export
-factory, synchronous notification events and table-driven task transitions.
+lists Singleton, Prototype, Simple Factory, Observer, Strategy, State, Command
+and Builder. The [current pattern inventory](docs/DESIGN_PATTERNS.md) explains
+workspace starter kits, checklist validation before review and completion, and
+customizable report downloads.
 See [the audit](docs/SECURITY_AUDIT.md) for the
 previous structure, findings, full route matrix and rollout notes.
 

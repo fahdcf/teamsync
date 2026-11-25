@@ -49,6 +49,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Instant;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.*;
 import static org.assertj.core.api.Assertions.*;
@@ -625,7 +626,7 @@ class SecurityIntegrationTests {
         List<JsonNode> catalogue = new ArrayList<>();
         json.readTree(result).forEach(catalogue::add);
         assertThat(catalogue).extracting(entry -> entry.path("name").asText())
-                .containsExactly("Singleton", "Simple Factory", "Prototype", "Observer", "Strategy", "Command");
+                .containsExactly("Singleton", "Simple Factory", "Prototype", "Observer", "Strategy", "State", "Command", "Builder");
         assertThat(catalogue).allSatisfy(entry -> {
             assertThat(entry.has("id") && entry.has("category") && entry.has("package") && entry.has("purpose")).isTrue();
             assertThat(entry.path("keyClasses").isArray()).isTrue();
@@ -765,6 +766,47 @@ class SecurityIntegrationTests {
             letEditCommit.countDown();
             executor.shutdownNow();
         }
+    }
+
+    @Test void customizedReportOnlyIncludesSelectedSectionsAndKeepsLegacyDefault() throws Exception {
+        String path = "/reports/projects/" + project.getId();
+        as(manager, body(put(projectPath()), Map.of("title", "Reviewed project", "progress", 30, "deadline", "2030-01-31")))
+                .andExpect(status().isOk());
+        as(member, get(path).param("sections", "overview,task_stats"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.overview.title").value("Reviewed project"))
+                .andExpect(jsonPath("$.taskStats.totalTasks").value(1))
+                .andExpect(jsonPath("$.progress").doesNotExist()).andExpect(jsonPath("$.recentActivity").doesNotExist());
+        as(member, get(path)).andExpect(status().isOk()).andExpect(jsonPath("$.totalTasks").value(1))
+                .andExpect(jsonPath("$.workloadDistribution").isArray()).andExpect(jsonPath("$.overview").doesNotExist());
+        as(member, get(path).param("sections", "progress,recent_activity"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.progress.percent").value(30))
+                .andExpect(jsonPath("$.progress.deadline").value("2030-01-31"))
+                .andExpect(jsonPath("$.recentActivity[0].action").value("PROJECT_UPDATED"))
+                .andExpect(jsonPath("$.taskStats").doesNotExist());
+        as(outsider, get(path).param("sections", "overview")).andExpect(status().isNotFound());
+        for (String invalid : List.of("", "bad", "overview,")) {
+            as(member, get(path).param("sections", invalid)).andExpect(status().isBadRequest());
+        }
+    }
+
+    @ParameterizedTest @ValueSource(strings = {"csv", "pdf"})
+    void customizedBinaryAndTabularExportsKeepHeadersAndSectionSelection(String format) throws Exception {
+        byte[] bytes = as(member, get("/reports/projects/" + project.getId()).param("format", format)
+                .param("sections", "overview").param("download", "true"))
+                .andExpect(status().isOk()).andExpect(header().string(HttpHeaders.CONTENT_TYPE,
+                        format.equals("pdf") ? "application/pdf" : "text/csv"))
+                .andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"teamsync-project-report-" + project.getId() + "." + format + "\""))
+                .andReturn().getResponse().getContentAsByteArray();
+        String content;
+        if (format.equals("pdf")) {
+            try (var pdf = Loader.loadPDF(bytes)) {
+                content = new PDFTextStripper().getText(pdf);
+            }
+        } else {
+            content = new String(bytes, StandardCharsets.UTF_8);
+        }
+        assertThat(content).contains("overview", "Private project").doesNotContain("taskStats", "recentActivity");
     }
 
     @ParameterizedTest @ValueSource(strings = {"json", " CSV ", "pDf"})

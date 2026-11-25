@@ -22,7 +22,7 @@ import {
 import { forkJoin, of, switchMap } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { AiService } from '../../api/ai.service';
-import { AnalyticsFilters, AnalyticsService, ReportFormat, TeamPerformanceSeries } from '../../api/analytics.service';
+import { AnalyticsFilters, AnalyticsService, ReportFormat, ReportSection, TeamPerformanceSeries } from '../../api/analytics.service';
 import { ProjectService } from '../../api/project.service';
 import { WorkspaceService } from '../../api/workspace.service';
 import { AnalyticsInsight, ProjectStats, TeamPerformance, TeamWorkload } from '../../shared/models/analytics.model';
@@ -107,6 +107,17 @@ export default class AnalyticsComponent implements OnInit {
     { key: 'next30', label: 'Next 30 days' },
   ];
   readonly reportFormats: ReportFormat[] = ['json', 'csv', 'pdf'];
+  readonly reportSections: { key: ReportSection; label: string; selected: boolean }[] = [
+    { key: 'overview', label: 'Project overview', selected: true },
+    { key: 'task_stats', label: 'Task statistics', selected: true },
+    { key: 'progress', label: 'Progress and deadline', selected: true },
+    { key: 'recent_activity', label: 'Recent project activity', selected: true },
+  ];
+  customizeReport = false;
+
+  get canDownloadReport(): boolean {
+    return !!this.selectedProjectId && (!this.customizeReport || this.reportSections.some(section => section.selected));
+  }
 
   sprintChartData: ChartConfiguration<'line'>['data'] = { labels: [], datasets: [] };
   sprintChartOptions: ChartConfiguration<'line'>['options'] = this.lineOptions(40, true);
@@ -324,16 +335,17 @@ export default class AnalyticsComponent implements OnInit {
   }
 
   downloadReport(format: ReportFormat): void {
-    if (!this.selectedProjectId) {
-      this.showToast('Select a project first');
-      return;
-    }
-    this.analyticsService.downloadReport(this.selectedProjectId, format).subscribe({
+    if (!this.canDownloadReport) return;
+    const projectTitle = this.currentProject?.title || 'project';
+    const sections = this.customizeReport
+      ? this.reportSections.filter(section => section.selected).map(section => section.key)
+      : undefined;
+    this.analyticsService.downloadReport(this.selectedProjectId, format, sections).subscribe({
       next: (blob) => {
         const url = URL.createObjectURL(blob);
         const anchor = document.createElement('a');
         anchor.href = url;
-        anchor.download = `teamsync-${this.currentProject?.title || 'project'}-report.${format}`;
+        anchor.download = `teamsync-${projectTitle}-report.${format}`;
         anchor.click();
         URL.revokeObjectURL(url);
         this.showToast(`${format.toUpperCase()} report downloaded`);

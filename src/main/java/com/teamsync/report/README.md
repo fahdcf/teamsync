@@ -1,13 +1,6 @@
-# Report formatting
+# Project report exports
 
-ReportGenerator is a one-method interface implemented by JsonReportGenerator,
-CsvReportGenerator and PdfReportGenerator. Their formatting bodies retain JSON
-pretty printing, CSV quoting and UTF-8, and PDF generation/pagination. The previous
-Template Method hierarchy and identity processData hooks are removed.
-
-ReportExportFactory selects the formatter with its HTTP content type and extension.
-ReportController resolves the requested format before calling ReportService,
-preserving invalid-format handling order. ReportService enforces project access,
-loads analytics and invokes the formatter. The controller uses the same descriptor
-for response metadata. The formatting implementations do not access repositories,
-services or HTTP response objects.
+`ProjectReportBuilder` assembles the requested sections from data retrieved by
+`ReportService` after authorization. The controller selects a formatter and
+applies the matching headers. JSON, CSV and PDF formatters accept the same
+report data. Requests without sections use the original analytics payload.

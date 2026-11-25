@@ -12,6 +12,7 @@ export interface AnalyticsFilters {
 }
 
 export type ReportFormat = 'json' | 'csv' | 'pdf';
+export type ReportSection = 'overview' | 'task_stats' | 'progress' | 'recent_activity';
 
 export interface TeamPerformanceSeries {
   labels: string[];
@@ -47,9 +48,9 @@ export class AnalyticsService {
     });
   }
 
-  downloadReport(projectId: string, format: ReportFormat): Observable<Blob> {
+  downloadReport(projectId: string, format: ReportFormat, sections?: readonly ReportSection[]): Observable<Blob> {
     return this.http.get(`${this.base}/reports/projects/${projectId}`, {
-      params: this.params({ format, download: 'true' }),
+      params: this.params({ format, download: 'true', sections: sections?.join(',') }),
       responseType: 'blob',
     });
   }

@@ -148,12 +148,21 @@
       </div>
 
       <div *ngIf="activeView === 'reports'" class="full-panel">
-        <p>Live report payload for {{ currentProject?.title || 'the selected project' }}.</p>
+        <p>Export a report for {{ currentProject?.title || 'the selected project' }}.</p>
+        <label><input type="checkbox" [(ngModel)]="customizeReport" /> Customize download sections</label>
+        <fieldset *ngIf="customizeReport">
+          <legend>Report sections</legend>
+          <div *ngFor="let section of reportSections">
+            <label><input type="checkbox" [(ngModel)]="section.selected" /> {{ section.label }}</label>
+          </div>
+          <p *ngIf="!canDownloadReport && selectedProjectId">Select at least one section to download.</p>
+        </fieldset>
         <div class="header-actions report-actions">
-          <button *ngFor="let format of reportFormats" type="button" (click)="downloadReport(format)">
+          <button *ngFor="let format of reportFormats" type="button" [disabled]="!canDownloadReport" (click)="downloadReport(format)">
             Download {{ format | uppercase }}
           </button>
         </div>
+        <p>Default report preview</p>
         <pre class="report-preview"><code><ng-container *ngFor="let line of reportLines">{{ line }}
 </ng-container></code></pre>
       </div>
